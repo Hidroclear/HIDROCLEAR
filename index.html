@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIDROCLEAR - Inventario</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --azul: #0a2a5e; --azul-medio: #1a4a9e; --celeste: #00aaff;
+    --blanco: #f5f8ff; --gris: #e8edf5; --texto: #1a1a2e;
+    --texto-suave: #5a6a8a; --verde: #00c97a; --rojo: #ff4455; --amarillo: #ffb800;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--blanco); color: var(--texto); min-height: 100vh; }
+
+  /* LOGIN */
+  .login-overlay { position: fixed; inset: 0; background: var(--azul); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .login-box { background: #fff; border-radius: 16px; padding: 40px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .login-logo { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--azul); letter-spacing: 3px; text-align: center; margin-bottom: 4px; }
+  .login-logo span { color: var(--celeste); }
+  .login-sub { text-align: center; font-size: 12px; color: var(--texto-suave); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 32px; }
+  .login-field { margin-bottom: 16px; }
+  .login-field label { display: block; font-size: 12px; font-weight: 600; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .login-field input { width: 100%; border: 1.5px solid #c5d5ea; border-radius: 8px; padding: 12px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--texto); outline: none; }
+  .btn-login { width: 100%; background: var(--azul); color: #fff; border: none; padding: 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .login-error { background: #fde8ea; border: 1px solid #ffb3b8; border-radius: 8px; padding: 10px 14px; color: #a00; font-size: 13px; margin-top: 12px; display: none; text-align: center; }
+
+  /* HEADER */
+  .header { background: var(--azul); padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--celeste); }
+  .header-logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: #fff; letter-spacing: 3px; }
+  .header-logo span { color: var(--celeste); }
+  .header-sub { font-size: 12px; color: #8aaad0; letter-spacing: 2px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .usuario-info .nombre { font-size: 13px; font-weight: 600; color: #fff; }
+  .usuario-info .rol { font-size: 11px; color: #8aaad0; }
+  .btn-logout { background: transparent; color: #8aaad0; border: 1px solid #3a5a8e; padding: 6px 14px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
+  .btn-logout:hover { background: #ff4455; color: #fff; border-color: #ff4455; }
+
+  /* NAV */
+  .nav-botones { background: #fff; border-bottom: 1px solid var(--gris); padding: 16px 32px; display: flex; gap: 12px; }
+  .btn-nav { padding: 12px 28px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-nav-consulta { background: var(--celeste); color: #fff; }
+  .btn-nav-movimientos { background: var(--verde); color: #fff; }
+
+  /* MAIN */
+  .main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 18px 20px; border-left: 4px solid var(--celeste); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .stat-card .label { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .stat-card .valor { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--azul); }
+  .buscador-wrap { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .buscador-wrap input, .buscador-wrap select { border: 1.5px solid #c5d5ea; border-radius: 8px; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--texto); outline: none; }
+  .buscador-wrap input[type="text"] { flex: 1; min-width: 200px; }
+  .buscador-wrap select { min-width: 160px; }
+  .btn-limpiar { background: var(--gris); color: var(--texto-suave); border: none; padding: 10px 18px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+  .btn-refresh { background: var(--celeste); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-refresh:disabled { background: #5a8aaa; cursor: not-allowed; }
+  .tabla-wrap { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+  .tabla-header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--gris); }
+  .tabla-header h3 { font-size: 15px; font-weight: 600; color: var(--azul); }
+  .tabla-header span { font-size: 12px; color: var(--texto-suave); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: var(--azul); color: #fff; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px; text-align: left; }
+  tbody tr { border-bottom: 1px solid var(--gris); }
+  tbody tr:hover { background: #f0f5ff; }
+  tbody td { padding: 11px 16px; font-size: 13px; }
+  .codigo-cell { font-weight: 600; color: var(--azul-medio); font-size: 12px; }
+  .stock-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .stock-ok { background: #d4f5e7; color: #007a4a; }
+  .stock-bajo { background: #fff3cd; color: #856404; }
+  .stock-cero { background: #fde8ea; color: #a00; }
+  .cat-badge { background: #e8edf5; color: var(--azul); padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  .loading { text-align: center; padding: 40px; color: var(--texto-suave); font-size: 14px; }
+  .error-msg { background: #fde8ea; border: 1px solid #ffb3b8; border-radius: 10px; padding: 16px 20px; color: #a00; font-size: 13px; margin: 20px 0; }
+  .footer { text-align: center; padding: 20px; font-size: 11px; color: #aaa; margin-top: 32px; }
+  .hidden { display: none !important; }
+
+  /* MOVIMIENTOS */
+  .mov-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+  .mov-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+  .mov-card:hover { border-color: var(--celeste); }
+  .mov-card.activo { border-color: var(--azul); background: #f0f5ff; }
+  .mov-card .icon { font-size: 36px; margin-bottom: 10px; }
+  .mov-card .titulo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--azul); }
+  .mov-card .desc { font-size: 12px; color: var(--texto-suave); margin-top: 4px; }
+  .form-movimiento { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .form-movimiento h3 { font-size: 16px; font-weight: 600; color: var(--azul); margin-bottom: 20px; border-bottom: 2px solid var(--gris); padding-bottom: 12px; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 12px; font-weight: 600; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; }
+  .form-field input, .form-field select { border: 1.5px solid #c5d5ea; border-radius: 8px; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--texto); outline: none; background: #fff; }
+  .form-field input[readonly] { background: #f5f8ff; color: var(--texto-suave); }
+  .codigo-search-wrap { position: relative; }
+  .codigo-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1.5px solid var(--celeste); border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,0.12); display: none; }
+  .codigo-dropdown.visible { display: block; }
+  .codigo-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--gris); }
+  .codigo-item:hover { background: #f0f5ff; }
+  .codigo-item .cod { font-weight: 600; color: var(--azul-medio); }
+  .codigo-item .desc-cod { font-size: 11px; color: var(--texto-suave); }
+  .btn-registrar { background: var(--azul); color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 20px; }
+  .btn-registrar:disabled { background: #aaa; cursor: not-allowed; }
+  .success-msg { background: #d4f5e7; border: 1px solid #00c97a; border-radius: 10px; padding: 14px 20px; color: #007a4a; font-size: 14px; margin-top: 16px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">HIDRO<span>CLEAR</span></div>
+    <div class="login-sub">Sistema de Inventario</div>
+    <div class="login-field">
+      <label>Usuario</label>
+      <input type="text" id="loginUsuario" placeholder="Ingrese su usuario" autocomplete="off">
+    </div>
+    <div class="login-field">
+      <label>Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="Ingrese su contraseña" onkeydown="if(event.key==='Enter') iniciarSesion()">
+    </div>
+    <button class="btn-login" onclick="iniciarSesion()">Ingresar</button>
+    <div class="login-error" id="loginError">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
+
+<div id="appContent" class="hidden">
+
+<div class="header">
+  <div>
+    <div class="header-logo">HIDRO<span>CLEAR</span></div>
+    <div class="header-sub">Sistema de Inventario</div>
+  </div>
+  <div class="header-right">
+    <div class="usuario-info">
+      <div class="nombre" id="nombreUsuario"></div>
+      <div class="rol">Sesión activa</div>
+    </div>
+    <button class="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="nav-botones">
+  <button class="btn-nav btn-nav-consulta" onclick="mostrarSeccion('consulta')">📦 Consulta de Inventario</button>
+  <button class="btn-nav btn-nav-movimientos hidden" id="btnMovimientos" onclick="mostrarSeccion('movimientos')">📋 Movimientos</button>
+</div>
+
+<div id="seccionConsulta" class="main">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Total Registros</div>
+      <div class="valor" id="statCodigos">—</div>
+    </div>
+    <div class="stat-card" style="border-left-color: var(--verde)">
+      <div class="label">Con Stock</div>
+      <div class="valor" id="statConStock" style="color: var(--verde)">—</div>
+    </div>
+    <div class="stat-card" style="border-left-color: var(--amarillo)">
+      <div class="label">Total Bodegas</div>
+      <div class="valor" id="statBodegas" style="color: var(--amarillo)">—</div>
+    </div>
+  </div>
+  <div class="buscador-wrap">
+    <input type="text" id="busqueda" placeholder="🔍 Buscar por código o descripción..." oninput="filtrar()">
+    <select id="filtroBodega" onchange="filtrar()"><option value="">Todas las bodegas</option></select>
+    <select id="filtroCategoria" onchange="filtrar()"><option value="">Todas las categorías</option></select>
+    <button class="btn-limpiar" onclick="limpiarFiltros()">✕ Limpiar</button>
+    <button class="btn-refresh" onclick="cargarDatos()" id="btnRefresh">↻ Actualizar</button>
+  </div>
+  <div class="tabla-wrap">
+    <div class="tabla-header">
+      <h3>Inventario</h3>
+      <span id="contadorResultados">—</span>
+    </div>
+    <div id="contenidoTabla"><div class="loading">Cargando datos...</div></div>
+  </div>
+</div>
+
+<div id="seccionMovimientos" class="main hidden">
+  <div class="mov-selector">
+    <div class="mov-card" onclick="seleccionarMovimiento('INGRESO', this)">
+      <div class="icon">📥</div>
+      <div class="titulo">Ingreso</div>
+      <div class="desc">Registrar entrada de mercadería</div>
+    </div>
+    <div class="mov-card" onclick="seleccionarMovimiento('SALIDA', this)">
+      <div class="icon">📤</div>
+      <div class="titulo">Salida</div>
+      <div class="desc">Registrar despacho de mercadería</div>
+    </div>
+    <div class="mov-card" onclick="seleccionarMovimiento('TRASLADO', this)">
+      <div class="icon">🔄</div>
+      <div class="titulo">Traslado</div>
+      <div class="desc">Mover entre ubicaciones</div>
+    </div>
+  </div>
+  <div class="form-movimiento hidden" id="formMovimiento">
+    <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Fecha</label>
+        <input type="date" id="movFecha" readonly>
+      </div>
+      <div class="form-field">
+        <label>Responsable</label>
+        <input type="text" id="movResponsable" readonly>
+      </div>
+      <div class="form-field full">
+        <label>Buscar Código</label>
+        <div class="codigo-search-wrap">
+          <input type="text" id="movCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigo(this.value)" autocomplete="off">
+          <div class="codigo-dropdown" id="codigoDropdown"></div>
+        </div>
+      </div>
+      <div class="form-field full">
+        <label>Código Seleccionado</label>
+        <input type="text" id="movCodigo" readonly placeholder="Se llenará al seleccionar">
+      </div>
+      <div class="form-field full">
+        <label>Descripción</label>
+        <input type="text" id="movDescripcion" readonly placeholder="Se llenará automáticamente">
+      </div>
+      <div class="form-field hidden" id="campoUbicacion">
+        <label>Ubicación</label>
+        <select id="movUbicacion"><option value="">Seleccione...</option></select>
+      </div>
+      <div class="form-field hidden" id="campoUbicacionOrigen">
+        <label>Ubicación Origen</label>
+        <select id="movUbicacionOrigen"><option value="">Seleccione...</option></select>
+      </div>
+      <div class="form-field hidden" id="campoUbicacionDestino">
+        <label>Ubicación Destino</label>
+        <select id="movUbicacionDestino"><option value="">Seleccione...</option></select>
+      </div>
+      <div class="form-field">
+        <label>Cantidad</label>
+        <input type="number" id="movCantidad" placeholder="0" min="1">
+      </div>
+      <div class="form-field hidden" id="campoDespacho">
+        <label>Despacho con</label>
+        <select id="movDespacho">
+          <option value="">Seleccione...</option>
+          <option value="FACTURA">FACTURA</option>
+          <option value="REMISION">REMISION</option>
+          <option value="NOTA ENTREGA">NOTA ENTREGA</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>N° Documento</label>
+        <input type="text" id="movDocumento" placeholder="Número de documento">
+      </div>
+    </div>
+    <button class="btn-registrar" onclick="registrarMovimiento()" id="btnRegistrar">Registrar Movimiento</button>
+    <div class="success-msg" id="successMsg">✅ Movimiento registrado correctamente.</div>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">HIDROCLEAR &copy; 2026 — Sistema de Inventario</div>
+
+<script>
+const SHEET_ID = '18ABHh-28OwyxIKTtehCgjFlbW1PG1B8zLR6sBXYCwJw';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbwmeTk9BSTIDU21gRowC1XtSGjtq-SBMryzyHZCLPyT6jA0tNhZZQRbymyV_O3lKM1w/exec';
+
+const USUARIOS = {
+  'JJIMENEZ': { password: 'J0jimen', nombre: 'JIMMY JIMENEZ', rol: 'admin' },
+  'ABONICHE': { password: '1234',    nombre: 'ADRIAN BONICHE', rol: 'admin' },
+  'KARIAS':   { password: '7019',    nombre: 'KENNER ARIAS', rol: 'admin' },
+  'CONSULTA': { password: 'Consulta', nombre: 'USUARIO CONSULTA', rol: 'consulta' }
+};
+
+let usuarioActivo = null;
+let datosInventario = [];
+let datosFiltrados = [];
+let todosCodigos = [];
+let todasUbicaciones = [];
+let tipoMovimientoActual = '';
+let listasMovimientosCargadas = false;
+
+function iniciarSesion() {
+  const usuario = document.getElementById('loginUsuario').value.trim().toUpperCase();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+  if (USUARIOS[usuario] && USUARIOS[usuario].password === password) {
+    usuarioActivo = { usuario, nombre: USUARIOS[usuario].nombre, rol: USUARIOS[usuario].rol };
+    sessionStorage.setItem('hc_usuario', JSON.stringify(usuarioActivo));
+    errorEl.style.display = 'none';
+    mostrarApp();
+  } else {
+    errorEl.style.display = 'block';
+    document.getElementById('loginPassword').value = '';
+  }
+}
+
+function mostrarApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appContent').classList.remove('hidden');
+  document.getElementById('nombreUsuario').textContent = usuarioActivo.nombre;
+  if (usuarioActivo.rol === 'admin') {
+    document.getElementById('btnMovimientos').classList.remove('hidden');
+    cargarListasMovimientos(); // carga en background mientras el usuario ve el inventario
+  }
+  cargarDatos();
+}
+
+function cerrarSesion() {
+  sessionStorage.removeItem('hc_usuario');
+  usuarioActivo = null;
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('appContent').classList.add('hidden');
+  document.getElementById('loginUsuario').value = '';
+  document.getElementById('loginPassword').value = '';
+}
+
+const sesionGuardada = sessionStorage.getItem('hc_usuario');
+if (sesionGuardada) {
+  usuarioActivo = JSON.parse(sesionGuardada);
+  mostrarApp();
+}
+
+function mostrarSeccion(seccion) {
+  document.getElementById('seccionConsulta').classList.add('hidden');
+  document.getElementById('seccionMovimientos').classList.add('hidden');
+  if (seccion === 'consulta') {
+    document.getElementById('seccionConsulta').classList.remove('hidden');
+  } else {
+    document.getElementById('seccionMovimientos').classList.remove('hidden');
+    // Las listas ya se cargan al login — si por alguna razón no están, reintentar
+    if (!listasMovimientosCargadas) cargarListasMovimientos();
+  }
+}
+
+async function cargarDatos() {
+  const btn = document.getElementById('btnRefresh');
+  btn.disabled = true;
+  btn.textContent = '↻ Cargando...';
+  document.getElementById('contenidoTabla').innerHTML = '<div class="loading">Cargando datos...</div>';
+  datosInventario = [];
+  try {
+    const resp = await fetch(GS_URL + '?tipo=INVENTARIO');
+    if (!resp.ok) throw new Error('Error de red: ' + resp.status);
+    const result = await resp.json();
+    if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
+    datosInventario = result.datos || [];
+    actualizarFiltros();
+    actualizarStats();
+    datosFiltrados = [...datosInventario];
+    renderTabla();
+  } catch (err) {
+    document.getElementById('contenidoTabla').innerHTML = `<div class="error-msg"><strong>Error al cargar:</strong> ${err.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '↻ Actualizar';
+}
+
+function actualizarFiltros() {
+  const bodegas = [...new Set(datosInventario.map(d => d.bodega))].sort();
+  const categorias = [...new Set(datosInventario.map(d => d.categoria))].sort();
+  const selBodega = document.getElementById('filtroBodega');
+  selBodega.innerHTML = '<option value="">Todas las bodegas</option>';
+  bodegas.forEach(b => { if (b) selBodega.innerHTML += `<option value="${b}">${b}</option>`; });
+  const selCat = document.getElementById('filtroCategoria');
+  selCat.innerHTML = '<option value="">Todas las categorías</option>';
+  categorias.forEach(c => { if (c) selCat.innerHTML += `<option value="${c}">${c}</option>`; });
+}
+
+function actualizarStats() {
+  const codigos = new Set(datosInventario.map(d => d.codigo));
+  const conStock = datosInventario.filter(d => d.stock > 0).length;
+  const bodegas = new Set(datosInventario.map(d => d.bodega));
+  document.getElementById('statCodigos').textContent = datosInventario.length;
+  document.getElementById('statConStock').textContent = conStock;
+  document.getElementById('statBodegas').textContent = bodegas.size;
+}
+
+function filtrar() {
+  const busq = document.getElementById('busqueda').value.toLowerCase();
+  const bodega = document.getElementById('filtroBodega').value;
+  const categoria = document.getElementById('filtroCategoria').value;
+  datosFiltrados = datosInventario.filter(d => {
+    const coincideBusq = !busq || d.codigo.toLowerCase().includes(busq) || d.descripcion.toLowerCase().includes(busq);
+    const coincideBodega = !bodega || d.bodega === bodega;
+    const coincideCategoria = !categoria || d.categoria === categoria;
+    return coincideBusq && coincideBodega && coincideCategoria;
+  });
+  renderTabla();
+}
+
+function limpiarFiltros() {
+  document.getElementById('busqueda').value = '';
+  document.getElementById('filtroBodega').value = '';
+  document.getElementById('filtroCategoria').value = '';
+  datosFiltrados = [...datosInventario];
+  renderTabla();
+}
+
+function renderTabla() {
+  const cont = document.getElementById('contenidoTabla');
+  document.getElementById('contadorResultados').textContent = datosFiltrados.length + ' registros';
+  if (datosFiltrados.length === 0) {
+    cont.innerHTML = `<div class="loading">No se encontraron resultados</div>`;
+    return;
+  }
+  let html = `<table><thead><tr><th>Código</th><th>Descripción</th><th>Stock</th><th>Bodega</th><th>Categoría</th></tr></thead><tbody>`;
+  datosFiltrados.forEach(d => {
+    let bc = d.stock > 10 ? 'stock-ok' : d.stock > 0 ? 'stock-bajo' : 'stock-cero';
+    html += `<tr><td><span class="codigo-cell">${d.codigo}</span></td><td>${d.descripcion}</td><td><span class="stock-badge ${bc}">${d.stock}</span></td><td>${d.bodega}</td><td><span class="cat-badge">${d.categoria}</span></td></tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+async function cargarListasMovimientos() {
+  try {
+    const [respCod, respUbic] = await Promise.all([
+      fetch(GS_URL + '?tipo=CODIGOS'),
+      fetch(GS_URL + '?tipo=UBICACIONES')
+    ]);
+    const jsonCod  = await respCod.json();
+    const jsonUbic = await respUbic.json();
+    todosCodigos     = jsonCod.status  === 'ok' ? jsonCod.datos  : [];
+    todasUbicaciones = jsonUbic.status === 'ok' ? jsonUbic.datos : [];
+    llenarSelectUbicaciones();
+    listasMovimientosCargadas = true;
+  } catch (err) {
+    console.error('Error cargando listas:', err);
+    listasMovimientosCargadas = false;
+  }
+}
+
+function llenarSelectUbicaciones() {
+  ['movUbicacion','movUbicacionOrigen','movUbicacionDestino'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
+    todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
+  });
+}
+
+function seleccionarMovimiento(tipo, el) {
+  tipoMovimientoActual = tipo;
+  document.querySelectorAll('.mov-card').forEach(c => c.classList.remove('activo'));
+  el.classList.add('activo');
+  document.getElementById('formMovimiento').classList.remove('hidden');
+  document.getElementById('tituloFormMovimiento').textContent = 'Registro de ' + tipo;
+  document.getElementById('movCodigoBuscar').value = '';
+  document.getElementById('movCodigo').value = '';
+  document.getElementById('movDescripcion').value = '';
+  document.getElementById('movCantidad').value = '';
+  document.getElementById('movDocumento').value = '';
+  document.getElementById('successMsg').style.display = 'none';
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('movFecha').value = hoy;
+  document.getElementById('movResponsable').value = usuarioActivo.nombre;
+  document.getElementById('campoUbicacion').classList.add('hidden');
+  document.getElementById('campoUbicacionOrigen').classList.add('hidden');
+  document.getElementById('campoUbicacionDestino').classList.add('hidden');
+  document.getElementById('campoDespacho').classList.add('hidden');
+  if (tipo === 'INGRESO') {
+    document.getElementById('campoUbicacion').classList.remove('hidden');
+  } else if (tipo === 'SALIDA') {
+    document.getElementById('campoUbicacion').classList.remove('hidden');
+    document.getElementById('campoDespacho').classList.remove('hidden');
+  } else if (tipo === 'TRASLADO') {
+    document.getElementById('campoUbicacionOrigen').classList.remove('hidden');
+    document.getElementById('campoUbicacionDestino').classList.remove('hidden');
+  }
+}
+
+function buscarCodigo(texto) {
+  const dropdown = document.getElementById('codigoDropdown');
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
+  dropdown.innerHTML = resultados.map(c =>
+    `<div class="codigo-item" onclick="seleccionarCodigo('${c.codigo.replace(/'/g,"\\'")}','${c.descripcion.replace(/'/g,"\\'")}')">
+      <div class="cod">${c.codigo}</div>
+      <div class="desc-cod">${c.descripcion}</div>
+    </div>`).join('');
+  dropdown.classList.add('visible');
+}
+
+function seleccionarCodigo(codigo, descripcion) {
+  document.getElementById('movCodigoBuscar').value = codigo + ' - ' + descripcion;
+  document.getElementById('movCodigo').value = codigo;
+  document.getElementById('movDescripcion').value = descripcion;
+  document.getElementById('codigoDropdown').classList.remove('visible');
+  if (tipoMovimientoActual === 'SALIDA' || tipoMovimientoActual === 'TRASLADO') {
+    const ubicacionesConStock = datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega);
+    const selId = tipoMovimientoActual === 'SALIDA' ? 'movUbicacion' : 'movUbicacionOrigen';
+    const sel = document.getElementById(selId);
+    sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
+    if (ubicacionesConStock.length > 0) {
+      ubicacionesConStock.forEach(u => { sel.innerHTML += `<option value="${u}">${u}</option>`; });
+      if (ubicacionesConStock.length === 1) sel.value = ubicacionesConStock[0];
+    } else {
+      todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
+    }
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.codigo-search-wrap')) {
+    document.getElementById('codigoDropdown').classList.remove('visible');
+  }
+});
+
+async function registrarMovimiento() {
+  const codigo = document.getElementById('movCodigo').value;
+  const cantidad = document.getElementById('movCantidad').value;
+  if (!codigo) { alert('Debe seleccionar un código'); return; }
+  if (!cantidad || cantidad <= 0) { alert('Debe ingresar una cantidad válida'); return; }
+  let ubicacion = '', ubicacionDestino = '';
+  if (tipoMovimientoActual === 'INGRESO' || tipoMovimientoActual === 'SALIDA') {
+    ubicacion = document.getElementById('movUbicacion').value;
+    if (!ubicacion) { alert('Debe seleccionar una ubicación'); return; }
+  } else if (tipoMovimientoActual === 'TRASLADO') {
+    ubicacion = document.getElementById('movUbicacionOrigen').value;
+    ubicacionDestino = document.getElementById('movUbicacionDestino').value;
+    if (!ubicacion) { alert('Debe seleccionar ubicación origen'); return; }
+    if (!ubicacionDestino) { alert('Debe seleccionar ubicación destino'); return; }
+  }
+  const btn = document.getElementById('btnRegistrar');
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
+  try {
+    // Fecha: convertir "2026-06-15" a "15/06/2026" para que Apps Script la trate como fecha
+    const fechaRaw = document.getElementById('movFecha').value; // "YYYY-MM-DD"
+    const [yy, mm, dd] = fechaRaw.split('-');
+    const fechaFormateada = `${dd}/${mm}/${yy}`; // "DD/MM/YYYY"
+
+    const datos = {
+      tipo_peticion: 'MOVIMIENTO',
+      tipo: tipoMovimientoActual,
+      fecha: fechaFormateada,
+      codigo,
+      cantidad: parseFloat(cantidad),
+      ubicacion,
+      ubicacion_destino: ubicacionDestino,
+      responsable: document.getElementById('movResponsable').value,
+      documento: String(document.getElementById('movDocumento').value).trim(),
+      despacho: tipoMovimientoActual === 'SALIDA' ? document.getElementById('movDespacho').value : ''
+    };
+    const resp = await fetch(GS_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain' }, 
+      body: JSON.stringify(datos)
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      document.getElementById('successMsg').style.display = 'block';
+      document.getElementById('movCodigoBuscar').value = '';
+      document.getElementById('movCodigo').value = '';
+      document.getElementById('movDescripcion').value = '';
+      document.getElementById('movCantidad').value = '';
+      document.getElementById('movDocumento').value = '';
+    } else { alert('Error: ' + result.mensaje); }
+  } catch (err) { alert('Error al registrar: ' + err.message); }
+  btn.disabled = false;
+  btn.textContent = 'Registrar Movimiento';
+}
+</script>
+</body>
+</html>
