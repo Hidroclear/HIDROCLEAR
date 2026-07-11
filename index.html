@@ -639,21 +639,40 @@ let productosFiltrados = [];
 
 async function inicializarPedidos() {
   document.getElementById('pedidoResponsable').value = usuarioActivo.nombre;
-  document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
-  try {
-    // Siempre recargar para tener categorías frescas
-    const resp = await fetch(GS_URL + '?tipo=CODIGOS&t=' + Date.now());
-    const json = await resp.json();
-    if (json.status !== 'ok') throw new Error(json.mensaje);
-    todosProductosPedido = json.datos || [];
-    // Debug: verificar que llegan categorías
-    const conCategoria = todosProductosPedido.filter(p => p.categoria && p.categoria.trim() !== '').length;
-    console.log('Total productos:', todosProductosPedido.length, '| Con categoría:', conCategoria);
-    if (todosProductosPedido.length > 0) console.log('Primer producto:', JSON.stringify(todosProductosPedido[0]));
+
+  // Usar datosInventario que ya están cargados — tienen código, descripción y categoría
+  if (datosInventario && datosInventario.length > 0) {
+    // Construir lista única de productos por código (sin duplicados de bodega)
+    const seen = new Set();
+    todosProductosPedido = datosInventario
+      .filter(d => {
+        if (seen.has(d.codigo)) return false;
+        seen.add(d.codigo);
+        return true;
+      })
+      .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
     cargarCategoriasPedido();
-    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos (' + conCategoria + ' con categoría)</div>';
-  } catch(err) {
-    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
+  } else {
+    // Si no hay inventario cargado, intentar cargar
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
+    try {
+      const resp = await fetch(GS_URL + '?tipo=INVENTARIO&t=' + Date.now());
+      const json = await resp.json();
+      if (json.status !== 'ok') throw new Error(json.mensaje);
+      const seen2 = new Set();
+      todosProductosPedido = (json.datos || [])
+        .filter(d => {
+          if (seen2.has(d.codigo)) return false;
+          seen2.add(d.codigo);
+          return true;
+        })
+        .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
+      cargarCategoriasPedido();
+      document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
+    } catch(err) {
+      document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
+    }
   }
 }
 
