@@ -916,7 +916,7 @@ function renderPedidosPendientes() {
     const esPendiente = g.estado === 'PENDIENTE';
     const badge = esPendiente
       ? '<span class="badge-pendiente">PENDIENTE</span>'
-      : '<span class="badge-completado">COMPLETADO</span>';
+      : '<span class="badge-completado">ENTREGADA</span>';
     const filasJson = JSON.stringify(g.filas).replace(/"/g, '&quot;');
     const items = g.items.map((item, i) => `
       <div class="pedido-item-row">
@@ -938,7 +938,7 @@ function renderPedidosPendientes() {
           </div>
           <div class="pedido-card-actions">
             <button class="btn-imprimir-pedido" onclick="imprimirPedidoBodega('${g.fecha}','${g.responsable}','${g.orden}',${idx})">🖨️ Imprimir</button>
-            ${esPendiente ? `<button class="btn-completar-pedido" onclick="completarPedido('${filasJson}',${idx})">✅ Marcar Listo</button>` : ''}
+            ${esPendiente ? `<button class="btn-completar-pedido" onclick="completarPedido('${filasJson}',${idx})">✅ Marcar Entregada</button>` : ''}
           </div>
         </div>
         <div class="pedido-card-items">${items}</div>
@@ -949,7 +949,7 @@ function renderPedidosPendientes() {
 
 async function completarPedido(filasJson, idx) {
   const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
-  if (!confirm('¿Marcar este pedido como completado?')) return;
+  // Sin confirmación — acción directa
 
   try {
     for (const fila of filas) {
