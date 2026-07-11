@@ -646,8 +646,12 @@ async function inicializarPedidos() {
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.mensaje);
     todosProductosPedido = json.datos || [];
+    // Debug: verificar que llegan categorías
+    const conCategoria = todosProductosPedido.filter(p => p.categoria && p.categoria.trim() !== '').length;
+    console.log('Total productos:', todosProductosPedido.length, '| Con categoría:', conCategoria);
+    if (todosProductosPedido.length > 0) console.log('Primer producto:', JSON.stringify(todosProductosPedido[0]));
     cargarCategoriasPedido();
-    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos (' + conCategoria + ' con categoría)</div>';
   } catch(err) {
     document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
   }
