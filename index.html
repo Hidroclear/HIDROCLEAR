@@ -142,7 +142,9 @@
   @media print {
     body * { visibility: hidden; }
     #printArea, #printArea * { visibility: visible; }
+    #printAreaBodega, #printAreaBodega * { visibility: visible; }
     #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
+    #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .btn-imprimir:hover { background: #0a3d6b; }
@@ -967,21 +969,21 @@ async function completarPedido(filasJson, idx) {
 }
 
 function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
-  const grupos = {};
-  todosPedidos.forEach(p => {
-    const key = p.fecha + '|' + p.responsable + '|' + p.orden;
-    if (!grupos[key]) grupos[key] = { fecha: p.fecha, responsable: p.responsable, orden: p.orden, items: [] };
-    grupos[key].items.push(p);
-  });
-  const key = fecha + '|' + tecnico + '|' + cliente;
-  const g = grupos[key];
-  if (!g) return;
+  // Obtener items de este grupo desde todosPedidos
+  const items = todosPedidos.filter(p => 
+    p.fecha === fecha && p.responsable === tecnico && p.orden === cliente
+  );
+  if (!items || items.length === 0) {
+    alert('No se encontraron items para imprimir.');
+    return;
+  }
+  const consecutivo = items[0].consecutivo || '';
 
-  document.getElementById('printBodegaFecha').textContent = (g.consecutivo ? g.consecutivo + ' — ' : '') + g.fecha;
-  document.getElementById('printBodegaTecnico').textContent = g.responsable;
-  document.getElementById('printBodegaCliente').textContent = g.orden;
+  document.getElementById('printBodegaFecha').textContent = (consecutivo ? consecutivo + ' — ' : '') + fecha;
+  document.getElementById('printBodegaTecnico').textContent = tecnico;
+  document.getElementById('printBodegaCliente').textContent = cliente;
   document.getElementById('printBodegaFooter').textContent = new Date().toLocaleDateString('es-CR');
-  document.getElementById('printBodegaItems').innerHTML = g.items.map((item, i) => `
+  document.getElementById('printBodegaItems').innerHTML = items.map((item, i) => `
     <tr>
       <td>${i+1}</td>
       <td><strong>${item.codigo}</strong></td>
