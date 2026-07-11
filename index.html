@@ -163,6 +163,34 @@
   .print-firma-linea { border-top: 1.5px solid #333; padding-top: 8px; font-size: 12px; color: #555; }
   .print-footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
 
+
+  /* PEDIDOS PENDIENTES */
+  .pendientes-wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .pendientes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .pendientes-titulo { font-size: 20px; font-weight: 700; color: var(--azul); }
+  .btn-recargar { background: var(--azul); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .pedido-card { background: #fff; border: 1.5px solid #e0eaf5; border-radius: 12px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .pedido-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #f5f9ff; border-bottom: 1px solid #e0eaf5; flex-wrap: wrap; gap: 8px; }
+  .pedido-card-info { display: flex; gap: 20px; flex-wrap: wrap; }
+  .pedido-card-dato { font-size: 13px; color: #555; }
+  .pedido-card-dato strong { color: var(--azul); }
+  .pedido-card-actions { display: flex; gap: 8px; }
+  .btn-imprimir-pedido { background: var(--azul); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-completar-pedido { background: #27ae60; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-imprimir-pedido:hover { background: #0a3d6b; }
+  .btn-completar-pedido:hover { background: #1e8449; }
+  .pedido-card-items { padding: 0; }
+  .pedido-item-row { display: grid; grid-template-columns: 120px 1fr 80px; gap: 12px; padding: 10px 20px; border-bottom: 1px solid #f0f4fa; font-size: 13px; align-items: center; }
+  .pedido-item-row:last-child { border-bottom: none; }
+  .pedido-item-row:hover { background: #f9fbff; }
+  .pedido-item-cod { font-weight: 700; color: var(--azul); }
+  .pedido-item-cant { text-align: center; font-weight: 700; background: #e8f0fe; color: var(--azul); padding: 3px 8px; border-radius: 6px; }
+  .badge-pendiente { background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-completado { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .no-pendientes { text-align: center; color: #aaa; padding: 40px; font-size: 14px; }
+  .filtro-pendientes { display: flex; gap: 10px; margin-bottom: 16px; }
+  .filtro-pendientes select { padding: 8px 14px; border: 1.5px solid #c5d5ea; border-radius: 8px; font-size: 13px; }
+
 </style>
 </head>
 <body>
@@ -204,6 +232,7 @@
   <button class="btn-nav btn-nav-consulta" onclick="mostrarSeccion('consulta')">📦 Consulta de Inventario</button>
   <button class="btn-nav btn-nav-movimientos hidden" id="btnMovimientos" onclick="mostrarSeccion('movimientos')">📋 Movimientos</button>
   <button class="btn-nav btn-nav-pedidos hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos')">🛒 Solicitud de Materiales</button>
+  <button class="btn-nav hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes')" style="background:var(--rojo)">📬 Pedidos Pendientes</button>
 </div>
 
 <div id="seccionConsulta" class="main">
@@ -329,7 +358,8 @@ const USUARIOS = {
   'ABONICHE': { password: '1234',    nombre: 'ADRIAN BONICHE', rol: 'admin' },
   'KARIAS':   { password: '7019',    nombre: 'KENNER ARIAS', rol: 'admin' },
   'CONSULTA': { password: 'Consulta', nombre: 'USUARIO CONSULTA', rol: 'consulta' },
-  'TECNICO':  { password: 'Tec2026',  nombre: 'TECNICO',          rol: 'tecnico' }
+  'TECNICO':  { password: 'Tec2026',  nombre: 'TECNICO',          rol: 'tecnico' },
+  'BODEGA':   { password: 'Bod2026',  nombre: 'BODEGA',            rol: 'bodega' }
 };
 
 let usuarioActivo = null;
@@ -366,6 +396,9 @@ function mostrarApp() {
   if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'tecnico') {
     document.getElementById('btnPedidos').classList.remove('hidden');
   }
+  if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'bodega') {
+    document.getElementById('btnPendientes').classList.remove('hidden');
+  }
   cargarDatos();
 }
 
@@ -388,6 +421,7 @@ function mostrarSeccion(seccion) {
   document.getElementById('seccionConsulta').classList.add('hidden');
   document.getElementById('seccionMovimientos').classList.add('hidden');
   document.getElementById('seccionPedidos').classList.add('hidden');
+  document.getElementById('seccionPendientes').classList.add('hidden');
   if (seccion === 'consulta') {
     document.getElementById('seccionConsulta').classList.remove('hidden');
   } else if (seccion === 'movimientos') {
@@ -396,6 +430,9 @@ function mostrarSeccion(seccion) {
   } else if (seccion === 'pedidos') {
     document.getElementById('seccionPedidos').classList.remove('hidden');
     inicializarPedidos();
+  } else if (seccion === 'pendientes') {
+    document.getElementById('seccionPendientes').classList.remove('hidden');
+    cargarPedidosPendientes();
   }
 }
 
@@ -825,6 +862,138 @@ function mostrarMsgPedido(texto, tipo) {
   setTimeout(() => { msg.style.display = 'none'; }, 5000);
 }
 
+
+// ═══════════════════════════════════════
+// MÓDULO PEDIDOS PENDIENTES (BODEGA/ADMIN)
+// ═══════════════════════════════════════
+
+let todosPedidos = [];
+
+async function cargarPedidosPendientes() {
+  document.getElementById('listaPendientes').innerHTML = '<div class="no-pendientes">Cargando pedidos...</div>';
+  try {
+    const resp = await fetch(GS_URL + '?tipo=PEDIDOS&t=' + Date.now());
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.mensaje);
+    todosPedidos = json.datos || [];
+    renderPedidosPendientes();
+  } catch(err) {
+    document.getElementById('listaPendientes').innerHTML = '<div class="no-pendientes">Error al cargar pedidos.</div>';
+  }
+}
+
+function renderPedidosPendientes() {
+  const filtro = document.getElementById('filtroPendientes').value;
+  const lista = document.getElementById('listaPendientes');
+
+  // Agrupar por orden+responsable+fecha
+  const grupos = {};
+  todosPedidos.forEach(p => {
+    const key = p.fecha + '|' + p.responsable + '|' + p.orden;
+    if (!grupos[key]) grupos[key] = { fecha: p.fecha, responsable: p.responsable, orden: p.orden, items: [], filas: [], estado: p.estado };
+    grupos[key].items.push(p);
+    grupos[key].filas.push(p.fila);
+    // Si alguno está pendiente, el grupo es pendiente
+    if (p.estado === 'PENDIENTE') grupos[key].estado = 'PENDIENTE';
+  });
+
+  const keys = Object.keys(grupos).filter(k => {
+    if (filtro === 'PENDIENTE') return grupos[k].estado === 'PENDIENTE';
+    if (filtro === 'COMPLETADO') return grupos[k].estado !== 'PENDIENTE';
+    return true;
+  });
+
+  if (keys.length === 0) {
+    lista.innerHTML = '<div class="no-pendientes">No hay pedidos ' + (filtro === 'PENDIENTE' ? 'pendientes' : '') + '</div>';
+    return;
+  }
+
+  lista.innerHTML = keys.map((k, idx) => {
+    const g = grupos[k];
+    const esPendiente = g.estado === 'PENDIENTE';
+    const badge = esPendiente
+      ? '<span class="badge-pendiente">PENDIENTE</span>'
+      : '<span class="badge-completado">COMPLETADO</span>';
+    const filasJson = JSON.stringify(g.filas).replace(/"/g, '&quot;');
+    const items = g.items.map((item, i) => `
+      <div class="pedido-item-row">
+        <span class="pedido-item-cod">${item.codigo}</span>
+        <span>${item.descripcion}</span>
+        <span class="pedido-item-cant">x${item.cantidad}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="pedido-card" id="pedidoCard_${idx}">
+        <div class="pedido-card-header">
+          <div class="pedido-card-info">
+            <div class="pedido-card-dato"><strong>Fecha:</strong> ${g.fecha}</div>
+            <div class="pedido-card-dato"><strong>Técnico:</strong> ${g.responsable}</div>
+            <div class="pedido-card-dato"><strong>Cliente:</strong> ${g.orden}</div>
+            <div class="pedido-card-dato">${badge}</div>
+          </div>
+          <div class="pedido-card-actions">
+            <button class="btn-imprimir-pedido" onclick="imprimirPedidoBodega('${g.fecha}','${g.responsable}','${g.orden}',${idx})">🖨️ Imprimir</button>
+            ${esPendiente ? `<button class="btn-completar-pedido" onclick="completarPedido('${filasJson}',${idx})">✅ Marcar Listo</button>` : ''}
+          </div>
+        </div>
+        <div class="pedido-card-items">${items}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function completarPedido(filasJson, idx) {
+  const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
+  if (!confirm('¿Marcar este pedido como completado?')) return;
+
+  try {
+    for (const fila of filas) {
+      await fetch(GS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ tipo_peticion: 'MARCAR_PEDIDO_LISTO', fila })
+      });
+    }
+    // Actualizar estado local
+    const key = todosPedidos.find(p => filas.includes(p.fila));
+    todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'COMPLETADO'; });
+    renderPedidosPendientes();
+  } catch(err) {
+    alert('Error al marcar como completado.');
+  }
+}
+
+function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
+  const grupos = {};
+  todosPedidos.forEach(p => {
+    const key = p.fecha + '|' + p.responsable + '|' + p.orden;
+    if (!grupos[key]) grupos[key] = { fecha: p.fecha, responsable: p.responsable, orden: p.orden, items: [] };
+    grupos[key].items.push(p);
+  });
+  const key = fecha + '|' + tecnico + '|' + cliente;
+  const g = grupos[key];
+  if (!g) return;
+
+  document.getElementById('printBodegaFecha').textContent = g.fecha;
+  document.getElementById('printBodegaTecnico').textContent = g.responsable;
+  document.getElementById('printBodegaCliente').textContent = g.orden;
+  document.getElementById('printBodegaFooter').textContent = new Date().toLocaleDateString('es-CR');
+  document.getElementById('printBodegaItems').innerHTML = g.items.map((item, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${item.codigo}</strong></td>
+      <td>${item.descripcion}</td>
+      <td><strong>${item.cantidad}</strong></td>
+      <td style="width:40px;text-align:center">□</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('printAreaBodega').style.display = 'block';
+  window.print();
+  document.getElementById('printAreaBodega').style.display = 'none';
+}
+
 </script>
 
 <!-- SECCIÓN PEDIDOS -->
@@ -873,6 +1042,48 @@ function mostrarMsgPedido(texto, tipo) {
       <div class="print-footer">HidroClear — Solicitud generada el <span id="printFechaFooter"></span></div>
     </div>
   </div>
+</div>
+
+
+<!-- SECCIÓN PEDIDOS PENDIENTES -->
+<div id="seccionPendientes" class="hidden">
+  <div class="pendientes-wrap">
+    <div class="pendientes-header">
+      <div class="pendientes-titulo">📬 Pedidos Pendientes</div>
+      <button class="btn-recargar" onclick="cargarPedidosPendientes()">↻ Actualizar</button>
+    </div>
+    <div class="filtro-pendientes">
+      <select id="filtroPendientes" onchange="renderPedidosPendientes()">
+        <option value="PENDIENTE">Solo Pendientes</option>
+        <option value="TODOS">Todos</option>
+        <option value="COMPLETADO">Completados</option>
+      </select>
+    </div>
+    <div id="listaPendientes">
+      <div class="no-pendientes">Cargando pedidos...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ÁREA IMPRESIÓN PEDIDO BODEGA -->
+<div id="printAreaBodega" style="display:none">
+  <div class="print-header">
+    <div class="print-logo">HIDRO<span>CLEAR</span></div>
+    <div class="print-titulo">SOLICITUD DE MATERIALES<br><span id="printBodegaFecha" style="font-size:12px;font-weight:400"></span></div>
+  </div>
+  <div class="print-datos">
+    <div class="print-dato"><strong>Técnico / Solicitante</strong><span id="printBodegaTecnico"></span></div>
+    <div class="print-dato"><strong>Cliente</strong><span id="printBodegaCliente"></span></div>
+  </div>
+  <table class="print-tabla">
+    <thead><tr><th>#</th><th>Código</th><th>Descripción</th><th>Cantidad</th><th>✓</th></tr></thead>
+    <tbody id="printBodegaItems"></tbody>
+  </table>
+  <div class="print-firmas">
+    <div class="print-firma"><div class="print-firma-linea">Firma del Solicitante</div></div>
+    <div class="print-firma"><div class="print-firma-linea">Firma del Responsable de Bodega</div></div>
+  </div>
+  <div class="print-footer">HidroClear — Solicitud generada el <span id="printBodegaFooter"></span></div>
 </div>
 
 </body>
