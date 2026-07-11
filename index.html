@@ -640,11 +640,14 @@ let productosFiltrados = [];
 async function inicializarPedidos() {
   document.getElementById('pedidoResponsable').value = usuarioActivo.nombre;
 
-  // Usar datosInventario que ya están cargados — tienen código, descripción y categoría
-  if (datosInventario && datosInventario.length > 0) {
-    // Construir lista única de productos por código (sin duplicados de bodega)
+  document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
+  try {
+    const resp = await fetch(GS_URL + '?tipo=INVENTARIO&t=' + Date.now());
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.mensaje);
+    // Deduplicar por código y extraer categoría
     const seen = new Set();
-    todosProductosPedido = datosInventario
+    todosProductosPedido = (json.datos || [])
       .filter(d => {
         if (seen.has(d.codigo)) return false;
         seen.add(d.codigo);
@@ -653,26 +656,8 @@ async function inicializarPedidos() {
       .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
     cargarCategoriasPedido();
     document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
-  } else {
-    // Si no hay inventario cargado, intentar cargar
-    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
-    try {
-      const resp = await fetch(GS_URL + '?tipo=INVENTARIO&t=' + Date.now());
-      const json = await resp.json();
-      if (json.status !== 'ok') throw new Error(json.mensaje);
-      const seen2 = new Set();
-      todosProductosPedido = (json.datos || [])
-        .filter(d => {
-          if (seen2.has(d.codigo)) return false;
-          seen2.add(d.codigo);
-          return true;
-        })
-        .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
-      cargarCategoriasPedido();
-      document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
-    } catch(err) {
-      document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
-    }
+  } catch(err) {
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
   }
 }
 
@@ -788,7 +773,7 @@ async function enviarPedido() {
   try {
     const resp = await fetch(GS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ tipo_peticion: 'PEDIDO', fecha, responsable, orden: cliente, items: carritoPedido })
     });
     const result = await resp.json();
