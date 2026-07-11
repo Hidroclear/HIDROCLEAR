@@ -137,6 +137,32 @@
   .msg-pedido.error { background: #fde8ea; border: 1px solid #ffb3b8; color: #a00; }
   .no-productos { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
 
+
+  /* IMPRESIÓN SOLICITUD */
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
+  }
+  .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .btn-imprimir:hover { background: #0a3d6b; }
+  #printArea { display: none; }
+  .print-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #0a2a5e; padding-bottom: 12px; margin-bottom: 16px; }
+  .print-logo { font-size: 28px; font-weight: 900; color: #0a2a5e; letter-spacing: 1px; }
+  .print-logo span { color: #00aaff; }
+  .print-titulo { font-size: 16px; font-weight: 700; color: #0a2a5e; text-align: right; }
+  .print-datos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; font-size: 13px; }
+  .print-dato { background: #f5f9ff; padding: 8px 12px; border-radius: 6px; }
+  .print-dato strong { display: block; color: #0a2a5e; font-size: 11px; text-transform: uppercase; }
+  .print-tabla { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  .print-tabla th { background: #0a2a5e; color: #fff; padding: 8px 12px; text-align: left; }
+  .print-tabla td { padding: 8px 12px; border-bottom: 1px solid #e0eaf5; }
+  .print-tabla tr:nth-child(even) td { background: #f5f9ff; }
+  .print-firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
+  .print-firma { text-align: center; }
+  .print-firma-linea { border-top: 1.5px solid #333; padding-top: 8px; font-size: 12px; color: #555; }
+  .print-footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+
 </style>
 </head>
 <body>
@@ -613,17 +639,15 @@ let productosFiltrados = [];
 
 async function inicializarPedidos() {
   document.getElementById('pedidoResponsable').value = usuarioActivo.nombre;
-  if (todosProductosPedido.length > 0) {
-    cargarCategoriasPedido();
-    return;
-  }
   document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
   try {
-    const resp = await fetch(GS_URL + '?tipo=CODIGOS');
+    // Siempre recargar para tener categorías frescas
+    const resp = await fetch(GS_URL + '?tipo=CODIGOS&t=' + Date.now());
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.mensaje);
     todosProductosPedido = json.datos || [];
     cargarCategoriasPedido();
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
   } catch(err) {
     document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
   }
@@ -726,12 +750,14 @@ function renderCarrito() {
   `).join('');
 }
 
+let ultimoPedido = null; // guardar para imprimir
+
 async function enviarPedido() {
   const responsable = document.getElementById('pedidoResponsable').value.trim();
-  const orden = document.getElementById('pedidoOrden').value.trim();
+  const cliente = document.getElementById('pedidoOrden').value.trim();
   const btn = document.getElementById('btnEnviarPedido');
   if (carritoPedido.length === 0) { mostrarMsgPedido('Debe agregar al menos un artículo al pedido.', 'error'); return; }
-  if (!orden) { document.getElementById('pedidoOrden').focus(); mostrarMsgPedido('Debe ingresar el número de orden de trabajo.', 'error'); return; }
+  if (!cliente) { document.getElementById('pedidoOrden').focus(); mostrarMsgPedido('Debe ingresar el nombre del cliente.', 'error'); return; }
   btn.disabled = true;
   btn.textContent = 'Enviando...';
   const hoy = new Date();
@@ -740,11 +766,14 @@ async function enviarPedido() {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo_peticion: 'PEDIDO', fecha, responsable, orden, items: carritoPedido })
+      body: JSON.stringify({ tipo_peticion: 'PEDIDO', fecha, responsable, orden: cliente, items: carritoPedido })
     });
     const result = await resp.json();
     if (result.status === 'ok') {
-      mostrarMsgPedido('✅ Pedido enviado correctamente. N° Orden: ' + orden, 'ok');
+      mostrarMsgPedido('✅ Solicitud enviada correctamente para: ' + cliente, 'ok');
+      // Guardar datos para imprimir
+      ultimoPedido = { responsable, cliente, fecha, items: [...carritoPedido] };
+      document.getElementById('btnImprimir').classList.remove('hidden');
       carritoPedido = [];
       renderCarrito();
       document.getElementById('pedidoOrden').value = '';
@@ -756,6 +785,28 @@ async function enviarPedido() {
   }
   btn.disabled = false;
   btn.textContent = '✅ Enviar Pedido';
+}
+
+function imprimirSolicitud() {
+  if (!ultimoPedido) return;
+  const hoy = new Date().toLocaleDateString('es-CR');
+  document.getElementById('printFecha').textContent = ultimoPedido.fecha;
+  document.getElementById('printTecnico').textContent = ultimoPedido.responsable;
+  document.getElementById('printCliente').textContent = ultimoPedido.cliente;
+  document.getElementById('printFechaFooter').textContent = hoy;
+  const tbody = document.getElementById('printItems');
+  tbody.innerHTML = ultimoPedido.items.map((item, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${item.codigo}</strong></td>
+      <td>${item.descripcion}</td>
+      <td>${item.categoria || ''}</td>
+      <td><strong>${item.cantidad}</strong></td>
+    </tr>
+  `).join('');
+  document.getElementById('printArea').style.display = 'block';
+  window.print();
+  document.getElementById('printArea').style.display = 'none';
 }
 
 function mostrarMsgPedido(texto, tipo) {
@@ -790,7 +841,29 @@ function mostrarMsgPedido(texto, tipo) {
       <div class="carrito-empty">No hay artículos agregados</div>
     </div>
     <button class="btn-enviar-pedido" onclick="enviarPedido()" id="btnEnviarPedido">✅ Enviar Pedido</button>
+    <button class="btn-imprimir hidden" onclick="imprimirSolicitud()" id="btnImprimir">🖨️ Imprimir Solicitud</button>
     <div class="msg-pedido" id="msgPedido"></div>
+
+    <!-- ÁREA DE IMPRESIÓN -->
+    <div id="printArea">
+      <div class="print-header">
+        <div class="print-logo">HIDRO<span>CLEAR</span></div>
+        <div class="print-titulo">SOLICITUD DE MATERIALES<br><span id="printFecha" style="font-size:12px;font-weight:400"></span></div>
+      </div>
+      <div class="print-datos">
+        <div class="print-dato"><strong>Técnico / Solicitante</strong><span id="printTecnico"></span></div>
+        <div class="print-dato"><strong>Cliente</strong><span id="printCliente"></span></div>
+      </div>
+      <table class="print-tabla">
+        <thead><tr><th>#</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Cantidad</th></tr></thead>
+        <tbody id="printItems"></tbody>
+      </table>
+      <div class="print-firmas">
+        <div class="print-firma"><div class="print-firma-linea">Firma del Solicitante</div></div>
+        <div class="print-firma"><div class="print-firma-linea">Firma del Responsable de Bodega</div></div>
+      </div>
+      <div class="print-footer">HidroClear — Solicitud generada el <span id="printFechaFooter"></span></div>
+    </div>
   </div>
 </div>
 
