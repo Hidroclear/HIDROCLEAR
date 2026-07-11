@@ -102,6 +102,41 @@
   .btn-registrar { background: var(--azul); color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 20px; }
   .btn-registrar:disabled { background: #aaa; cursor: not-allowed; }
   .success-msg { background: #d4f5e7; border: 1px solid #00c97a; border-radius: 10px; padding: 14px 20px; color: #007a4a; font-size: 14px; margin-top: 16px; display: none; }
+
+  /* PEDIDOS */
+  .pedidos-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+  .pedidos-header { font-size: 20px; font-weight: 700; color: var(--azul); margin-bottom: 20px; }
+  .pedidos-filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .pedidos-filtros select, .pedidos-filtros input { padding: 10px 14px; border: 1.5px solid #c5d5ea; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--texto); outline: none; width: 100%; }
+  .pedidos-filtros select:focus, .pedidos-filtros input:focus { border-color: var(--azul); }
+  .productos-lista { max-height: 340px; overflow-y: auto; border: 1.5px solid #e0eaf5; border-radius: 10px; margin-bottom: 16px; }
+  .producto-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #f0f4fa; gap: 10px; }
+  .producto-item:last-child { border-bottom: none; }
+  .producto-item:hover { background: #f5f9ff; }
+  .producto-info { flex: 1; }
+  .producto-codigo { font-size: 12px; font-weight: 700; color: var(--azul); }
+  .producto-desc { font-size: 13px; color: var(--texto); }
+  .producto-cant { display: flex; align-items: center; gap: 8px; }
+  .producto-cant input { width: 70px; padding: 6px 10px; border: 1.5px solid #c5d5ea; border-radius: 6px; font-size: 14px; text-align: center; }
+  .btn-agregar-prod { background: var(--azul); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-agregar-prod:hover { background: #0a3d6b; }
+  .carrito-titulo { font-size: 15px; font-weight: 700; color: var(--azul); margin-bottom: 10px; margin-top: 4px; }
+  .carrito-lista { border: 1.5px solid #e0eaf5; border-radius: 10px; min-height: 60px; max-height: 220px; overflow-y: auto; margin-bottom: 14px; }
+  .carrito-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; border-bottom: 1px solid #f0f4fa; font-size: 13px; gap: 8px; }
+  .carrito-item:last-child { border-bottom: none; }
+  .carrito-empty { text-align: center; color: #aaa; padding: 20px; font-size: 13px; }
+  .btn-quitar { background: #fde8ea; color: #a00; border: none; border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  .pedido-datos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .pedido-datos input { padding: 10px 14px; border: 1.5px solid #c5d5ea; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--texto); outline: none; width: 100%; }
+  .pedido-datos input:focus { border-color: var(--azul); }
+  .btn-enviar-pedido { width: 100%; background: var(--verde, #27ae60); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+  .btn-enviar-pedido:hover { background: #1e8449; }
+  .btn-enviar-pedido:disabled { background: #aaa; cursor: not-allowed; }
+  .msg-pedido { padding: 12px 16px; border-radius: 8px; margin-top: 12px; font-size: 14px; display: none; }
+  .msg-pedido.ok { background: #e8f8f0; border: 1px solid #7dcea0; color: #1a7a45; }
+  .msg-pedido.error { background: #fde8ea; border: 1px solid #ffb3b8; color: #a00; }
+  .no-productos { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
+
 </style>
 </head>
 <body>
@@ -142,6 +177,7 @@
 <div class="nav-botones">
   <button class="btn-nav btn-nav-consulta" onclick="mostrarSeccion('consulta')">📦 Consulta de Inventario</button>
   <button class="btn-nav btn-nav-movimientos hidden" id="btnMovimientos" onclick="mostrarSeccion('movimientos')">📋 Movimientos</button>
+  <button class="btn-nav btn-nav-pedidos hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos')">🛒 Pedidos</button>
 </div>
 
 <div id="seccionConsulta" class="main">
@@ -240,8 +276,8 @@
         <select id="movDespacho">
           <option value="">Seleccione...</option>
           <option value="FACTURA">FACTURA</option>
-          <option value="BOLETA SALIDA">BOLETA SALIDA</option>
-          <option value="COTIZACION">COTIZACION</option>
+          <option value="REMISION">REMISION</option>
+          <option value="NOTA ENTREGA">NOTA ENTREGA</option>
         </select>
       </div>
       <div class="form-field">
@@ -266,7 +302,8 @@ const USUARIOS = {
   'JJIMENEZ': { password: 'J0jimen', nombre: 'JIMMY JIMENEZ', rol: 'admin' },
   'ABONICHE': { password: '1234',    nombre: 'ADRIAN BONICHE', rol: 'admin' },
   'KARIAS':   { password: '7019',    nombre: 'KENNER ARIAS', rol: 'admin' },
-  'CONSULTA': { password: 'Consulta', nombre: 'USUARIO CONSULTA', rol: 'consulta' }
+  'CONSULTA': { password: 'Consulta', nombre: 'USUARIO CONSULTA', rol: 'consulta' },
+  'TECNICO':  { password: 'Tec2026',  nombre: 'TECNICO',          rol: 'tecnico' }
 };
 
 let usuarioActivo = null;
@@ -298,7 +335,6 @@ function mostrarApp() {
   document.getElementById('nombreUsuario').textContent = usuarioActivo.nombre;
   if (usuarioActivo.rol === 'admin') {
     document.getElementById('btnMovimientos').classList.remove('hidden');
-    cargarListasMovimientos(); // carga en background mientras el usuario ve el inventario
   }
   cargarDatos();
 }
@@ -325,8 +361,10 @@ function mostrarSeccion(seccion) {
     document.getElementById('seccionConsulta').classList.remove('hidden');
   } else {
     document.getElementById('seccionMovimientos').classList.remove('hidden');
-    // Las listas ya se cargan al login — si por alguna razón no están, reintentar
-    if (!listasMovimientosCargadas) cargarListasMovimientos();
+    if (!listasMovimientosCargadas) {
+      cargarListasMovimientos();
+      listasMovimientosCargadas = true;
+    }
   }
 }
 
@@ -336,18 +374,43 @@ async function cargarDatos() {
   btn.textContent = '↻ Cargando...';
   document.getElementById('contenidoTabla').innerHTML = '<div class="loading">Cargando datos...</div>';
   datosInventario = [];
+  const BLOQUE = 500;
+  let offset = 1;
+  let hayMas = true;
   try {
-    const resp = await fetch(GS_URL + '?tipo=INVENTARIO');
-    if (!resp.ok) throw new Error('Error de red: ' + resp.status);
-    const result = await resp.json();
-    if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
-    datosInventario = result.datos || [];
+    while (hayMas) {
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Hoja%201&tq=select%20*%20limit%20${BLOQUE}%20offset%20${offset}`;
+      const resp = await fetch(url);
+      if (!resp.ok) break;
+      const texto = await resp.text();
+      const json = JSON.parse(texto.substring(texto.indexOf('{'), texto.lastIndexOf('}') + 1));
+      if (!json.table || !json.table.rows || json.table.rows.length === 0) { hayMas = false; break; }
+      json.table.rows.forEach(fila => {
+        if (!fila.c) return;
+        const getVal = (cell) => {
+          if (!cell) return '';
+          if (cell.v != null) return String(cell.v);
+          if (cell.f != null) return String(cell.f);
+          return '';
+        };
+        const codigo = getVal(fila.c[0]).trim().toUpperCase();
+        if (!codigo) return;
+        datosInventario.push({
+          codigo,
+          descripcion: getVal(fila.c[1]).trim(),
+          stock: parseFloat(getVal(fila.c[2])) || 0,
+          bodega: getVal(fila.c[3]).trim().toUpperCase(),
+          categoria: getVal(fila.c[4]).trim()
+        });
+      });
+      if (json.table.rows.length < BLOQUE) { hayMas = false; } else { offset += BLOQUE; }
+    }
     actualizarFiltros();
     actualizarStats();
     datosFiltrados = [...datosInventario];
     renderTabla();
   } catch (err) {
-    document.getElementById('contenidoTabla').innerHTML = `<div class="error-msg"><strong>Error al cargar:</strong> ${err.message}</div>`;
+    document.getElementById('contenidoTabla').innerHTML = `<div class="error-msg"><strong>Error:</strong> ${err.message}</div>`;
   }
   btn.disabled = false;
   btn.textContent = '↻ Actualizar';
@@ -412,20 +475,25 @@ function renderTabla() {
 
 async function cargarListasMovimientos() {
   try {
-    const [respCod, respUbic] = await Promise.all([
-      fetch(GS_URL + '?tipo=CODIGOS'),
-      fetch(GS_URL + '?tipo=UBICACIONES')
-    ]);
-    const jsonCod  = await respCod.json();
-    const jsonUbic = await respUbic.json();
-    todosCodigos     = jsonCod.status  === 'ok' ? jsonCod.datos  : [];
-    todasUbicaciones = jsonUbic.status === 'ok' ? jsonUbic.datos : [];
+    const urlCod = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=CODIGOS`;
+    const urlUbic = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=UBICACIONES`;
+    const [respCod, respUbic] = await Promise.all([fetch(urlCod), fetch(urlUbic)]);
+    const textoCod = await respCod.text();
+    const textoUbic = await respUbic.text();
+    const jsonCod = JSON.parse(textoCod.substring(textoCod.indexOf('{'), textoCod.lastIndexOf('}') + 1));
+    const jsonUbic = JSON.parse(textoUbic.substring(textoUbic.indexOf('{'), textoUbic.lastIndexOf('}') + 1));
+    todosCodigos = [];
+    jsonCod.table.rows.forEach(fila => {
+      if (!fila.c || !fila.c[0] || fila.c[0].v == null) return;
+      todosCodigos.push({ codigo: String(fila.c[0].v).trim(), descripcion: fila.c[1] && fila.c[1].v != null ? String(fila.c[1].v).trim() : '' });
+    });
+    todasUbicaciones = [];
+    jsonUbic.table.rows.forEach(fila => {
+      if (!fila.c || !fila.c[0] || fila.c[0].v == null) return;
+      todasUbicaciones.push({ ubicacion: String(fila.c[0].v).trim() });
+    });
     llenarSelectUbicaciones();
-    listasMovimientosCargadas = true;
-  } catch (err) {
-    console.error('Error cargando listas:', err);
-    listasMovimientosCargadas = false;
-  }
+  } catch (err) { console.error('Error cargando listas:', err); }
 }
 
 function llenarSelectUbicaciones() {
@@ -524,21 +592,16 @@ async function registrarMovimiento() {
   btn.disabled = true;
   btn.textContent = 'Registrando...';
   try {
-    // Fecha: convertir "2026-06-15" a "15/06/2026" para que Apps Script la trate como fecha
-    const fechaRaw = document.getElementById('movFecha').value; // "YYYY-MM-DD"
-    const [yy, mm, dd] = fechaRaw.split('-');
-    const fechaFormateada = `${dd}/${mm}/${yy}`; // "DD/MM/YYYY"
-
     const datos = {
       tipo_peticion: 'MOVIMIENTO',
       tipo: tipoMovimientoActual,
-      fecha: fechaFormateada,
+      fecha: document.getElementById('movFecha').value,
       codigo,
       cantidad: parseFloat(cantidad),
       ubicacion,
       ubicacion_destino: ubicacionDestino,
       responsable: document.getElementById('movResponsable').value,
-      documento: String(document.getElementById('movDocumento').value).trim(),
+      documento: document.getElementById('movDocumento').value,
       despacho: tipoMovimientoActual === 'SALIDA' ? document.getElementById('movDespacho').value : ''
     };
     const resp = await fetch(GS_URL, { 
@@ -559,6 +622,261 @@ async function registrarMovimiento() {
   btn.disabled = false;
   btn.textContent = 'Registrar Movimiento';
 }
+
+// ═══════════════════════════════════════
+// MÓDULO PEDIDOS
+// ═══════════════════════════════════════
+
+let todosProductosPedido = [];  // todos los productos de EXISTENCIAS
+let carritoPedido = [];         // artículos agregados al pedido
+let productosFiltrados = [];    // productos filtrados por categoría+búsqueda
+
+async function inicializarPedidos() {
+  // Poner nombre del técnico
+  document.getElementById('pedidoResponsable').value = usuarioActivo.nombre;
+
+  // Si ya tenemos productos cargados no recargar
+  if (todosProductosPedido.length > 0) {
+    cargarCategoriasPedido();
+    return;
+  }
+
+  document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
+
+  try {
+    const resp = await fetch(GS_URL + '?tipo=CODIGOS');
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.mensaje);
+    todosProductosPedido = json.datos || [];
+    cargarCategoriasPedido();
+  } catch(err) {
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos</div>';
+  }
+}
+
+function cargarCategoriasPedido() {
+  const sel = document.getElementById('pedidoCategoria');
+  const actual = sel.value;
+  // Extraer categorías únicas
+  const cats = [...new Set(todosProductosPedido.map(p => (p.categoria || '').trim()).filter(c => c))].sort();
+  sel.innerHTML = '<option value="">— Seleccione categoría —</option>';
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  if (actual) sel.value = actual;
+}
+
+function filtrarPedidoCategoria() {
+  document.getElementById('pedidoBusqueda').value = '';
+  filtrarProductosPedido();
+}
+
+function filtrarProductosPedido() {
+  const cat = document.getElementById('pedidoCategoria').value.trim();
+  const busq = document.getElementById('pedidoBusqueda').value.trim().toUpperCase();
+
+  if (!cat) {
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
+    return;
+  }
+
+  productosFiltrados = todosProductosPedido.filter(p => {
+    const mismaCategoria = (p.categoria || '').trim() === cat;
+    if (!mismaCategoria) return false;
+    if (!busq) return true;
+    return (p.codigo || '').toUpperCase().includes(busq) ||
+           (p.descripcion || '').toUpperCase().includes(busq);
+  });
+
+  renderProductosPedido();
+}
+
+function renderProductosPedido() {
+  const lista = document.getElementById('productosLista');
+  if (productosFiltrados.length === 0) {
+    lista.innerHTML = '<div class="no-productos">No hay productos que coincidan con la búsqueda</div>';
+    return;
+  }
+
+  lista.innerHTML = productosFiltrados.map((p, idx) => `
+    <div class="producto-item">
+      <div class="producto-info">
+        <div class="producto-codigo">${p.codigo}</div>
+        <div class="producto-desc">${p.descripcion}</div>
+      </div>
+      <div class="producto-cant">
+        <input type="number" id="cant_${idx}" min="1" value="1" placeholder="Cant.">
+        <button class="btn-agregar-prod" onclick="agregarAlCarrito(${idx})">+ Agregar</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function agregarAlCarrito(idx) {
+  const prod = productosFiltrados[idx];
+  const cantInput = document.getElementById('cant_' + idx);
+  const cant = parseFloat(cantInput.value);
+
+  if (!cant || cant <= 0) {
+    cantInput.focus();
+    return;
+  }
+
+  // Si ya existe en carrito, sumar cantidad
+  const existe = carritoPedido.findIndex(i => i.codigo === prod.codigo);
+  if (existe >= 0) {
+    carritoPedido[existe].cantidad += cant;
+  } else {
+    carritoPedido.push({
+      codigo: prod.codigo,
+      descripcion: prod.descripcion,
+      categoria: prod.categoria || '',
+      cantidad: cant
+    });
+  }
+
+  cantInput.value = 1;
+  renderCarrito();
+
+  // Feedback visual
+  const btn = document.querySelectorAll('.btn-agregar-prod')[idx];
+  if (btn) {
+    btn.textContent = '✓ Agregado';
+    btn.style.background = '#27ae60';
+    setTimeout(() => {
+      btn.textContent = '+ Agregar';
+      btn.style.background = '';
+    }, 1200);
+  }
+}
+
+function quitarDelCarrito(idx) {
+  carritoPedido.splice(idx, 1);
+  renderCarrito();
+}
+
+function renderCarrito() {
+  const lista = document.getElementById('carritoLista');
+  document.getElementById('carritoCount').textContent = carritoPedido.length;
+
+  if (carritoPedido.length === 0) {
+    lista.innerHTML = '<div class="carrito-empty">No hay artículos agregados</div>';
+    return;
+  }
+
+  lista.innerHTML = carritoPedido.map((item, idx) => `
+    <div class="carrito-item">
+      <div style="flex:1">
+        <span style="font-weight:700;color:var(--azul)">${item.codigo}</span>
+        <span style="color:#666;margin-left:8px">${item.descripcion}</span>
+      </div>
+      <span style="font-weight:700;min-width:60px;text-align:right">x${item.cantidad}</span>
+      <button class="btn-quitar" onclick="quitarDelCarrito(${idx})">✕</button>
+    </div>
+  `).join('');
+}
+
+async function enviarPedido() {
+  const responsable = document.getElementById('pedidoResponsable').value.trim();
+  const orden = document.getElementById('pedidoOrden').value.trim();
+  const msg = document.getElementById('msgPedido');
+  const btn = document.getElementById('btnEnviarPedido');
+
+  if (carritoPedido.length === 0) {
+    mostrarMsgPedido('Debe agregar al menos un artículo al pedido.', 'error');
+    return;
+  }
+  if (!orden) {
+    document.getElementById('pedidoOrden').focus();
+    mostrarMsgPedido('Debe ingresar el número de orden de trabajo.', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  // Fecha actual DD/MM/YYYY
+  const hoy = new Date();
+  const fecha = String(hoy.getDate()).padStart(2,'0') + '/' +
+                String(hoy.getMonth()+1).padStart(2,'0') + '/' +
+                hoy.getFullYear();
+
+  const datos = {
+    tipo_peticion: 'PEDIDO',
+    fecha,
+    responsable,
+    orden,
+    items: carritoPedido
+  };
+
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      mostrarMsgPedido('✅ Pedido enviado correctamente. N° Orden: ' + orden, 'ok');
+      carritoPedido = [];
+      renderCarrito();
+      document.getElementById('pedidoOrden').value = '';
+    } else {
+      mostrarMsgPedido('Error: ' + (result.mensaje || 'Error desconocido'), 'error');
+    }
+  } catch(err) {
+    mostrarMsgPedido('Error de conexión. Intente nuevamente.', 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✅ Enviar Pedido';
+}
+
+function mostrarMsgPedido(texto, tipo) {
+  const msg = document.getElementById('msgPedido');
+  msg.textContent = texto;
+  msg.className = 'msg-pedido ' + tipo;
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 5000);
+}
+
 </script>
 </body>
 </html>
+<!-- SECCIÓN PEDIDOS -->
+<div id="seccionPedidos" class="hidden">
+  <div class="pedidos-wrap">
+    <div class="pedidos-header">🛒 Solicitud de Materiales</div>
+
+    <div class="pedido-datos">
+      <input type="text" id="pedidoResponsable" placeholder="Nombre del técnico" readonly>
+      <input type="text" id="pedidoOrden" placeholder="N° Orden de trabajo" autocomplete="off">
+    </div>
+
+    <div class="pedidos-filtros">
+      <select id="pedidoCategoria" onchange="filtrarPedidoCategoria()">
+        <option value="">— Seleccione categoría —</option>
+      </select>
+      <input type="text" id="pedidoBusqueda" placeholder="🔍 Buscar por código o descripción..." oninput="filtrarProductosPedido()">
+    </div>
+
+    <div class="productos-lista" id="productosLista">
+      <div class="no-productos">Seleccione una categoría para ver los productos</div>
+    </div>
+
+    <div class="carrito-titulo">📋 Artículos del pedido (<span id="carritoCount">0</span>)</div>
+    <div class="carrito-lista" id="carritoLista">
+      <div class="carrito-empty">No hay artículos agregados</div>
+    </div>
+
+    <button class="btn-enviar-pedido" onclick="enviarPedido()" id="btnEnviarPedido">
+      ✅ Enviar Pedido
+    </button>
+    <div class="msg-pedido" id="msgPedido"></div>
+  </div>
+</div>
+
+
