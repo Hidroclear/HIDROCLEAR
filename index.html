@@ -815,7 +815,8 @@ async function enviarPedido() {
     });
     const result = await resp.json();
     if (result.status === 'ok') {
-      mostrarMsgPedido('✅ Solicitud enviada correctamente para: ' + cliente, 'ok');
+      const consec = result.consecutivo || '';
+      mostrarMsgPedido('✅ Solicitud ' + consec + ' enviada correctamente para: ' + cliente, 'ok');
       // Guardar datos para imprimir
       ultimoPedido = { responsable, cliente, fecha, items: [...carritoPedido] };
       document.getElementById('btnImprimir').classList.remove('hidden');
@@ -889,8 +890,8 @@ function renderPedidosPendientes() {
   // Agrupar por orden+responsable+fecha
   const grupos = {};
   todosPedidos.forEach(p => {
-    const key = p.fecha + '|' + p.responsable + '|' + p.orden;
-    if (!grupos[key]) grupos[key] = { fecha: p.fecha, responsable: p.responsable, orden: p.orden, items: [], filas: [], estado: p.estado };
+    const key = (p.consecutivo || '') + '|' + p.fecha + '|' + p.responsable + '|' + p.orden;
+    if (!grupos[key]) grupos[key] = { consecutivo: p.consecutivo || '', fecha: p.fecha, responsable: p.responsable, orden: p.orden, items: [], filas: [], estado: p.estado };
     grupos[key].items.push(p);
     grupos[key].filas.push(p.fila);
     // Si alguno está pendiente, el grupo es pendiente
@@ -927,6 +928,7 @@ function renderPedidosPendientes() {
       <div class="pedido-card" id="pedidoCard_${idx}">
         <div class="pedido-card-header">
           <div class="pedido-card-info">
+            <div class="pedido-card-dato"><strong>N° Solicitud:</strong> ${g.consecutivo || ''}</div>
             <div class="pedido-card-dato"><strong>Fecha:</strong> ${g.fecha}</div>
             <div class="pedido-card-dato"><strong>Técnico:</strong> ${g.responsable}</div>
             <div class="pedido-card-dato"><strong>Cliente:</strong> ${g.orden}</div>
@@ -975,7 +977,7 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
   const g = grupos[key];
   if (!g) return;
 
-  document.getElementById('printBodegaFecha').textContent = g.fecha;
+  document.getElementById('printBodegaFecha').textContent = (g.consecutivo ? g.consecutivo + ' — ' : '') + g.fecha;
   document.getElementById('printBodegaTecnico').textContent = g.responsable;
   document.getElementById('printBodegaCliente').textContent = g.orden;
   document.getElementById('printBodegaFooter').textContent = new Date().toLocaleDateString('es-CR');
