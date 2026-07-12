@@ -1029,8 +1029,6 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
     return;
   }
 
-  console.log('Items a entregar:', JSON.stringify(items));
-
   // Obtener fecha en formato DD/MM/YYYY
   const hoy = new Date();
   const fechaEntrega = String(hoy.getDate()).padStart(2,'0') + '/' +
