@@ -1009,13 +1009,16 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
   let i = 0;
   while (document.getElementById('cant_' + gIdx + '_' + i)) {
     const input = document.getElementById('cant_' + gIdx + '_' + i);
-    const cant = parseFloat(input.value) || 0;
+    const cantMax = parseFloat(input.max) || 0;
+    let cant = parseFloat(input.value) || 0;
+    // Validar que no supere la cantidad solicitada
+    if (cant > cantMax) cant = cantMax;
     if (cant > 0) {
       items.push({
-        fila:      parseInt(input.dataset.fila),
-        codigo:    input.dataset.codigo,
+        fila:        parseInt(input.dataset.fila),
+        codigo:      input.dataset.codigo,
         descripcion: input.dataset.desc,
-        cantidad:  cant
+        cantidad:    cant
       });
     }
     i++;
@@ -1025,6 +1028,8 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
     alert('No hay cantidades para entregar.');
     return;
   }
+
+  console.log('Items a entregar:', JSON.stringify(items));
 
   // Obtener fecha en formato DD/MM/YYYY
   const hoy = new Date();
