@@ -193,6 +193,17 @@
   .filtro-pendientes { display: flex; gap: 10px; margin-bottom: 16px; }
   .filtro-pendientes select { padding: 8px 14px; border: 1.5px solid #c5d5ea; border-radius: 8px; font-size: 13px; }
 
+
+  /* ENTREGA CON CANTIDADES EDITABLES */
+  .pedido-item-row-entrega { display: grid; grid-template-columns: 120px 1fr 110px; gap: 12px; padding: 10px 20px; border-bottom: 1px solid #f0f4fa; font-size: 13px; align-items: center; }
+  .pedido-item-row-entrega:last-child { border-bottom: none; }
+  .pedido-item-row-entrega:hover { background: #f9fbff; }
+  .input-cant-entrega { width: 80px; padding: 5px 8px; border: 1.5px solid #c5d5ea; border-radius: 6px; font-size: 14px; text-align: center; font-weight: 700; }
+  .input-cant-entrega:focus { border-color: var(--azul); outline: none; }
+  .btn-cancelar-pedido { background: #fde8ea; color: #a00; border: 1.5px solid #ffb3b8; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-cancelar-pedido:hover { background: #ffb3b8; }
+  .badge-cancelada { background: #fde8ea; color: #a00; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
 </style>
 </head>
 <body>
@@ -889,69 +900,139 @@ function renderPedidosPendientes() {
   const filtro = document.getElementById('filtroPendientes').value;
   const lista = document.getElementById('listaPendientes');
 
-  // Agrupar por orden+responsable+fecha
+  // Agrupar por consecutivo+fecha+responsable+orden
   const grupos = {};
   todosPedidos.forEach(p => {
     const key = (p.consecutivo || '') + '|' + p.fecha + '|' + p.responsable + '|' + p.orden;
     if (!grupos[key]) grupos[key] = { consecutivo: p.consecutivo || '', fecha: p.fecha, responsable: p.responsable, orden: p.orden, items: [], filas: [], estado: p.estado };
     grupos[key].items.push(p);
     grupos[key].filas.push(p.fila);
-    // Si alguno está pendiente, el grupo es pendiente
     if (p.estado === 'PENDIENTE') grupos[key].estado = 'PENDIENTE';
+    if (p.estado === 'CANCELADA') grupos[key].estado = 'CANCELADA';
   });
 
   const keys = Object.keys(grupos).filter(k => {
-    if (filtro === 'PENDIENTE') return grupos[k].estado === 'PENDIENTE';
-    if (filtro === 'COMPLETADO') return grupos[k].estado !== 'PENDIENTE';
+    const est = grupos[k].estado;
+    if (filtro === 'PENDIENTE') return est === 'PENDIENTE';
+    if (filtro === 'COMPLETADO') return est === 'ENTREGADA';
+    if (filtro === 'CANCELADO') return est === 'CANCELADA';
     return true;
   });
 
   if (keys.length === 0) {
-    lista.innerHTML = '<div class="no-pendientes">No hay pedidos ' + (filtro === 'PENDIENTE' ? 'pendientes' : '') + '</div>';
+    lista.innerHTML = '<div class="no-pendientes">No hay pedidos para mostrar</div>';
     return;
   }
 
-  lista.innerHTML = keys.map((k, idx) => {
+  lista.innerHTML = keys.map((k, gIdx) => {
     const g = grupos[k];
     const esPendiente = g.estado === 'PENDIENTE';
+    const esCancelada = g.estado === 'CANCELADA';
     const badge = esPendiente
       ? '<span class="badge-pendiente">PENDIENTE</span>'
-      : '<span class="badge-completado">ENTREGADA</span>';
+      : esCancelada
+        ? '<span class="badge-cancelada">CANCELADA</span>'
+        : '<span class="badge-completado">ENTREGADA</span>';
+
     const filasJson = JSON.stringify(g.filas).replace(/"/g, '&quot;');
-    const items = g.items.map((item, i) => `
-      <div class="pedido-item-row">
-        <span class="pedido-item-cod">${item.codigo}</span>
-        <span>${item.descripcion}</span>
-        <span class="pedido-item-cant">x${item.cantidad}</span>
-      </div>
-    `).join('');
+    const consec = g.consecutivo || '';
+
+    // Items: si pendiente muestra inputs editables, si no solo los valores
+    const itemsHtml = g.items.map((item, i) => {
+      if (esPendiente) {
+        return `
+          <div class="pedido-item-row-entrega">
+            <span class="pedido-item-cod">${item.codigo}</span>
+            <span>${item.descripcion}</span>
+            <input type="number" class="input-cant-entrega" 
+              id="cant_${gIdx}_${i}" 
+              value="${item.cantidad}" 
+              min="0" 
+              max="${item.cantidad}"
+              data-fila="${item.fila}"
+              data-codigo="${item.codigo}"
+              data-desc="${item.descripcion.replace(/"/g,'&quot;')}">
+          </div>`;
+      } else {
+        return `
+          <div class="pedido-item-row">
+            <span class="pedido-item-cod">${item.codigo}</span>
+            <span>${item.descripcion}</span>
+            <span class="pedido-item-cant">x${item.cantidad}</span>
+          </div>`;
+      }
+    }).join('');
 
     return `
-      <div class="pedido-card" id="pedidoCard_${idx}">
+      <div class="pedido-card" id="pedidoCard_${gIdx}">
         <div class="pedido-card-header">
           <div class="pedido-card-info">
-            <div class="pedido-card-dato"><strong>N° Solicitud:</strong> ${g.consecutivo || ''}</div>
+            <div class="pedido-card-dato"><strong>N° Solicitud:</strong> ${consec}</div>
             <div class="pedido-card-dato"><strong>Fecha:</strong> ${g.fecha}</div>
             <div class="pedido-card-dato"><strong>Técnico:</strong> ${g.responsable}</div>
             <div class="pedido-card-dato"><strong>Cliente:</strong> ${g.orden}</div>
             <div class="pedido-card-dato">${badge}</div>
           </div>
           <div class="pedido-card-actions">
-            <button class="btn-imprimir-pedido" onclick="imprimirPedidoBodega('${g.fecha}','${g.responsable}','${g.orden}',${idx})">🖨️ Imprimir</button>
-            ${esPendiente ? `<button class="btn-completar-pedido" onclick="completarPedido('${filasJson}',${idx})">✅ Marcar Entregada</button>` : ''}
+            <button class="btn-imprimir-pedido" onclick="imprimirPedidoBodega('${g.fecha}','${g.responsable}','${g.orden}')">🖨️ Imprimir</button>
+            ${esPendiente ? `
+              <button class="btn-completar-pedido" onclick="entregarPedido(${gIdx},'${consec}','${g.fecha}','${g.responsable}','${g.orden}','${filasJson}')">✅ Marcar Entregada</button>
+              <button class="btn-cancelar-pedido" onclick="cancelarPedido('${filasJson}')">✕ Cancelar</button>
+            ` : ''}
           </div>
         </div>
-        <div class="pedido-card-items">${items}</div>
+        <div class="pedido-card-items">${itemsHtml}</div>
       </div>
     `;
   }).join('');
 }
 
-async function completarPedido(filasJson, idx) {
-  const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
-  // Sin confirmación — acción directa
+async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJson) {
+  // Recoger cantidades editadas por el usuario
+  const items = [];
+  let i = 0;
+  while (document.getElementById('cant_' + gIdx + '_' + i)) {
+    const input = document.getElementById('cant_' + gIdx + '_' + i);
+    const cant = parseFloat(input.value) || 0;
+    if (cant > 0) {
+      items.push({
+        fila:      parseInt(input.dataset.fila),
+        codigo:    input.dataset.codigo,
+        descripcion: input.dataset.desc,
+        cantidad:  cant
+      });
+    }
+    i++;
+  }
+
+  if (items.length === 0) {
+    alert('No hay cantidades para entregar.');
+    return;
+  }
+
+  // Obtener fecha en formato DD/MM/YYYY
+  const hoy = new Date();
+  const fechaEntrega = String(hoy.getDate()).padStart(2,'0') + '/' +
+                       String(hoy.getMonth()+1).padStart(2,'0') + '/' +
+                       hoy.getFullYear();
 
   try {
+    // Enviar cada item a TRAZABILIDAD como SALIDA
+    await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        tipo_peticion: 'ENTREGAR_PEDIDO',
+        consecutivo,
+        fecha: fechaEntrega,
+        responsable: tecnico,
+        cliente,
+        items
+      })
+    });
+
+    // Marcar todas las filas como ENTREGADA en COLA_PEDIDOS
+    const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
     for (const fila of filas) {
       await fetch(GS_URL, {
         method: 'POST',
@@ -959,12 +1040,29 @@ async function completarPedido(filasJson, idx) {
         body: JSON.stringify({ tipo_peticion: 'MARCAR_PEDIDO_LISTO', fila })
       });
     }
-    // Actualizar estado local
-    const key = todosPedidos.find(p => filas.includes(p.fila));
-    todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'COMPLETADO'; });
+
+    todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'ENTREGADA'; });
+    renderPedidosPendientes();
+
+  } catch(err) {
+    alert('Error al entregar pedido.');
+  }
+}
+
+async function cancelarPedido(filasJson) {
+  const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
+  try {
+    for (const fila of filas) {
+      await fetch(GS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ tipo_peticion: 'CANCELAR_PEDIDO', fila })
+      });
+    }
+    todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'CANCELADA'; });
     renderPedidosPendientes();
   } catch(err) {
-    alert('Error al marcar como completado.');
+    alert('Error al cancelar pedido.');
   }
 }
 
@@ -1060,7 +1158,8 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
       <select id="filtroPendientes" onchange="renderPedidosPendientes()">
         <option value="PENDIENTE">Solo Pendientes</option>
         <option value="TODOS">Todos</option>
-        <option value="COMPLETADO">Completados</option>
+        <option value="COMPLETADO">Entregadas</option>
+        <option value="CANCELADO">Canceladas</option>
       </select>
     </div>
     <div id="listaPendientes">
