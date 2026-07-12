@@ -204,6 +204,10 @@
   .btn-cancelar-pedido:hover { background: #ffb3b8; }
   .badge-cancelada { background: #fde8ea; color: #a00; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 
+
+  .buscador-pendientes { flex: 1; padding: 8px 14px; border: 1.5px solid #c5d5ea; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; }
+  .buscador-pendientes:focus { border-color: var(--azul); }
+
 </style>
 </head>
 <body>
@@ -911,13 +915,25 @@ function renderPedidosPendientes() {
     if (p.estado === 'CANCELADA') grupos[key].estado = 'CANCELADA';
   });
 
+  const busqueda = (document.getElementById('buscadorPendientes') ? document.getElementById('buscadorPendientes').value : '').trim().toUpperCase();
+
   const keys = Object.keys(grupos).filter(k => {
-    const est = grupos[k].estado;
-    if (filtro === 'PENDIENTE') return est === 'PENDIENTE';
-    if (filtro === 'COMPLETADO') return est === 'ENTREGADA';
-    if (filtro === 'CANCELADO') return est === 'CANCELADA';
+    const g = grupos[k];
+    const est = g.estado;
+    if (filtro === 'PENDIENTE' && est !== 'PENDIENTE') return false;
+    if (filtro === 'COMPLETADO' && est !== 'ENTREGADA') return false;
+    if (filtro === 'CANCELADO' && est !== 'CANCELADA') return false;
+    // Filtro buscador
+    if (busqueda) {
+      return (g.consecutivo || '').toUpperCase().includes(busqueda) ||
+             (g.responsable || '').toUpperCase().includes(busqueda) ||
+             (g.orden || '').toUpperCase().includes(busqueda);
+    }
     return true;
   });
+
+  // Orden inverso — más recientes arriba
+  keys.reverse();
 
   if (keys.length === 0) {
     lista.innerHTML = '<div class="no-pendientes">No hay pedidos para mostrar</div>';
@@ -1161,6 +1177,7 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
         <option value="COMPLETADO">Entregadas</option>
         <option value="CANCELADO">Canceladas</option>
       </select>
+      <input type="text" class="buscador-pendientes" id="buscadorPendientes" placeholder="🔍 Buscar por N° solicitud, técnico o cliente..." oninput="renderPedidosPendientes()">
     </div>
     <div id="listaPendientes">
       <div class="no-pendientes">Cargando pedidos...</div>
