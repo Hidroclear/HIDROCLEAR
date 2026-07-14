@@ -140,13 +140,13 @@
 
   /* IMPRESIÓN SOLICITUD */
   @media print {
-    body * { visibility: hidden !important; }
-    #printArea { display: none; }
-    #printAreaBodega { display: none; }
-    #printArea.printing, #printArea.printing * { visibility: visible !important; display: block; }
-    #printAreaBodega.printing, #printAreaBodega.printing * { visibility: visible !important; display: block; }
-    #printArea.printing { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
-    #printAreaBodega.printing { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printAreaBodega, #printAreaBodega * { visibility: visible; }
+    #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; display: none; }
+    #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; display: none; }
+    #printArea[style*="block"], #printArea[style*="block"] * { display: block !important; visibility: visible !important; }
+    #printAreaBodega[style*="block"], #printAreaBodega[style*="block"] * { display: block !important; visibility: visible !important; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .btn-imprimir:hover { background: #0a3d6b; }
@@ -870,9 +870,9 @@ function imprimirSolicitud() {
       <td><strong>${item.cantidad}</strong></td>
     </tr>
   `).join('');
-  document.getElementById('printArea').classList.add('printing');
+  document.getElementById('printArea').style.display = 'block';
   window.print();
-  document.getElementById('printArea').classList.remove('printing');
+  document.getElementById('printArea').style.display = 'none';
 }
 
 function mostrarMsgPedido(texto, tipo) {
@@ -1113,9 +1113,9 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
     </tr>
   `).join('');
 
-  document.getElementById('printAreaBodega').classList.add('printing');
+  document.getElementById('printAreaBodega').style.display = 'block';
   window.print();
-  document.getElementById('printAreaBodega').classList.remove('printing');
+  document.getElementById('printAreaBodega').style.display = 'none';
 }
 
 
