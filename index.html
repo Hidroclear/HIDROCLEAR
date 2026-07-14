@@ -141,8 +141,10 @@
   /* IMPRESIÓN SOLICITUD */
   @media print {
     body * { visibility: hidden; }
-    #printArea { display: none; }
-    #printAreaBodega { display: none; }
+    #printArea, #printArea * { visibility: visible; }
+    #printAreaBodega, #printAreaBodega * { visibility: visible; }
+    #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
+    #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .btn-imprimir:hover { background: #0a3d6b; }
