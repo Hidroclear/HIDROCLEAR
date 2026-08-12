@@ -260,15 +260,15 @@
 <div id="seccionConsulta" class="main">
   <div class="stats">
     <div class="stat-card">
-      <div class="label">Total Registros</div>
+      <div class="label">Códigos con Stock</div>
       <div class="valor" id="statCodigos">—</div>
     </div>
     <div class="stat-card" style="border-left-color: var(--verde)">
-      <div class="label">Con Stock</div>
+      <div class="label">Total Unidades</div>
       <div class="valor" id="statConStock" style="color: var(--verde)">—</div>
     </div>
     <div class="stat-card" style="border-left-color: var(--amarillo)">
-      <div class="label">Total Bodegas</div>
+      <div class="label">Total Ubicaciones</div>
       <div class="valor" id="statBodegas" style="color: var(--amarillo)">—</div>
     </div>
   </div>
@@ -377,7 +377,7 @@ const GS_URL = 'https://script.google.com/macros/s/AKfycbxGchhv05q_aSHuwByPUmqct
 
 const USUARIOS = {
   'JJIMENEZ': { password: 'J0jimen', nombre: 'JIMMY JIMENEZ', rol: 'admin' },
-  'LRIOS': { password: 'LRIOS1',    nombre: 'LUIS MIGUEL RIOS', rol: 'admin' },
+  'LRIOS':    { password: 'LRIOS1',  nombre: 'LUIS RIOS', rol: 'admin' },
   'KARIAS':   { password: '7019',    nombre: 'KENNER ARIAS', rol: 'admin' },
   'CONSULTA': { password: 'Consulta', nombre: 'USUARIO CONSULTA', rol: 'consulta' },
   'TECNICO':  { password: 'Tec2026',  nombre: 'TECNICO',          rol: 'tecnico' },
@@ -494,12 +494,12 @@ function actualizarFiltros() {
 }
 
 function actualizarStats() {
-  const codigos = new Set(datosInventario.map(d => d.codigo));
-  const conStock = datosInventario.filter(d => d.stock > 0).length;
-  const bodegas = new Set(datosInventario.map(d => d.bodega));
-  document.getElementById('statCodigos').textContent = datosInventario.length;
-  document.getElementById('statConStock').textContent = conStock;
-  document.getElementById('statBodegas').textContent = bodegas.size;
+  const codigosConStock = new Set(datosInventario.filter(d => d.stock > 0).map(d => d.codigo));
+  const totalUnidades = datosInventario.reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
+  const ubicaciones = new Set(datosInventario.map(d => d.bodega));
+  document.getElementById('statCodigos').textContent = codigosConStock.size;
+  document.getElementById('statConStock').textContent = totalUnidades;
+  document.getElementById('statBodegas').textContent = ubicaciones.size;
 }
 
 function filtrar() {
