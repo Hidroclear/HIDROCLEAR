@@ -268,8 +268,8 @@
       <div class="valor" id="statConStock" style="color: var(--verde)">—</div>
     </div>
     <div class="stat-card" style="border-left-color: var(--amarillo)">
-      <div class="label">Total Ubicaciones</div>
-      <div class="valor" id="statBodegas" style="color: var(--amarillo)">—</div>
+      <div class="label">Reservados</div>
+      <div class="valor" id="statReservados" style="color: var(--amarillo)">—</div>
     </div>
   </div>
   <div class="buscador-wrap">
@@ -390,6 +390,7 @@ let datosInventario = [];
 let datosFiltrados = [];
 let todosCodigos = [];
 let todasUbicaciones = [];
+let reservasPorCodigo = {};
 let tipoMovimientoActual = '';
 let listasMovimientosCargadas = false;
 
@@ -466,14 +467,30 @@ async function cargarDatos() {
   document.getElementById('contenidoTabla').innerHTML = '<div class="loading">Cargando datos...</div>';
   datosInventario = [];
   try {
-    const resp = await fetch(GS_URL + '?tipo=INVENTARIO');
-    if (!resp.ok) throw new Error('Error de red: ' + resp.status);
-    const result = await resp.json();
+    const [respInv, respRes] = await Promise.all([
+      fetch(GS_URL + '?tipo=INVENTARIO'),
+      fetch(GS_URL + '?tipo=RESERVAS')
+    ]);
+    if (!respInv.ok) throw new Error('Error de red: ' + respInv.status);
+    const result = await respInv.json();
     if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
     datosInventario = result.datos || [];
+
+    reservasPorCodigo = {};
+    try {
+      const resultRes = await respRes.json();
+      if (resultRes.status === 'ok') {
+        (resultRes.datos || []).forEach(r => {
+          reservasPorCodigo[String(r.codigo).trim()] = Number(r.cantidad) || 0;
+        });
+      }
+    } catch (errRes) {
+      console.error('Error cargando reservas:', errRes);
+    }
+
     actualizarFiltros();
-    actualizarStats();
     datosFiltrados = [...datosInventario];
+    actualizarStats();
     renderTabla();
   } catch (err) {
     document.getElementById('contenidoTabla').innerHTML = `<div class="error-msg"><strong>Error al cargar:</strong> ${err.message}</div>`;
@@ -496,10 +513,23 @@ function actualizarFiltros() {
 function actualizarStats() {
   const codigosConStock = new Set(datosInventario.filter(d => d.stock > 0).map(d => d.codigo));
   const totalUnidades = datosInventario.reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
-  const ubicaciones = new Set(datosInventario.map(d => d.bodega));
   document.getElementById('statCodigos').textContent = codigosConStock.size;
   document.getElementById('statConStock').textContent = totalUnidades;
-  document.getElementById('statBodegas').textContent = ubicaciones.size;
+  actualizarStatReservados();
+}
+
+function actualizarStatReservados() {
+  const busq = document.getElementById('busqueda').value.trim();
+  let total = 0;
+  if (busq) {
+    // Hay una búsqueda activa: solo suma lo reservado de los códigos visibles en el filtro
+    const codigosVisibles = new Set(datosFiltrados.map(d => String(d.codigo).trim()));
+    codigosVisibles.forEach(cod => { total += reservasPorCodigo[cod] || 0; });
+  } else {
+    // Sin búsqueda: total general de todas las reservas
+    total = Object.values(reservasPorCodigo).reduce((sum, v) => sum + v, 0);
+  }
+  document.getElementById('statReservados').textContent = total;
 }
 
 function filtrar() {
@@ -512,6 +542,7 @@ function filtrar() {
     const coincideCategoria = !categoria || d.categoria === categoria;
     return coincideBusq && coincideBodega && coincideCategoria;
   });
+  actualizarStatReservados();
   renderTabla();
 }
 
@@ -520,6 +551,7 @@ function limpiarFiltros() {
   document.getElementById('filtroBodega').value = '';
   document.getElementById('filtroCategoria').value = '';
   datosFiltrados = [...datosInventario];
+  actualizarStatReservados();
   renderTabla();
 }
 
