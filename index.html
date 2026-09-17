@@ -186,7 +186,7 @@
   /* Área de impresión de la etiqueta física (no se ve en pantalla) */
   #printAreaEtiqueta { display: none; }
   .etq-label {
-    width: 4in; height: 6in; box-sizing: border-box; border: 1px solid #000;
+    width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
     display: flex; flex-direction: row; overflow: hidden;
     page-break-after: always; break-after: page;
   }
@@ -202,7 +202,7 @@
   .etq-hidroclear-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 1px; color: #000; }
   .etq-cat-label { font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 13px; color: #000; }
   .etq-cat-valor { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #000; }
-  .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 5.4in; overflow: hidden; text-overflow: ellipsis; }
+  .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 140mm; overflow: hidden; text-overflow: ellipsis; }
   .etq-codigo-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 40px; color: #000; }
   .etq-barcode-svg { transform: rotate(-90deg); }
 
@@ -1372,7 +1372,7 @@ function imprimirEtiquetas() {
   // sin afectar la impresión de Solicitud de Materiales ni Pedidos Pendientes.
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
-  estiloPagina.textContent = '@page { size: 4in 6in; margin: 0; }';
+  estiloPagina.textContent = '@page { size: 100mm 150mm; margin: 0; }';
   document.head.appendChild(estiloPagina);
 
   window.print();
