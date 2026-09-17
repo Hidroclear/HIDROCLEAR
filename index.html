@@ -144,14 +144,19 @@
   .no-productos { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
 
 
-  /* IMPRESIÓN SOLICITUD */
+  /* IMPRESIÓN SOLICITUD
+     IMPORTANTE: ninguna de las 3 áreas de impresión lleva aquí "display:block !important".
+     Cada una mantiene su display:none por defecto y solo la función de impresión
+     correspondiente (imprimirSolicitud / imprimirPedidoBodega / imprimirEtiquetas) la
+     muestra justo antes de imprimir y la vuelve a ocultar después. Forzar el display
+     aquí hacía que las 3 aparecieran superpuestas sin importar cuál se quisiera imprimir. */
   @media print {
     body * { visibility: hidden; }
     #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
     #printArea * { visibility: visible; }
-    #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; display: block !important; }
+    #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
     #printAreaBodega * { visibility: visible; }
-    #printAreaEtiqueta { position: fixed; top: 0; left: 0; padding: 0; display: block !important; }
+    #printAreaEtiqueta { position: fixed; top: 0; left: 0; padding: 0; }
     #printAreaEtiqueta * { visibility: visible; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
@@ -964,6 +969,14 @@ async function enviarPedido() {
   btn.textContent = '✅ Enviar Pedido';
 }
 
+// Oculta las 3 áreas de impresión antes de mostrar la que corresponde,
+// para que nunca queden restos de una impresión anterior superpuestos.
+function ocultarTodasLasAreasDeImpresion() {
+  document.getElementById('printArea').style.display = 'none';
+  document.getElementById('printAreaBodega').style.display = 'none';
+  document.getElementById('printAreaEtiqueta').style.display = 'none';
+}
+
 function imprimirSolicitud() {
   if (!ultimoPedido) return;
   const hoy = new Date().toLocaleDateString('es-CR');
@@ -981,6 +994,7 @@ function imprimirSolicitud() {
       <td><strong>${item.cantidad}</strong></td>
     </tr>
   `).join('');
+  ocultarTodasLasAreasDeImpresion();
   document.getElementById('printArea').style.display = 'block';
   window.print();
   document.getElementById('printArea').style.display = 'none';
@@ -1224,6 +1238,7 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
     </tr>
   `).join('');
 
+  ocultarTodasLasAreasDeImpresion();
   document.getElementById('printAreaBodega').style.display = 'block';
   window.print();
   document.getElementById('printAreaBodega').style.display = 'none';
@@ -1368,14 +1383,17 @@ function imprimirEtiquetas() {
     });
   });
 
-  // Forzar el tamaño de página a 4x6" solo durante esta impresión,
+  // Forzar el tamaño de página a 100x150mm solo durante esta impresión,
   // sin afectar la impresión de Solicitud de Materiales ni Pedidos Pendientes.
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
   estiloPagina.textContent = '@page { size: 100mm 150mm; margin: 0; }';
   document.head.appendChild(estiloPagina);
 
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
   window.print();
+  printArea.style.display = 'none';
 
   document.head.removeChild(estiloPagina);
   printArea.innerHTML = '';
