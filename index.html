@@ -151,6 +151,8 @@
     #printArea * { visibility: visible; }
     #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; display: block !important; }
     #printAreaBodega * { visibility: visible; }
+    #printAreaEtiqueta { position: fixed; top: 0; left: 0; padding: 0; display: block !important; }
+    #printAreaEtiqueta * { visibility: visible; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .btn-imprimir:hover { background: #0a3d6b; }
@@ -170,6 +172,39 @@
   .print-firma { text-align: center; }
   .print-firma-linea { border-top: 1.5px solid #333; padding-top: 8px; font-size: 12px; color: #555; }
   .print-footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+
+  /* ===== ETIQUETAS (código de barras) ===== */
+  .etq-wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+  .etq-header { font-size: 20px; font-weight: 700; color: var(--azul); margin-bottom: 20px; }
+  .etq-form { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .etq-form .form-field { margin-bottom: 16px; }
+  .etq-preview { background: #f5f9ff; border: 1.5px dashed #c5d5ea; border-radius: 10px; padding: 16px; margin-top: 4px; margin-bottom: 16px; font-size: 13px; color: var(--texto-suave); display: none; }
+  .etq-preview.visible { display: block; }
+  .etq-preview strong { color: var(--azul); }
+  #btnImprimirEtiqueta:disabled { background: #aaa; cursor: not-allowed; }
+
+  /* Área de impresión de la etiqueta física (no se ve en pantalla) */
+  #printAreaEtiqueta { display: none; }
+  .etq-label {
+    width: 4in; height: 6in; box-sizing: border-box; border: 1px solid #000;
+    display: flex; flex-direction: row; overflow: hidden;
+    page-break-after: always; break-after: page;
+  }
+  .etq-label:last-child { page-break-after: auto; break-after: auto; }
+  .etq-banda { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; }
+  .etq-banda:last-child { border-right: none; }
+  .etq-banda-hidroclear { flex: 5 0 auto; }
+  .etq-banda-categoria { flex: 5.5 0 auto; }
+  .etq-banda-barras { flex: 14 0 auto; }
+  .etq-banda-desc { flex: 12 0 auto; }
+  .etq-banda-codigo { flex: 14 0 auto; }
+  .etq-rot { transform: rotate(-90deg); white-space: nowrap; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .etq-hidroclear-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 1px; color: #000; }
+  .etq-cat-label { font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 13px; color: #000; }
+  .etq-cat-valor { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #000; }
+  .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 5.4in; overflow: hidden; text-overflow: ellipsis; }
+  .etq-codigo-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 40px; color: #000; }
+  .etq-barcode-svg { transform: rotate(-90deg); }
 
 
   /* PEDIDOS PENDIENTES */
@@ -285,6 +320,7 @@
   <button class="btn-nav btn-nav-movimientos hidden" id="btnMovimientos" onclick="mostrarSeccion('movimientos')">📋 Movimientos</button>
   <button class="btn-nav btn-nav-pedidos hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos')">🛒 Solicitud de Materiales</button>
   <button class="btn-nav hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes')" style="background:var(--rojo)">📬 Pedidos Pendientes</button>
+  <button class="btn-nav hidden" id="btnEtiquetas" onclick="mostrarSeccion('etiquetas')" style="background:#8e44ad">🏷️ Imprimir Etiquetas</button>
 </div>
 
 <div id="seccionConsulta" class="main">
@@ -401,6 +437,7 @@
 
 <div class="footer">HIDROCLEAR &copy; 2026 — Sistema de Inventario</div>
 
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
 const SHEET_ID = '18ABHh-28OwyxIKTtehCgjFlbW1PG1B8zLR6sBXYCwJw';
 const GS_URL = 'https://script.google.com/macros/s/AKfycbxGchhv05q_aSHuwByPUmqct0ARI0GyPI0A1fYgI5gX-rp3o0EMbACihJqDaNKssmiE/exec';
@@ -423,6 +460,9 @@ let todasUbicaciones = [];
 let reservasPorCodigo = {};
 let tipoMovimientoActual = '';
 let listasMovimientosCargadas = false;
+let todosProductosEtiqueta = [];
+let productosEtiquetaCargados = false;
+let etiquetaSeleccionada = null;
 
 function iniciarSesion() {
   const usuario = document.getElementById('loginUsuario').value.trim().toUpperCase();
@@ -452,6 +492,7 @@ function mostrarApp() {
   }
   if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'bodega') {
     document.getElementById('btnPendientes').classList.remove('hidden');
+    document.getElementById('btnEtiquetas').classList.remove('hidden');
   }
   cargarDatos();
 }
@@ -476,6 +517,7 @@ function mostrarSeccion(seccion) {
   document.getElementById('seccionMovimientos').classList.add('hidden');
   document.getElementById('seccionPedidos').classList.add('hidden');
   document.getElementById('seccionPendientes').classList.add('hidden');
+  document.getElementById('seccionEtiquetas').classList.add('hidden');
   if (seccion === 'consulta') {
     document.getElementById('seccionConsulta').classList.remove('hidden');
   } else if (seccion === 'movimientos') {
@@ -487,6 +529,9 @@ function mostrarSeccion(seccion) {
   } else if (seccion === 'pendientes') {
     document.getElementById('seccionPendientes').classList.remove('hidden');
     cargarPedidosPendientes();
+  } else if (seccion === 'etiquetas') {
+    document.getElementById('seccionEtiquetas').classList.remove('hidden');
+    if (!productosEtiquetaCargados) cargarProductosEtiqueta();
   }
 }
 
@@ -1211,6 +1256,136 @@ async function cargarNombresPedido() {
   }
 }
 
+// ═══════════════════════════════════════
+// MÓDULO ETIQUETAS (código de barras)
+// ═══════════════════════════════════════
+
+async function cargarProductosEtiqueta() {
+  document.getElementById('etqCodigoBuscar').placeholder = 'Cargando códigos...';
+  try {
+    const resp = await fetch(GS_URL + '?tipo=INVENTARIO&t=' + Date.now());
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.mensaje);
+    const seen = new Set();
+    todosProductosEtiqueta = (json.datos || [])
+      .filter(d => {
+        if (seen.has(d.codigo)) return false;
+        seen.add(d.codigo);
+        return true;
+      })
+      .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
+    productosEtiquetaCargados = true;
+    document.getElementById('etqCodigoBuscar').placeholder = 'Escriba código o descripción...';
+  } catch (err) {
+    document.getElementById('etqCodigoBuscar').placeholder = 'Error al cargar códigos, reintente...';
+    productosEtiquetaCargados = false;
+  }
+}
+
+function buscarCodigoEtiqueta(texto) {
+  const dropdown = document.getElementById('etqCodigoDropdown');
+  etiquetaSeleccionada = null;
+  document.getElementById('btnImprimirEtiqueta').disabled = true;
+  document.getElementById('etqPreview').classList.remove('visible');
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosProductosEtiqueta.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
+  dropdown.innerHTML = resultados.map((c, i) =>
+    `<div class="codigo-item" onclick="seleccionarCodigoEtiqueta(${i})">
+      <div class="cod">${c.codigo}</div>
+      <div class="desc-cod">${c.descripcion}</div>
+    </div>`).join('');
+  dropdown.dataset.resultados = JSON.stringify(resultados);
+  dropdown.classList.add('visible');
+}
+
+function seleccionarCodigoEtiqueta(idx) {
+  const dropdown = document.getElementById('etqCodigoDropdown');
+  const resultados = JSON.parse(dropdown.dataset.resultados || '[]');
+  const prod = resultados[idx];
+  if (!prod) return;
+  etiquetaSeleccionada = prod;
+  document.getElementById('etqCodigoBuscar').value = prod.codigo + ' - ' + prod.descripcion;
+  document.getElementById('etqPreviewCodigo').textContent = prod.codigo;
+  document.getElementById('etqPreviewDescripcion').textContent = prod.descripcion;
+  document.getElementById('etqPreviewCategoria').textContent = prod.categoria || '(sin categoría)';
+  document.getElementById('etqPreview').classList.add('visible');
+  document.getElementById('btnImprimirEtiqueta').disabled = false;
+  dropdown.classList.remove('visible');
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#seccionEtiquetas .codigo-search-wrap')) {
+    const dd = document.getElementById('etqCodigoDropdown');
+    if (dd) dd.classList.remove('visible');
+  }
+});
+
+function imprimirEtiquetas() {
+  if (!etiquetaSeleccionada) { alert('Debe seleccionar un código'); return; }
+  const cantidad = parseInt(document.getElementById('etqCantidad').value, 10);
+  if (!cantidad || cantidad <= 0) { alert('Debe ingresar una cantidad válida'); return; }
+
+  const { codigo, descripcion, categoria } = etiquetaSeleccionada;
+  const printArea = document.getElementById('printAreaEtiqueta');
+
+  // Construir N etiquetas idénticas (una por copia), igual que la macro (CMDIMPRIMIR_Click)
+  let html = '';
+  for (let n = 0; n < cantidad; n++) {
+    html += `
+      <div class="etq-label">
+        <div class="etq-banda etq-banda-hidroclear">
+          <div class="etq-rot"><span class="etq-hidroclear-txt">HIDROCLEAR</span></div>
+        </div>
+        <div class="etq-banda etq-banda-categoria">
+          <div class="etq-rot">
+            <span class="etq-cat-label">CATEGORIA</span>
+            <span class="etq-cat-valor">${categoria || ''}</span>
+          </div>
+        </div>
+        <div class="etq-banda etq-banda-barras">
+          <svg class="etq-barcode-svg" data-codigo="${codigo}"></svg>
+        </div>
+        <div class="etq-banda etq-banda-desc">
+          <div class="etq-rot"><span class="etq-desc-txt">${descripcion}</span></div>
+        </div>
+        <div class="etq-banda etq-banda-codigo">
+          <div class="etq-rot"><span class="etq-codigo-txt">${codigo}</span></div>
+        </div>
+      </div>`;
+  }
+  printArea.innerHTML = html;
+
+  // Generar el código de barras real (Code128, escaneable) en cada etiqueta
+  printArea.querySelectorAll('.etq-barcode-svg').forEach(svg => {
+    JsBarcode(svg, svg.dataset.codigo, {
+      format: 'CODE128',
+      displayValue: false,
+      margin: 0,
+      width: 1.4,
+      height: 470
+    });
+  });
+
+  // Forzar el tamaño de página a 4x6" solo durante esta impresión,
+  // sin afectar la impresión de Solicitud de Materiales ni Pedidos Pendientes.
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: 4in 6in; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  window.print();
+
+  document.head.removeChild(estiloPagina);
+  printArea.innerHTML = '';
+
+  const msg = document.getElementById('etqSuccessMsg');
+  msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+}
+
 </script>
 
 <!-- SECCIÓN PEDIDOS -->
@@ -1285,6 +1460,36 @@ async function cargarNombresPedido() {
     </div>
   </div>
 </div>
+
+<!-- SECCIÓN ETIQUETAS -->
+<div id="seccionEtiquetas" class="hidden">
+  <div class="etq-wrap">
+    <div class="etq-header">🏷️ Imprimir Etiquetas</div>
+    <div class="etq-form">
+      <div class="form-field full">
+        <label>Buscar Código</label>
+        <div class="codigo-search-wrap">
+          <input type="text" id="etqCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoEtiqueta(this.value)" autocomplete="off">
+          <div class="codigo-dropdown" id="etqCodigoDropdown"></div>
+        </div>
+      </div>
+      <div class="etq-preview" id="etqPreview">
+        <div><strong>Código:</strong> <span id="etqPreviewCodigo"></span></div>
+        <div><strong>Descripción:</strong> <span id="etqPreviewDescripcion"></span></div>
+        <div><strong>Categoría:</strong> <span id="etqPreviewCategoria"></span></div>
+      </div>
+      <div class="form-field">
+        <label>Cantidad de etiquetas</label>
+        <input type="number" id="etqCantidad" placeholder="1" min="1" value="1">
+      </div>
+      <button class="btn-registrar" id="btnImprimirEtiqueta" onclick="imprimirEtiquetas()" disabled>🖨️ Imprimir Etiqueta(s)</button>
+      <div class="success-msg" id="etqSuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ÁREA DE IMPRESIÓN DE ETIQUETAS (código de barras) -->
+<div id="printAreaEtiqueta"></div>
 
 <!-- ÁREA IMPRESIÓN PEDIDO BODEGA -->
 <div id="printAreaBodega" style="display:none">
