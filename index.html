@@ -240,6 +240,8 @@
     #printAreaBodega * { visibility: visible; }
     #printAreaEtiqueta { position: fixed; top: 0; left: 0; padding: 0; }
     #printAreaEtiqueta * { visibility: visible; }
+    #printAreaReporte { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
+    #printAreaReporte * { visibility: visible; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .btn-imprimir:hover { background: #0a3d6b; }
@@ -272,6 +274,26 @@
 
   /* Área de impresión de la etiqueta física (no se ve en pantalla) */
   #printAreaEtiqueta { display: none; }
+  #printAreaReporte { display: none; }
+
+  /* ===== REPORTES ===== */
+  .rep-wrap { max-width: 1150px; margin: 0 auto; padding: 20px; }
+  .rep-header { font-size: 18px; font-weight: 700; color: var(--azul); margin-bottom: 16px; }
+  .rep-filtros { background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-bottom: 16px; }
+  .rep-filtros .form-field { flex: 1 1 150px; min-width: 130px; }
+  .rep-filtros .btn-registrar, .rep-filtros .btn-limpiar { margin-top: 0; white-space: nowrap; }
+  .rep-acciones { display: flex; gap: 10px; margin-bottom: 14px; }
+  .rep-tabla-wrap { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: auto; max-height: 55vh; }
+  .rep-tabla-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rep-tabla-wrap thead th { background: #0a2a5e; color: #fff; padding: 10px 14px; text-align: left; position: sticky; top: 0; }
+  .rep-tabla-wrap td { padding: 9px 14px; border-bottom: 1px solid #e0eaf5; }
+  .rep-tabla-wrap tbody tr:nth-child(even) td { background: #f5f9ff; }
+  .rep-placeholder { text-align: center; color: #aaa; padding: 60px 20px; font-size: 14px; max-width: 500px; margin: 0 auto; }
+  .rep-vacio { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
+  tr.rep-urgente td { background: rgb(255,199,206) !important; }
+  tr.rep-reabastecer td { background: rgb(255,235,156) !important; }
+  tr.rep-comprar td { background: rgb(255,165,0) !important; }
+  tr.rep-revisar td { background: rgb(255,235,156) !important; }
   .etq-label {
     width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
     display: flex; flex-direction: row; overflow: hidden;
@@ -416,6 +438,12 @@
     </div>
     <button class="sb-item hidden" id="btnConsultaStock" onclick="abrirModalConsulta()"><span class="ic">🔍</span> Consulta de Stock</button>
     <button class="sb-item hidden" id="btnEtiquetas" onclick="mostrarSeccion('etiquetas', this)"><span class="ic">🏷️</span> Imprimir Etiquetas</button>
+    <button class="sb-item hidden" id="btnReportes" onclick="toggleSubmenuReportes()"><span class="ic">📊</span> Reportes <span class="sb-caret" id="repCaret">▸</span></button>
+    <div class="sb-submenu" id="submenuReportes">
+      <button class="sb-subitem" onclick="irAReporte('CONTEO', this)">🧮 Conteo de Inventario</button>
+      <button class="sb-subitem" onclick="irAReporte('REABASTOS', this)">🔁 Reabastos</button>
+      <button class="sb-subitem" onclick="irAReporte('SUGERIDO', this)">🛍️ Sugerido de Compras</button>
+    </div>
     <div class="sb-section-label">Solicitudes</div>
     <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
     <button class="sb-item hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes', this)"><span class="ic">📬</span> Pedidos Pendientes</button>
@@ -703,6 +731,109 @@
   </div>
 </div>
 
+<div id="seccionReportes" class="hidden">
+  <div class="rep-wrap">
+    <div id="repPlaceholder" class="rep-placeholder">Elija un reporte del menú lateral: Conteo de Inventario, Reabastos o Sugerido de Compras.</div>
+    <div id="repContenido" class="hidden">
+      <div class="rep-header" id="repTituloActual"></div>
+
+      <!-- CONTEO DE INVENTARIO -->
+      <div class="rep-panel hidden" id="repConteo">
+        <div class="rep-filtros">
+          <div class="form-field">
+            <label>Bodega</label>
+            <select id="conteoBodega"><option value="">TODAS</option></select>
+          </div>
+          <div class="form-field">
+            <label>Categoría</label>
+            <select id="conteoCategoria"><option value="">TODAS</option></select>
+          </div>
+          <div class="form-field">
+            <label>Código</label>
+            <div class="codigo-search-wrap">
+              <input type="text" id="conteoCodigoBuscar" placeholder="Todos..." oninput="buscarCodigoGenerico(this.value, 'conteoCodigoDropdown', 'conteoCodigoBuscar')" autocomplete="off">
+              <div class="codigo-dropdown" id="conteoCodigoDropdown"></div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Meses (salidas)</label>
+            <select id="conteoMeses">
+              <option value="">—</option>
+              <option value="1">1 mes</option>
+              <option value="2">2 meses</option>
+              <option value="3">3 meses</option>
+              <option value="6">6 meses</option>
+              <option value="12">12 meses</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Salidas mínimas</label>
+            <input type="number" id="conteoSalidasMin" placeholder="—" min="0">
+          </div>
+          <div class="form-field">
+            <label>Fecha</label>
+            <input type="text" id="conteoFecha" readonly>
+          </div>
+          <button class="btn-registrar" type="button" onclick="generarConteo()">Generar</button>
+          <button class="btn-limpiar" type="button" onclick="limpiarFiltrosConteo()">✕ Limpiar</button>
+        </div>
+        <div class="rep-acciones">
+          <button class="btn-limpiar" type="button" onclick="exportarReporteActual()">⬇️ Exportar CSV</button>
+          <button class="btn-limpiar" type="button" onclick="imprimirReporte()">🖨️ Imprimir</button>
+        </div>
+        <div class="rep-tabla-wrap">
+          <table>
+            <thead><tr><th>Ubicación</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Stock Sistema</th><th>Reservado</th><th>Conteo Físico</th><th>Observaciones</th></tr></thead>
+            <tbody id="conteoTbody"><tr><td colspan="8" class="rep-vacio">Configure los filtros y presione Generar.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- REABASTOS -->
+      <div class="rep-panel hidden" id="repReabastos">
+        <div class="rep-filtros">
+          <div class="form-field">
+            <label>Categoría</label>
+            <select id="reabastosCategoria"><option value="">Seleccione...</option></select>
+          </div>
+          <button class="btn-registrar" type="button" onclick="generarReabastos()">Generar</button>
+        </div>
+        <div class="rep-acciones">
+          <button class="btn-limpiar" type="button" onclick="exportarReporteActual()">⬇️ Exportar CSV</button>
+          <button class="btn-limpiar" type="button" onclick="imprimirReporte()">🖨️ Imprimir</button>
+        </div>
+        <div class="rep-tabla-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th>Ubic. Primaria</th><th>Stock Primaria</th><th>Ubic. Secundaria</th><th>Stock Secundaria</th><th>Estado</th></tr></thead>
+            <tbody id="reabastosTbody"><tr><td colspan="8" class="rep-vacio">Elija una categoría y presione Generar.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUGERIDO DE COMPRAS -->
+      <div class="rep-panel hidden" id="repSugerido">
+        <div class="rep-filtros">
+          <div class="form-field">
+            <label>Categoría</label>
+            <select id="sugeridoCategoria"><option value="">Seleccione...</option></select>
+          </div>
+          <button class="btn-registrar" type="button" onclick="generarSugerido()">Generar</button>
+        </div>
+        <div class="rep-acciones">
+          <button class="btn-limpiar" type="button" onclick="exportarReporteActual()">⬇️ Exportar CSV</button>
+          <button class="btn-limpiar" type="button" onclick="imprimirReporte()">🖨️ Imprimir</button>
+        </div>
+        <div class="rep-tabla-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th>Stock Actual</th><th>Total Salidas</th><th>Prom. Mensual</th><th>Sugerido Compra</th><th>Estado</th></tr></thead>
+            <tbody id="sugeridoTbody"><tr><td colspan="8" class="rep-vacio">Elija una categoría y presione Generar.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
   </div><!-- /.content-scroll -->
 </div><!-- /.main-area -->
 
@@ -824,6 +955,14 @@ let productosEtiquetaCargados = false;
 let nombresPedidoCargados = false;
 let etiquetaSeleccionada = null;
 let ultimaActualizacionDatos = null;
+let tipoReporteActual = '';
+let datosReportesCargados = false;
+let movimientosHistorial = [];
+let reservasDetalleReportes = [];
+let reporteResultadosActuales = [];
+let filtrosReporteListos = { CONTEO: false, REABASTOS: false, SUGERIDO: false };
+const PANEL_REPORTE = { CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido' };
+const TITULO_REPORTE = { CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras' };
 
 function actualizarLiveIndicador() {
   const ind = document.getElementById('liveIndicador');
@@ -859,6 +998,7 @@ function mostrarApp() {
   if (usuarioActivo.rol === 'admin') {
     document.getElementById('btnMovimientos').classList.remove('hidden');
     document.getElementById('btnConsultaStock').classList.remove('hidden');
+    document.getElementById('btnReportes').classList.remove('hidden');
     cargarListasMovimientos(); // carga en background mientras el usuario ve el inventario
   }
   if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'tecnico' || usuarioActivo.rol === 'comercial') {
@@ -890,6 +1030,7 @@ const TITULOS_SECCION = {
   consulta:    ['HidroClear / Inventario',   'Consulta de Inventario'],
   movimientos: ['HidroClear / Operación',    'Movimientos'],
   etiquetas:   ['HidroClear / Operación',    'Imprimir Etiquetas'],
+  reportes:    ['HidroClear / Reportes',     'Reportes'],
   pedidos:     ['HidroClear / Solicitudes',  'Solicitud de Materiales'],
   pendientes:  ['HidroClear / Solicitudes',  'Pedidos Pendientes']
 };
@@ -900,6 +1041,7 @@ function mostrarSeccion(seccion, el) {
   document.getElementById('seccionPedidos').classList.add('hidden');
   document.getElementById('seccionPendientes').classList.add('hidden');
   document.getElementById('seccionEtiquetas').classList.add('hidden');
+  document.getElementById('seccionReportes').classList.add('hidden');
 
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('activo'));
   if (el) el.classList.add('activo');
@@ -931,6 +1073,15 @@ function mostrarSeccion(seccion, el) {
   } else if (seccion === 'etiquetas') {
     document.getElementById('seccionEtiquetas').classList.remove('hidden');
     if (!productosEtiquetaCargados) cargarProductosEtiqueta();
+  } else if (seccion === 'reportes') {
+    document.getElementById('seccionReportes').classList.remove('hidden');
+    if (tipoReporteActual) {
+      document.getElementById('repPlaceholder').classList.add('hidden');
+      document.getElementById('repContenido').classList.remove('hidden');
+    } else {
+      document.getElementById('repPlaceholder').classList.remove('hidden');
+      document.getElementById('repContenido').classList.add('hidden');
+    }
   }
 }
 
@@ -1803,8 +1954,9 @@ function seleccionarCodigo(codigo, descripcion) {
 
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.codigo-search-wrap')) {
-    document.getElementById('codigoDropdown').classList.remove('visible');
-    document.getElementById('consultaModalDropdown').classList.remove('visible');
+    // Cierra cualquier dropdown de búsqueda de código que haya quedado abierto (el de
+    // Movimientos, el de Consulta, o el de cualquier reporte que tenga uno).
+    document.querySelectorAll('.codigo-dropdown.visible').forEach(d => d.classList.remove('visible'));
   }
 });
 
@@ -1973,6 +2125,7 @@ function ocultarTodasLasAreasDeImpresion() {
   document.getElementById('printArea').style.display = 'none';
   document.getElementById('printAreaBodega').style.display = 'none';
   document.getElementById('printAreaEtiqueta').style.display = 'none';
+  document.getElementById('printAreaReporte').style.display = 'none';
 }
 
 function imprimirSolicitud() {
@@ -2399,10 +2552,351 @@ function imprimirEtiquetas() {
   setTimeout(() => { msg.style.display = 'none'; }, 4000);
 }
 
+/* =========================================================
+   REPORTES: Conteo de Inventario, Reabastos, Sugerido de Compras
+   ========================================================= */
+
+function toggleSubmenuReportes() {
+  document.getElementById('submenuReportes').classList.toggle('expandido');
+  document.getElementById('repCaret').classList.toggle('rotado');
+}
+
+function irAReporte(tipo, el) {
+  document.getElementById('submenuReportes').classList.add('expandido');
+  document.getElementById('repCaret').classList.add('rotado');
+  mostrarSeccion('reportes', document.getElementById('btnReportes'));
+  document.querySelectorAll('.sb-subitem').forEach(i => i.classList.remove('activo'));
+  el.classList.add('activo');
+  seleccionarReporte(tipo);
+}
+
+function seleccionarReporte(tipo) {
+  tipoReporteActual = tipo;
+  reporteResultadosActuales = [];
+  document.getElementById('repPlaceholder').classList.add('hidden');
+  document.getElementById('repContenido').classList.remove('hidden');
+  document.getElementById('repTituloActual').textContent = TITULO_REPORTE[tipo];
+  document.querySelectorAll('.rep-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(PANEL_REPORTE[tipo]).classList.remove('hidden');
+  if (tipo === 'CONTEO') {
+    document.getElementById('conteoFecha').value = new Date().toLocaleDateString('es-CR');
+    if (!listasMovimientosCargadas) cargarListasMovimientos();
+  }
+  prepararFiltrosReporte(tipo);
+  if (!datosReportesCargados) cargarDatosReportes();
+}
+
+// Las listas de Bodega/Categoría solo dependen del inventario ya cargado en memoria,
+// así que se llenan una única vez por tipo de reporte (no en cada clic).
+function prepararFiltrosReporte(tipo) {
+  if (filtrosReporteListos[tipo]) return;
+  const categorias = [...new Set(datosInventario.map(d => d.categoria).filter(c => c))].sort();
+  if (tipo === 'CONTEO') {
+    const bodegas = [...new Set(datosInventario.map(d => d.bodega).filter(b => b))].sort();
+    document.getElementById('conteoBodega').innerHTML = '<option value="">TODAS</option>' + bodegas.map(b => `<option value="${b}">${b}</option>`).join('');
+    document.getElementById('conteoCategoria').innerHTML = '<option value="">TODAS</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
+  } else if (tipo === 'REABASTOS') {
+    document.getElementById('reabastosCategoria').innerHTML = '<option value="">Seleccione...</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
+  } else if (tipo === 'SUGERIDO') {
+    document.getElementById('sugeridoCategoria').innerHTML = '<option value="">Seleccione...</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+  filtrosReporteListos[tipo] = true;
+}
+
+// El inventario, las ubicaciones y las reservas ya se usan en otras partes de la app;
+// lo único nuevo que necesitan los reportes es el historial completo de movimientos
+// (para calcular salidas) y el detalle de reservas por ubicación (para "Reservado").
+// Se piden una sola vez y quedan en memoria mientras dure la sesión.
+async function cargarDatosReportes() {
+  try {
+    const [respHist, respRes] = await Promise.all([
+      fetch(GS_URL + '?tipo=MOVIMIENTOS_HISTORIAL'),
+      fetch(GS_URL + '?tipo=RESERVAS_DETALLE')
+    ]);
+    const jsonHist = await respHist.json();
+    const jsonRes = await respRes.json();
+    movimientosHistorial = jsonHist.status === 'ok' ? jsonHist.datos : [];
+    reservasDetalleReportes = jsonRes.status === 'ok' ? jsonRes.datos : [];
+    datosReportesCargados = true;
+  } catch (err) {
+    console.error('Error cargando datos de reportes:', err);
+  }
+}
+
+function agruparReservasPorCodigoUbicacion() {
+  const mapa = {};
+  reservasDetalleReportes.forEach(r => {
+    const key = String(r.codigo).trim() + '|' + String(r.ubicacion).trim();
+    mapa[key] = (mapa[key] || 0) + (Number(r.cantidad) || 0);
+  });
+  return mapa;
+}
+
+function buscarCodigoGenerico(texto, dropdownId, inputId) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); if (inputId === 'conteoCodigoBuscar') generarConteo(); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
+  dropdown.innerHTML = resultados.map(c =>
+    `<div class="codigo-item" onclick="seleccionarCodigoGenerico('${c.codigo.replace(/'/g,"\\'")}','${inputId}','${dropdownId}')">
+      <div class="cod">${c.codigo}</div>
+      <div class="desc-cod">${c.descripcion}</div>
+    </div>`).join('');
+  dropdown.classList.add('visible');
+}
+
+function seleccionarCodigoGenerico(codigo, inputId, dropdownId) {
+  document.getElementById(inputId).value = codigo;
+  document.getElementById(dropdownId).classList.remove('visible');
+  if (inputId === 'conteoCodigoBuscar') generarConteo();
+}
+
+function limpiarFiltrosConteo() {
+  document.getElementById('conteoBodega').value = '';
+  document.getElementById('conteoCategoria').value = '';
+  document.getElementById('conteoCodigoBuscar').value = '';
+  document.getElementById('conteoMeses').value = '';
+  document.getElementById('conteoSalidasMin').value = '';
+  document.getElementById('conteoCodigoDropdown').classList.remove('visible');
+  reporteResultadosActuales = [];
+  document.getElementById('conteoTbody').innerHTML = '<tr><td colspan="8" class="rep-vacio">Configure los filtros y presione Generar.</td></tr>';
+}
+
+function generarConteo() {
+  const bodegaF = document.getElementById('conteoBodega').value;
+  const categoriaF = document.getElementById('conteoCategoria').value;
+  const meses = document.getElementById('conteoMeses').value;
+  const salidasMin = parseFloat(document.getElementById('conteoSalidasMin').value);
+  const codigoF = document.getElementById('conteoCodigoBuscar').value.trim().toUpperCase();
+
+  // Filtro opcional: excluir códigos con pocas salidas recientes (solo si ambos campos están llenos)
+  let salidasPorCodigo = null;
+  if (meses && !isNaN(salidasMin) && salidasMin > 0) {
+    const corte = new Date();
+    corte.setMonth(corte.getMonth() - parseInt(meses, 10));
+    salidasPorCodigo = {};
+    movimientosHistorial.forEach(m => {
+      if (m.tipo !== 'SALIDA') return;
+      const f = new Date(m.fecha);
+      if (isNaN(f) || f < corte) return;
+      salidasPorCodigo[m.codigo] = (salidasPorCodigo[m.codigo] || 0) + (Number(m.cantidad) || 0);
+    });
+  }
+
+  const reservadoPorCodigoUbic = agruparReservasPorCodigoUbicacion();
+
+  const filas = datosInventario.filter(d => {
+    if (!(d.stock > 0)) return false;
+    if (bodegaF && d.bodega !== bodegaF) return false;
+    if (categoriaF && d.categoria !== categoriaF) return false;
+    if (codigoF && !(String(d.codigo).toUpperCase().includes(codigoF) || String(d.descripcion).toUpperCase().includes(codigoF))) return false;
+    if (salidasPorCodigo && (salidasPorCodigo[d.codigo] || 0) < salidasMin) return false;
+    return true;
+  }).map(d => ({
+    ubicacion: d.bodega, codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '',
+    stock: d.stock, reservado: reservadoPorCodigoUbic[d.codigo + '|' + d.bodega] || 0
+  })).sort((a, b) => String(a.ubicacion).localeCompare(String(b.ubicacion)) || String(a.codigo).localeCompare(String(b.codigo)));
+
+  reporteResultadosActuales = filas;
+  renderTablaConteo(filas);
+}
+
+function renderTablaConteo(filas) {
+  const tbody = document.getElementById('conteoTbody');
+  if (!filas.length) { tbody.innerHTML = '<tr><td colspan="8" class="rep-vacio">No hay resultados con estos filtros.</td></tr>'; return; }
+  tbody.innerHTML = filas.map(f =>
+    `<tr><td>${f.ubicacion}</td><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stock}</td><td>${f.reservado}</td><td></td><td></td></tr>`
+  ).join('');
+}
+
+const MINIMO_STOCK_CATEGORIA_ESPECIAL = 'TUBOS Y ACCESORIOS PVC';
+
+function buscarPrimeraUbicacionPorTipo(filasCodigo, tipo, requiereStock) {
+  const tiposUbic = {};
+  todasUbicaciones.forEach(u => { tiposUbic[u.ubicacion] = String(u.tipo || '').toUpperCase(); });
+  const candidatas = filasCodigo.filter(f => tiposUbic[f.bodega] === tipo && (!requiereStock || f.stock > 0));
+  return candidatas.length ? candidatas[0] : null;
+}
+
+function generarReabastos() {
+  const categoria = document.getElementById('reabastosCategoria').value;
+  if (!categoria) { alert('Seleccione una categoría.'); return; }
+
+  const minimoStock = categoria.toUpperCase() === MINIMO_STOCK_CATEGORIA_ESPECIAL ? 50 : 2;
+  const codigosCategoria = [...new Set(datosInventario.filter(d => d.categoria === categoria).map(d => d.codigo))];
+
+  const filas = [];
+  codigosCategoria.forEach(codigo => {
+    const filasCodigo = datosInventario.filter(d => d.codigo === codigo);
+    const descripcion = filasCodigo.length ? filasCodigo[0].descripcion : '';
+    const ubicPrimaria = buscarPrimeraUbicacionPorTipo(filasCodigo, 'PRIMARIA', false);
+    const ubicSecundaria = buscarPrimeraUbicacionPorTipo(filasCodigo, 'SECUNDARIA', true);
+    if (!ubicPrimaria || !ubicSecundaria) return;
+    if (ubicPrimaria.stock >= minimoStock) return;
+    filas.push({
+      codigo, descripcion, categoria,
+      ubicacionPrimaria: ubicPrimaria.bodega, stockPrimaria: ubicPrimaria.stock,
+      ubicacionSecundaria: ubicSecundaria.bodega, stockSecundaria: ubicSecundaria.stock,
+      estado: ubicPrimaria.stock === 0 ? 'URGENTE' : 'REABASTECER'
+    });
+  });
+  filas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+
+  reporteResultadosActuales = filas;
+  renderTablaReabastos(filas);
+}
+
+function renderTablaReabastos(filas) {
+  const tbody = document.getElementById('reabastosTbody');
+  if (!filas.length) { tbody.innerHTML = '<tr><td colspan="8" class="rep-vacio">No hay ítems por reabastecer en esta categoría.</td></tr>'; return; }
+  tbody.innerHTML = filas.map(f => {
+    const clase = f.estado === 'URGENTE' ? 'rep-urgente' : 'rep-reabastecer';
+    return `<tr class="${clase}"><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.ubicacionPrimaria}</td><td>${f.stockPrimaria}</td><td>${f.ubicacionSecundaria}</td><td>${f.stockSecundaria}</td><td>${f.estado}</td></tr>`;
+  }).join('');
+}
+
+function generarSugerido() {
+  const categoria = document.getElementById('sugeridoCategoria').value;
+  if (!categoria) { alert('Seleccione una categoría.'); return; }
+
+  // El divisor de meses se calcula sobre el rango de fechas de TODAS las salidas
+  // (no solo las de esta categoría), igual que en la macro (DateDiff global).
+  let fechaMin = null, fechaMax = null;
+  movimientosHistorial.forEach(m => {
+    if (m.tipo !== 'SALIDA') return;
+    const f = new Date(m.fecha);
+    if (isNaN(f)) return;
+    if (!fechaMin || f < fechaMin) fechaMin = f;
+    if (!fechaMax || f > fechaMax) fechaMax = f;
+  });
+  const meses = (fechaMin && fechaMax)
+    ? Math.max(1, (fechaMax.getFullYear() - fechaMin.getFullYear()) * 12 + (fechaMax.getMonth() - fechaMin.getMonth()))
+    : 1;
+
+  const totalSalidasPorCodigo = {};
+  movimientosHistorial.forEach(m => {
+    if (m.tipo !== 'SALIDA') return;
+    totalSalidasPorCodigo[m.codigo] = (totalSalidasPorCodigo[m.codigo] || 0) + (Number(m.cantidad) || 0);
+  });
+
+  const codigosCategoria = [...new Set(datosInventario.filter(d => d.categoria === categoria).map(d => d.codigo))];
+  const filas = [];
+  codigosCategoria.forEach(codigo => {
+    const totalSalidas = totalSalidasPorCodigo[codigo] || 0;
+    if (totalSalidas <= 0) return;
+    const descripcion = (datosInventario.find(d => d.codigo === codigo) || {}).descripcion || '';
+    const stockActual = datosInventario.filter(d => d.codigo === codigo && d.stock > 0).reduce((s, d) => s + (Number(d.stock) || 0), 0);
+    const promMensual = totalSalidas / meses;
+
+    let estado, sugerido;
+    if (stockActual <= 20) { estado = 'URGENTE'; sugerido = Math.max(0, Math.ceil(promMensual * 2 - stockActual)); }
+    else if (stockActual <= 79) { estado = 'COMPRAR'; sugerido = Math.max(0, Math.ceil(promMensual - stockActual)); }
+    else if (stockActual <= 120) { estado = 'REVISAR'; sugerido = Math.max(0, Math.ceil(promMensual * 0.5)); }
+    else { return; } // OK: no requiere compra, se excluye del listado
+
+    filas.push({ codigo, descripcion, categoria, stockActual, totalSalidas, promMensual: promMensual.toFixed(1), sugerido, estado });
+  });
+  filas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+
+  reporteResultadosActuales = filas;
+  renderTablaSugerido(filas);
+}
+
+function renderTablaSugerido(filas) {
+  const tbody = document.getElementById('sugeridoTbody');
+  if (!filas.length) { tbody.innerHTML = '<tr><td colspan="8" class="rep-vacio">No hay sugerencias de compra en esta categoría.</td></tr>'; return; }
+  tbody.innerHTML = filas.map(f => {
+    const clase = f.estado === 'URGENTE' ? 'rep-urgente' : (f.estado === 'COMPRAR' ? 'rep-comprar' : 'rep-revisar');
+    return `<tr class="${clase}"><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stockActual}</td><td>${f.totalSalidas}</td><td>${f.promMensual}</td><td>${f.sugerido}</td><td>${f.estado}</td></tr>`;
+  }).join('');
+}
+
+// Descarga CSV con delimitador ";" (Excel en español) y BOM UTF-8 para tildes/ñ correctas.
+// Es el equivalente práctico del botón "EXPORTAR A EXCEL" de la macro (no hay librería .xlsx real aquí).
+function exportarCSV(headers, filas, nombreArchivo) {
+  const BOM = '﻿';
+  const escapar = v => {
+    const s = String(v === undefined || v === null ? '' : v);
+    return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  let csv = headers.map(escapar).join(';') + '\n';
+  filas.forEach(fila => { csv += fila.map(escapar).join(';') + '\n'; });
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombreArchivo;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportarReporteActual() {
+  if (!tipoReporteActual || !reporteResultadosActuales.length) { alert('Primero genere el reporte.'); return; }
+  const hoy = new Date().toISOString().split('T')[0];
+  if (tipoReporteActual === 'CONTEO') {
+    exportarCSV(
+      ['UBICACION', 'CODIGO', 'DESCRIPCION', 'CATEGORIA', 'STOCK SISTEMA', 'RESERVADO', 'CONTEO FISICO', 'OBSERVACIONES'],
+      reporteResultadosActuales.map(f => [f.ubicacion, f.codigo, f.descripcion, f.categoria, f.stock, f.reservado, '', '']),
+      'conteo_inventario_' + hoy + '.csv'
+    );
+  } else if (tipoReporteActual === 'REABASTOS') {
+    exportarCSV(
+      ['CODIGO', 'DESCRIPCION', 'CATEGORIA', 'UBIC. PRIMARIA', 'STOCK PRIMARIA', 'UBIC. SECUNDARIA', 'STOCK SECUNDARIA', 'ESTADO'],
+      reporteResultadosActuales.map(f => [f.codigo, f.descripcion, f.categoria, f.ubicacionPrimaria, f.stockPrimaria, f.ubicacionSecundaria, f.stockSecundaria, f.estado]),
+      'reabastos_' + hoy + '.csv'
+    );
+  } else if (tipoReporteActual === 'SUGERIDO') {
+    exportarCSV(
+      ['CODIGO', 'DESCRIPCION', 'CATEGORIA', 'STOCK ACTUAL', 'TOTAL SALIDAS', 'PROM. MENSUAL', 'SUGERIDO COMPRA', 'ESTADO'],
+      reporteResultadosActuales.map(f => [f.codigo, f.descripcion, f.categoria, f.stockActual, f.totalSalidas, f.promMensual, f.sugerido, f.estado]),
+      'sugerido_compras_' + hoy + '.csv'
+    );
+  }
+}
+
+// Reutiliza el mismo patrón de las otras impresiones (Solicitud/Pedido/Etiqueta): el área
+// de impresión permanece display:none siempre, y solo se muestra justo antes de imprimir.
+function imprimirReporte() {
+  if (!tipoReporteActual || !reporteResultadosActuales.length) { alert('Primero genere el reporte.'); return; }
+  const hoy = new Date().toLocaleDateString('es-CR');
+  let titulo = '', headers = [], filasHtml = '';
+
+  if (tipoReporteActual === 'CONTEO') {
+    titulo = 'Reporte de Conteo de Inventario';
+    headers = ['Ubicación', 'Código', 'Descripción', 'Categoría', 'Stock Sistema', 'Reservado', 'Conteo Físico', 'Observaciones'];
+    filasHtml = reporteResultadosActuales.map(f => `<tr><td>${f.ubicacion}</td><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stock}</td><td>${f.reservado}</td><td></td><td></td></tr>`).join('');
+  } else if (tipoReporteActual === 'REABASTOS') {
+    titulo = 'Reabastecimiento de Ubicaciones';
+    headers = ['Código', 'Descripción', 'Categoría', 'Ubic. Primaria', 'Stock Primaria', 'Ubic. Secundaria', 'Stock Secundaria', 'Estado'];
+    filasHtml = reporteResultadosActuales.map(f => `<tr><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.ubicacionPrimaria}</td><td>${f.stockPrimaria}</td><td>${f.ubicacionSecundaria}</td><td>${f.stockSecundaria}</td><td>${f.estado}</td></tr>`).join('');
+  } else if (tipoReporteActual === 'SUGERIDO') {
+    titulo = 'Sugerido de Compras';
+    headers = ['Código', 'Descripción', 'Categoría', 'Stock Actual', 'Total Salidas', 'Prom. Mensual', 'Sugerido Compra', 'Estado'];
+    filasHtml = reporteResultadosActuales.map(f => `<tr><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stockActual}</td><td>${f.totalSalidas}</td><td>${f.promMensual}</td><td>${f.sugerido}</td><td>${f.estado}</td></tr>`).join('');
+  }
+
+  const printArea = document.getElementById('printAreaReporte');
+  printArea.innerHTML = `
+    <div class="print-header">
+      <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+      <div class="print-titulo">${titulo}<br><span style="font-size:12px;font-weight:400">${hoy}</span></div>
+    </div>
+    <table class="print-tabla"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${filasHtml}</tbody></table>
+  `;
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+}
+
 </script>
 
 <!-- ÁREA DE IMPRESIÓN DE ETIQUETAS (código de barras) -->
 <div id="printAreaEtiqueta"></div>
+
+<!-- ÁREA DE IMPRESIÓN DE REPORTES -->
+<div id="printAreaReporte" style="display:none"></div>
 
 <!-- ÁREA IMPRESIÓN PEDIDO BODEGA -->
 <div id="printAreaBodega" style="display:none">
