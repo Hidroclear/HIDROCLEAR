@@ -146,6 +146,31 @@
   .consulta-tabla-wrap table { width: 100%; border-collapse: collapse; }
   .consulta-tabla-wrap thead th { position: sticky; top: 0; z-index: 1; }
   .mov-consulta-placeholder { font-size: 13px; color: var(--texto-suave); text-align: center; padding: 34px 12px; }
+
+  /* Cabecera del formulario de movimiento, con el botón "Aplicar Reservas" a la derecha
+     cuando el tipo activo es RESERVA (reemplaza el border-bottom que tenía el <h3> solo) */
+  .form-movimiento-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--gris); margin-bottom: 20px; padding-bottom: 12px; }
+  .form-movimiento-header h3 { border: none; margin: 0; padding: 0; }
+  .btn-aplicar-reservas { background: var(--azul); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-aplicar-reservas:hover { background: var(--azul-medio); }
+
+  /* MODAL: Aplicar Reservas — agrupa reservas por comercial/documento y permite aplicar
+     (dar salida) o cancelar, igual que la ventana "APLICAR RESERVAS" de la macro. */
+  .reserva-lista-box { border: 1px solid var(--gris); border-radius: 10px; overflow-y: auto; margin-bottom: 16px; }
+  .reserva-lista-box.docs { max-height: 160px; }
+  .reserva-lista-box.items { max-height: 220px; }
+  .reserva-lista-box table { width: 100%; border-collapse: collapse; }
+  .reserva-doc-row { cursor: pointer; }
+  .reserva-doc-row:hover td { background: #f0f5ff; }
+  .reserva-doc-row.seleccionada td { background: #e3edff; }
+  .reserva-lista-vacia { padding: 26px 12px; text-align: center; font-size: 13px; color: var(--texto-suave); font-style: italic; }
+  .reserva-acciones-medio { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .reserva-cant-aplicar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--texto); }
+  .reserva-cant-aplicar input { width: 90px; padding: 8px 10px; border: 1.5px solid var(--gris); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+  .reserva-item-check { width: 16px; height: 16px; cursor: pointer; }
+  .reserva-modal-footer { display: flex; gap: 12px; flex-wrap: wrap; }
+  .reserva-modal-footer .btn-registrar, .reserva-modal-footer .btn-eliminar-mov, .reserva-modal-footer .btn-cancelar-mov { margin-top: 0; padding: 12px 24px; font-size: 13.5px; }
+  .reserva-modal-footer .btn-eliminar-mov:disabled, .reserva-modal-footer .btn-registrar:disabled { background: #aaa; cursor: not-allowed; }
   .mov-acciones-form { display: flex; gap: 12px; margin-top: 12px; }
   .mov-acciones-form .btn-registrar { margin-top: 0; }
   .btn-cancelar-mov { background: #fff; color: var(--texto-suave); border: 1.5px solid #c5d5ea; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
@@ -454,7 +479,10 @@
     <div>Seleccione un tipo de movimiento en el menú <strong>Movimientos</strong> del panel lateral.</div>
   </div>
   <div class="form-movimiento hidden" id="formMovimiento">
-    <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
+    <div class="form-movimiento-header">
+      <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
+      <button class="btn-aplicar-reservas hidden" type="button" id="btnAplicarReservas" onclick="abrirModalAplicarReservas()">📦 Aplicar Reservas</button>
+    </div>
     <div class="form-grid">
       <div class="form-field">
         <label>Tipo</label>
@@ -714,6 +742,53 @@
           <tbody id="consultaModalTbody"></tbody>
         </table>
         <div class="mov-consulta-placeholder" id="consultaModalPlaceholder">Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Puede dejar esta ventana abierta o cerrarla en cualquier momento — no afecta el movimiento que esté llenando.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Aplicar Reservas — agrupa las reservas activas por comercial y documento, y
+     permite aplicarlas (dar salida) o cancelarlas, igual que la ventana de la macro -->
+<div class="modal-overlay" id="modalAplicarReservas" onclick="if (event.target === this) cerrarModalAplicarReservas()">
+  <div class="modal-box modal-box-ancho">
+    <div class="modal-header">
+      <div class="modal-header-titulo">📦 Aplicar Reservas</div>
+      <button class="modal-close" type="button" onclick="cerrarModalAplicarReservas()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Comercial</label>
+        <select id="reservaComercial" onchange="cambiarComercialReserva()"><option value="">Seleccione...</option></select>
+      </div>
+
+      <div class="mov-listbox-titulo" style="margin:16px 0 8px">Reservas Pendientes</div>
+      <div class="reserva-lista-box docs">
+        <table>
+          <thead><tr><th>Fecha</th><th>N° Documento</th><th>Comercial</th><th>Cantidad</th></tr></thead>
+          <tbody id="reservaDocumentosBody"><tr><td colspan="4" class="reserva-lista-vacia">Elija un comercial para ver sus reservas pendientes.</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="reserva-acciones-medio">
+        <button class="btn-limpiar" type="button" onclick="marcarTodosReservaItems()">Marcar Todos</button>
+        <div class="reserva-cant-aplicar">
+          <label for="reservaCantidadAplicar">Cantidad a aplicar:</label>
+          <input type="number" id="reservaCantidadAplicar" min="1" placeholder="—">
+        </div>
+      </div>
+
+      <div class="mov-listbox-titulo" style="margin:0 0 8px">Ítems Pendientes</div>
+      <div class="reserva-lista-box items">
+        <table>
+          <thead><tr><th></th><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación</th></tr></thead>
+          <tbody id="reservaItemsBody"><tr><td colspan="5" class="reserva-lista-vacia">Elija un documento de la lista de arriba para ver sus ítems.</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="reserva-modal-footer">
+        <button class="btn-registrar" type="button" id="btnAplicarReservaSeleccion" onclick="aplicarReservasSeleccionadas()">Aplicar Seleccionados</button>
+        <button class="btn-eliminar-mov" type="button" id="btnCancelarReservaSeleccion" onclick="cancelarReservaSeleccionada()">Cancelar Reserva</button>
+        <button class="btn-cancelar-mov" type="button" onclick="cerrarModalAplicarReservas()">Cerrar</button>
       </div>
     </div>
   </div>
@@ -1098,8 +1173,12 @@ function seleccionarMovimiento(tipo) {
   indiceEdicionLista = null;
   renderListaMovimientos();
 
-  const labelBtnLista = tipo === 'RESERVA' ? 'Aplicar Reservas' : 'Registrar Movimientos';
+  // Nombre distinto al del botón "📦 Aplicar Reservas" de arriba: este de aquí abajo
+  // registra las reservas NUEVAS que se acaban de "Ingresar" al cuadro de lista; el de
+  // arriba consume/aplica reservas YA existentes (equivalente a la ventana de la macro).
+  const labelBtnLista = tipo === 'RESERVA' ? 'Registrar Reservas' : 'Registrar Movimientos';
   document.getElementById('btnRegistrarLista').textContent = labelBtnLista;
+  document.getElementById('btnAplicarReservas').classList.toggle('hidden', tipo !== 'RESERVA');
 
   if (tipo === 'INGRESO') {
     document.getElementById('labelUbicacion').textContent = 'Ubicación Entrante';
@@ -1146,6 +1225,211 @@ async function cargarComercialesReserva() {
   }
 }
 
+// ── Aplicar Reservas: ventana emergente que agrupa las reservas activas (hoja RESERVAS)
+// por comercial y N° Documento, y permite aplicarlas (dar salida) o cancelarlas — igual
+// que la ventana "APLICAR RESERVAS" de la macro. ──
+let reservasDetalleCargadas = [];
+let itemsReservaActuales = [];
+
+async function abrirModalAplicarReservas() {
+  document.getElementById('modalAplicarReservas').classList.add('visible');
+  document.getElementById('reservaComercial').innerHTML = '<option value="">Cargando...</option>';
+  document.getElementById('reservaDocumentosBody').innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Cargando reservas...</td></tr>';
+  itemsReservaActuales = [];
+  renderItemsReserva();
+  await cargarReservasDetalle();
+}
+
+function cerrarModalAplicarReservas() {
+  document.getElementById('modalAplicarReservas').classList.remove('visible');
+}
+
+async function cargarReservasDetalle() {
+  try {
+    const resp = await fetch(GS_URL + '?tipo=RESERVAS_DETALLE&t=' + Date.now());
+    const json = await resp.json();
+    reservasDetalleCargadas = json.status === 'ok' ? (json.datos || []) : [];
+  } catch (err) {
+    reservasDetalleCargadas = [];
+  }
+  const sel = document.getElementById('reservaComercial');
+  const comercialPrevio = sel.value;
+  const comerciales = [...new Set(reservasDetalleCargadas.map(r => r.comercial).filter(c => c))].sort();
+  sel.innerHTML = '<option value="">Seleccione...</option>' + comerciales.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (comerciales.includes(comercialPrevio)) sel.value = comercialPrevio;
+  cambiarComercialReserva();
+}
+
+function cambiarComercialReserva() {
+  const comercial = document.getElementById('reservaComercial').value;
+  const cuerpo = document.getElementById('reservaDocumentosBody');
+  itemsReservaActuales = [];
+  renderItemsReserva();
+  if (!comercial) {
+    cuerpo.innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Elija un comercial para ver sus reservas pendientes.</td></tr>';
+    return;
+  }
+  // Agrupa por N° Documento, igual que la macro
+  const porDocumento = {};
+  reservasDetalleCargadas.filter(r => r.comercial === comercial).forEach(r => {
+    if (!r.documento) return;
+    if (!porDocumento[r.documento]) porDocumento[r.documento] = { fecha: r.fecha, comercial: r.comercial, cantidad: 0 };
+    porDocumento[r.documento].cantidad++;
+  });
+  const documentos = Object.keys(porDocumento);
+  if (documentos.length === 0) {
+    cuerpo.innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Este comercial no tiene reservas pendientes.</td></tr>';
+    return;
+  }
+  cuerpo.innerHTML = documentos.map(doc => {
+    const d = porDocumento[doc];
+    return `<tr class="reserva-doc-row" onclick="seleccionarDocumentoReserva('${doc.replace(/'/g, "\\'")}', this)">
+      <td>${d.fecha}</td><td>${doc}</td><td>${d.comercial}</td><td>${d.cantidad} ítem(s)</td>
+    </tr>`;
+  }).join('');
+}
+
+function seleccionarDocumentoReserva(documento, el) {
+  document.querySelectorAll('.reserva-doc-row').forEach(tr => tr.classList.remove('seleccionada'));
+  el.classList.add('seleccionada');
+  const comercial = document.getElementById('reservaComercial').value;
+  itemsReservaActuales = reservasDetalleCargadas.filter(r => r.comercial === comercial && r.documento === documento);
+  renderItemsReserva();
+}
+
+function renderItemsReserva() {
+  const cuerpo = document.getElementById('reservaItemsBody');
+  document.getElementById('reservaCantidadAplicar').value = '';
+  if (itemsReservaActuales.length === 0) {
+    cuerpo.innerHTML = '<tr><td colspan="5" class="reserva-lista-vacia">Elija un documento de la lista de arriba para ver sus ítems.</td></tr>';
+    return;
+  }
+  cuerpo.innerHTML = itemsReservaActuales.map((it, idx) => `
+    <tr>
+      <td><input type="checkbox" class="reserva-item-check" data-idx="${idx}" onchange="actualizarCantidadAplicarReserva()"></td>
+      <td><span class="codigo-cell">${it.codigo}</span></td>
+      <td>${it.descripcion}</td>
+      <td>${it.cantidad}</td>
+      <td>${it.ubicacion}</td>
+    </tr>`).join('');
+}
+
+function checksReservaMarcados() {
+  return Array.from(document.querySelectorAll('#reservaItemsBody .reserva-item-check:checked'));
+}
+
+// Autocompleta la cantidad a aplicar solo cuando hay exactamente un ítem marcado
+// (para aplicar una cantidad parcial); con 0 o varios marcados, se aplica todo.
+function actualizarCantidadAplicarReserva() {
+  const marcados = checksReservaMarcados();
+  const campo = document.getElementById('reservaCantidadAplicar');
+  if (marcados.length === 1) {
+    campo.value = itemsReservaActuales[Number(marcados[0].dataset.idx)].cantidad;
+  } else {
+    campo.value = '';
+  }
+}
+
+function marcarTodosReservaItems() {
+  const checks = document.querySelectorAll('#reservaItemsBody .reserva-item-check');
+  if (checks.length === 0) {
+    alert('Primero elija un documento de la lista de arriba para cargar sus ítems.');
+    return;
+  }
+  checks.forEach(c => { c.checked = true; });
+  document.getElementById('reservaCantidadAplicar').value = '';
+}
+
+async function aplicarReservasSeleccionadas() {
+  const marcados = checksReservaMarcados();
+  if (marcados.length === 0) { alert('Debe marcar al menos un ítem para aplicar.'); return; }
+  const cantidadCampo = document.getElementById('reservaCantidadAplicar').value.trim();
+  const items = [];
+  for (const chk of marcados) {
+    const item = itemsReservaActuales[Number(chk.dataset.idx)];
+    let cantidadAplicar = item.cantidad;
+    if (marcados.length === 1 && cantidadCampo !== '' && !isNaN(Number(cantidadCampo))) {
+      cantidadAplicar = Number(cantidadCampo);
+    }
+    if (cantidadAplicar <= 0 || cantidadAplicar > item.cantidad) {
+      alert(`La cantidad a aplicar de ${item.codigo} debe ser mayor a 0 y no mayor a lo reservado (${item.cantidad}).`);
+      return;
+    }
+    items.push({
+      fila: item.fila, codigo: item.codigo, descripcion: item.descripcion,
+      cantidad_reservada: item.cantidad, cantidad_aplicar: cantidadAplicar,
+      ubicacion: item.ubicacion, reserva_con: item.reserva_con,
+      documento: item.documento, responsable: item.responsable, fecha: item.fecha
+    });
+  }
+  const btn = document.getElementById('btnAplicarReservaSeleccion');
+  btn.disabled = true;
+  btn.textContent = 'Aplicando...';
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo_peticion: 'APLICAR_RESERVAS', items })
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      alert(`${items.length} ítem(s) aplicado(s) y registrado(s) como salida.`);
+      await cargarReservasDetalle();
+      await refrescarReservasPorCodigo();
+    } else {
+      alert('No se pudo aplicar la reserva:\n' + (result.mensaje || 'Error desconocido'));
+    }
+  } catch (err) {
+    alert('Error de conexión al aplicar la reserva.\n' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Aplicar Seleccionados';
+}
+
+async function cancelarReservaSeleccionada() {
+  const marcados = checksReservaMarcados();
+  if (marcados.length === 0) { alert('Debe marcar al menos un ítem para cancelar.'); return; }
+  if (!confirm(`¿Desea cancelar ${marcados.length} reserva(s) marcada(s)? El material vuelve a estar disponible.`)) return;
+  const filas = marcados.map(chk => itemsReservaActuales[Number(chk.dataset.idx)].fila);
+  const btn = document.getElementById('btnCancelarReservaSeleccion');
+  btn.disabled = true;
+  btn.textContent = 'Cancelando...';
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo_peticion: 'CANCELAR_RESERVA_LOTE', filas })
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      alert(`${filas.length} reserva(s) cancelada(s).`);
+      await cargarReservasDetalle();
+      await refrescarReservasPorCodigo();
+    } else {
+      alert('No se pudo cancelar la reserva:\n' + (result.mensaje || 'Error desconocido'));
+    }
+  } catch (err) {
+    alert('Error de conexión al cancelar la reserva.\n' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Cancelar Reserva';
+}
+
+// Refresca solo los totales de "reservado" por código (los usa Consulta de Stock y los
+// formularios de movimiento) sin recargar todo el inventario.
+async function refrescarReservasPorCodigo() {
+  try {
+    const resp = await fetch(GS_URL + '?tipo=RESERVAS&t=' + Date.now());
+    const json = await resp.json();
+    if (json.status === 'ok') {
+      reservasPorCodigo = {};
+      (json.datos || []).forEach(r => { reservasPorCodigo[String(r.codigo).trim()] = Number(r.cantidad) || 0; });
+    }
+  } catch (err) {
+    // Si falla, se mantienen en memoria los totales previos
+  }
+}
+
 // ── Consulta de Stock: ventana emergente, independiente de cualquier operación en curso ──
 // Se abre desde el menú lateral y se puede usar en cualquier momento (aunque haya un
 // movimiento a medio llenar) sin tocar los campos ni la lista de ese movimiento.
@@ -1165,7 +1449,7 @@ function cerrarModalConsulta() {
 }
 
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') cerrarModalConsulta();
+  if (e.key === 'Escape') { cerrarModalConsulta(); cerrarModalAplicarReservas(); }
 });
 
 // ── Navegación con Enter en el formulario de movimientos ──
@@ -1481,7 +1765,7 @@ async function registrarListaMovimientos() {
     alert('Error de conexión al registrar los movimientos. Quedan en la lista para reintentar.\n' + err.message);
   }
   btn.disabled = false;
-  btn.textContent = tipoMovimientoActual === 'RESERVA' ? 'Aplicar Reservas' : 'Registrar Movimientos';
+  btn.textContent = tipoMovimientoActual === 'RESERVA' ? 'Registrar Reservas' : 'Registrar Movimientos';
 }
 
 function buscarCodigo(texto) {
