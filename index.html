@@ -367,17 +367,23 @@
     page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
   }
   .rack150-label:last-child { page-break-after: auto; break-after: auto; }
-  .rack150-col { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; }
+  /* min-width:0 es clave: por defecto un flex item no se encoge más chico que su contenido
+     (aunque flex-shrink sea 0 igual puede CRECER más allá de su tamaño asignado si el
+     contenido es más ancho). Eso era el bug: el texto de la ubicación o el código de barras
+     empujaban su columna más allá de los 100mm de la etiqueta y "HIDROCLEAR" quedaba
+     recortado fuera de la hoja. Con min-width:0 + overflow:hidden, cada columna respeta
+     SIEMPRE su ancho fijo y lo que no quepa se recorta dentro de su propia columna. */
+  .rack150-col { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; min-width: 0; box-sizing: border-box; }
   .rack150-col:last-child { border-right: none; }
-  .rack150-colFlechas { flex: 20 0 auto; flex-direction: column; }
-  .rack150-colCodigo { flex: 62 0 auto; flex-direction: column; }
-  .rack150-colHidro { flex: 18 0 auto; }
+  .rack150-colFlechas { flex: 0 0 20mm; flex-direction: column; }
+  .rack150-colCodigo { flex: 0 0 62mm; flex-direction: column; align-items: stretch; }
+  .rack150-colHidro { flex: 0 0 18mm; }
   .rack150-flecha-row { flex: 25 0 auto; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; }
-  .rack150-caption-wrap { flex: 100 0 auto; }
+  .rack150-caption-wrap { flex: 100 0 auto; min-width: 0; overflow: hidden; }
   .rack150-caption-txt { font-size: 20px; font-weight: 400; white-space: nowrap; }
-  .rack150-ubic-row { flex: 35 0 auto; display: flex; align-items: center; justify-content: center; }
-  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; text-decoration: underline; }
-  .rack150-barcode-row { flex: 115 0 auto; display: flex; align-items: center; justify-content: center; }
+  .rack150-ubic-row { flex: 35 0 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; padding: 0 2mm; }
+  .rack150-ubic-txt { display: inline-block; font-weight: 900; white-space: nowrap; text-decoration: underline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .rack150-barcode-row { flex: 115 0 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; overflow: hidden; }
   .rack150-hidro-txt { font-size: 30px; font-weight: 900; white-space: nowrap; }
 
   /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas horizontales) */
@@ -387,7 +393,7 @@
     page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
   }
   .rack50-label:last-child { page-break-after: auto; break-after: auto; }
-  .rack50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 8px; }
+  .rack50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 8px; min-height: 0; box-sizing: border-box; }
   .rack50-row:last-child { border-bottom: none; }
   .rack50-hidro { flex: 22 0 auto; font-size: 14px; font-weight: 900; }
   .rack50-ubic { flex: 52 0 auto; font-size: 32px; font-weight: 900; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
