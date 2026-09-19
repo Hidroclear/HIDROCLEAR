@@ -356,7 +356,11 @@
   .etqruta-obs .etqruta-valor-col { font-weight: 700; font-size: 13px; white-space: normal; }
   .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; }
 
-  /* Etiqueta de Rack 100mm x 150mm (rotada, con flechas apuntando al código de barras) */
+  /* Etiqueta de Rack 100mm x 150mm — según la foto de referencia de la etiqueta real:
+     solo la leyenda "Bodega/Pasillo/Tramo/Nivel" (con flechas) y "HIDROCLEAR" van rotadas
+     -90°; la ubicación y el código de barras van SIN rotar, de frente, uno encima del otro.
+     Las proporciones exactas (tamaños de fuente, alturas) quedan pendientes de ajustar en
+     sitio con impresiones reales. */
   .rack150-label {
     width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
     display: flex; flex-direction: row; overflow: hidden;
@@ -365,17 +369,16 @@
   .rack150-label:last-child { page-break-after: auto; break-after: auto; }
   .rack150-col { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; }
   .rack150-col:last-child { border-right: none; }
-  .rack150-colA { flex: 0.5 0 auto; }
-  .rack150-colB { flex: 6.57 0 auto; }
-  .rack150-colC { flex: 21.57 0 auto; flex-direction: column; }
-  .rack150-colD { flex: 28.57 0 auto; }
-  .rack150-colE { flex: 15 0 auto; }
+  .rack150-colFlechas { flex: 20 0 auto; flex-direction: column; }
+  .rack150-colCodigo { flex: 62 0 auto; flex-direction: column; }
+  .rack150-colHidro { flex: 18 0 auto; }
+  .rack150-flecha-row { flex: 25 0 auto; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; }
+  .rack150-caption-wrap { flex: 100 0 auto; }
   .rack150-caption-txt { font-size: 20px; font-weight: 400; white-space: nowrap; }
-  .rack150-flecha-row { flex: 182.25 0 auto; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 900; }
-  .rack150-barcode-row { flex: 330 0 auto; display: flex; align-items: center; justify-content: center; }
-  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; }
+  .rack150-ubic-row { flex: 35 0 auto; display: flex; align-items: center; justify-content: center; }
+  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; text-decoration: underline; }
+  .rack150-barcode-row { flex: 115 0 auto; display: flex; align-items: center; justify-content: center; }
   .rack150-hidro-txt { font-size: 30px; font-weight: 900; white-space: nowrap; }
-  .rack-barcode-svg { transform: rotate(-90deg); }
 
   /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas horizontales) */
   .rack50-label {
@@ -2988,11 +2991,13 @@ function llenarSelectsRack() {
 // Mientras más larga la ubicación (bodega-pasillo-tramo-nivel), más chico el texto rotado
 // en la columna D de la etiqueta de 150mm, igual que el ajuste dinámico de la macro.
 function tamanoFuenteUbicacionRack(ubicacion) {
+  // La ubicación ahora se imprime horizontal (sin rotar) en una columna más ancha,
+  // así que puede ir más grande que antes. Ajustar en sitio el lunes con impresiones reales.
   const len = ubicacion.length;
-  if (len <= 9) return 34;
-  if (len <= 11) return 30;
-  if (len <= 13) return 26;
-  return 22;
+  if (len <= 9) return 38;
+  if (len <= 11) return 34;
+  if (len <= 13) return 30;
+  return 24;
 }
 
 function imprimirEtiquetaRack(tam) {
@@ -3025,15 +3030,16 @@ function imprimirEtiquetaRack(tam) {
       const tamUbic = tamanoFuenteUbicacionRack(ubicacion);
       html += `
         <div class="rack150-label">
-          <div class="rack150-col rack150-colA"></div>
-          <div class="rack150-col rack150-colB"><div class="etq-rot"><span class="rack150-caption-txt">Bodega / Pasillo / Tramo / Nivel</span></div></div>
-          <div class="rack150-col rack150-colC">
-            <div class="rack150-flecha-row">▼</div>
-            <div class="rack150-barcode-row"><svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg></div>
-            <div class="rack150-flecha-row">▲</div>
+          <div class="rack150-col rack150-colFlechas">
+            <div class="rack150-flecha-row">◀</div>
+            <div class="rack150-caption-wrap etq-rot"><span class="rack150-caption-txt">Bodega / Pasillo / Tramo / Nivel</span></div>
+            <div class="rack150-flecha-row">◀</div>
           </div>
-          <div class="rack150-col rack150-colD"><div class="etq-rot"><span class="rack150-ubic-txt" style="font-size:${tamUbic}px">${ubicacion}</span></div></div>
-          <div class="rack150-col rack150-colE"><div class="etq-rot"><span class="rack150-hidro-txt">HIDROCLEAR</span></div></div>
+          <div class="rack150-col rack150-colCodigo">
+            <div class="rack150-ubic-row"><span class="rack150-ubic-txt" style="font-size:${tamUbic}px">${ubicacion}</span></div>
+            <div class="rack150-barcode-row"><svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg></div>
+          </div>
+          <div class="rack150-col rack150-colHidro"><div class="etq-rot"><span class="rack150-hidro-txt">HIDROCLEAR</span></div></div>
         </div>`;
     } else {
       html += `
@@ -3052,14 +3058,14 @@ function imprimirEtiquetaRack(tam) {
   printArea.innerHTML = html;
 
   const barcodeOpts = tam === '150'
-    ? { format: 'CODE128', displayValue: false, margin: 0, width: 1.4, height: 470 }
+    ? { format: 'CODE128', displayValue: true, fontSize: 14, margin: 0, width: 1.6, height: 90 }
     : { format: 'CODE128', displayValue: false, margin: 0, width: 1.2, height: 55 };
   printArea.querySelectorAll('.rack-barcode-svg').forEach(svg => {
     JsBarcode(svg, svg.dataset.codigo, barcodeOpts);
     if (tam === '150') {
-      // Columna C: 21.57 de 72.21 unidades de ancho total (100mm); fila del código:
-      // 330 de 694.5 unidades de alto total (150mm); rotada -90°.
-      ajustarBarcodeSVG(svg, 100 * 21.57 / 72.21, 150 * 330 / 694.5, true);
+      // Código de barras SIN rotar (se lee de frente, igual que la ubicación arriba de él,
+      // según la foto de la etiqueta real). Tamaño aproximado; ajustar en sitio el lunes.
+      ajustarBarcodeSVG(svg, 55, 30, false);
     } else {
       // Fila del código: 40 de 132 unidades de alto total (50mm), sin rotar.
       ajustarBarcodeSVG(svg, 75, 50 * 40 / 132, false);
