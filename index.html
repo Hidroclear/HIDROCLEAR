@@ -262,9 +262,10 @@
   .print-firma-linea { border-top: 1.5px solid #333; padding-top: 8px; font-size: 12px; color: #555; }
   .print-footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
 
-  /* ===== ETIQUETAS (código de barras) ===== */
+  /* ===== ETIQUETAS (código de barras) — la navegación entre tipos vive en el submenú
+     lateral (igual que Movimientos y Reportes), así que aquí solo hay un placeholder
+     y los 5 formularios ===== */
   .etq-wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
-  .etq-header { font-size: 20px; font-weight: 700; color: var(--azul); margin-bottom: 20px; }
   .etq-form { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .etq-form .form-field { margin-bottom: 16px; }
   .etq-preview { background: #f5f9ff; border: 1.5px dashed #c5d5ea; border-radius: 10px; padding: 16px; margin-top: 4px; margin-bottom: 16px; font-size: 13px; color: var(--texto-suave); display: none; }
@@ -272,15 +273,7 @@
   .etq-preview strong { color: var(--azul); }
   #btnImprimirEtiqueta:disabled { background: #aaa; cursor: not-allowed; }
   #btnImprimirEtiqueta50:disabled { background: #aaa; cursor: not-allowed; }
-
-  /* Menú "Selección de Etiquetas" (igual al de la macro: RACK / CÓDIGO / RUTA) */
-  .etq-menu-grid { display: flex; flex-wrap: wrap; gap: 28px; background: #fff; border-radius: 12px; padding: 28px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .etq-menu-cat { flex: 1 1 160px; min-width: 150px; }
-  .etq-menu-cat-titulo { font-size: 15px; font-weight: 800; color: var(--azul); text-decoration: underline; margin-bottom: 12px; }
-  .etq-menu-btn { display: block; width: 100%; background: #eef4ff; color: var(--azul); border: 1.5px solid #c5d5ea; border-radius: 8px; padding: 12px 14px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; margin-bottom: 10px; text-align: center; }
-  .etq-menu-btn:hover { background: #dcebff; }
-  .etq-form-titulo { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; color: var(--azul); margin-bottom: 16px; }
-  .etq-volver { background: var(--gris); color: var(--texto-suave); border: none; padding: 8px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; cursor: pointer; }
+  .etq-form-titulo { font-size: 16px; font-weight: 700; color: var(--azul); margin-bottom: 16px; }
 
   /* Área de impresión de la etiqueta física (no se ve en pantalla) */
   #printAreaEtiqueta { display: none; }
@@ -521,7 +514,14 @@
       <button class="sb-subitem" onclick="irAMovimiento('RESERVA', this)">🔒 Reserva</button>
     </div>
     <button class="sb-item hidden" id="btnConsultaStock" onclick="abrirModalConsulta()"><span class="ic">🔍</span> Consulta de Stock</button>
-    <button class="sb-item hidden" id="btnEtiquetas" onclick="mostrarSeccion('etiquetas', this)"><span class="ic">🏷️</span> Imprimir Etiquetas</button>
+    <button class="sb-item hidden" id="btnEtiquetas" onclick="toggleSubmenuEtiquetas()"><span class="ic">🏷️</span> Imprimir Etiquetas <span class="sb-caret" id="etqCaret">▸</span></button>
+    <div class="sb-submenu" id="submenuEtiquetas">
+      <button class="sb-subitem" onclick="irAEtiqueta('RACK_150', this)">🗄️ Rack 100x150mm</button>
+      <button class="sb-subitem" onclick="irAEtiqueta('RACK_50', this)">🗄️ Rack 100x50mm</button>
+      <button class="sb-subitem" onclick="irAEtiqueta('CODIGO_150', this)">🏷️ Código 100x150mm</button>
+      <button class="sb-subitem" onclick="irAEtiqueta('CODIGO_50', this)">🏷️ Código 100x50mm</button>
+      <button class="sb-subitem" onclick="irAEtiqueta('RUTA_100', this)">🚚 Ruta 100x100mm</button>
+    </div>
     <button class="sb-item hidden" id="btnReportes" onclick="toggleSubmenuReportes()"><span class="ic">📊</span> Reportes <span class="sb-caret" id="repCaret">▸</span></button>
     <div class="sb-submenu" id="submenuReportes">
       <button class="sb-subitem" onclick="irAReporte('CONTEO', this)">🧮 Conteo de Inventario</button>
@@ -792,30 +792,12 @@
 <div id="seccionEtiquetas" class="hidden">
   <div class="etq-wrap">
 
-    <!-- MENÚ "SELECCIÓN ETIQUETAS": igual al de la macro (RACK / CÓDIGO / RUTA) -->
-    <div id="etqMenu">
-      <div class="etq-header">🏷️ Selección de Etiquetas</div>
-      <div class="etq-menu-grid">
-        <div class="etq-menu-cat">
-          <div class="etq-menu-cat-titulo">RACK</div>
-          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('RACK_150')">100mm x 150mm</button>
-          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('RACK_50')">100mm x 50mm</button>
-        </div>
-        <div class="etq-menu-cat">
-          <div class="etq-menu-cat-titulo">CÓDIGO</div>
-          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('CODIGO_150')">100mm x 150mm</button>
-          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('CODIGO_50')">100mm x 50mm</button>
-        </div>
-        <div class="etq-menu-cat">
-          <div class="etq-menu-cat-titulo">RUTA</div>
-          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('RUTA_100')">100mm x 100mm</button>
-        </div>
-      </div>
-    </div>
+    <!-- Se muestra cuando aún no se ha elegido un tipo de etiqueta en el submenú lateral -->
+    <div id="etqMenu" class="rep-placeholder">Elija un tipo de etiqueta del menú lateral: Rack, Código o Ruta.</div>
 
     <!-- FORMULARIO: CÓDIGO 100mm x 150mm (el que ya teníamos, reubicado aquí) -->
     <div id="etqFormCodigo150" class="etq-form-panel hidden">
-      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Código (100mm x 150mm)</div>
+      <div class="etq-form-titulo">Etiqueta de Código (100mm x 150mm)</div>
       <div class="etq-form">
         <div class="form-field full">
           <label>Buscar Código</label>
@@ -840,7 +822,7 @@
 
     <!-- FORMULARIO: CÓDIGO 100mm x 50mm -->
     <div id="etqFormCodigo50" class="etq-form-panel hidden">
-      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Código (100mm x 50mm)</div>
+      <div class="etq-form-titulo">Etiqueta de Código (100mm x 50mm)</div>
       <div class="etq-form">
         <div class="form-field full">
           <label>Buscar Código</label>
@@ -865,7 +847,7 @@
 
     <!-- FORMULARIO: RUTA 100mm x 100mm -->
     <div id="etqFormRuta100" class="etq-form-panel hidden">
-      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta para Ruta (100mm x 100mm)</div>
+      <div class="etq-form-titulo">Etiqueta para Ruta (100mm x 100mm)</div>
       <div class="etq-form">
         <div class="form-field full">
           <label>Cliente</label>
@@ -890,7 +872,7 @@
 
     <!-- FORMULARIO: RACK 100mm x 150mm -->
     <div id="etqFormRack150" class="etq-form-panel hidden">
-      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Rack (100mm x 150mm)</div>
+      <div class="etq-form-titulo">Etiqueta de Rack (100mm x 150mm)</div>
       <div class="etq-form">
         <div class="form-field">
           <label>Bodega</label>
@@ -919,7 +901,7 @@
 
     <!-- FORMULARIO: RACK 100mm x 50mm -->
     <div id="etqFormRack50" class="etq-form-panel hidden">
-      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Rack (100mm x 50mm)</div>
+      <div class="etq-form-titulo">Etiqueta de Rack (100mm x 50mm)</div>
       <div class="etq-form">
         <div class="form-field">
           <label>Bodega</label>
@@ -1295,7 +1277,6 @@ function mostrarSeccion(seccion, el) {
   } else if (seccion === 'etiquetas') {
     document.getElementById('seccionEtiquetas').classList.remove('hidden');
     if (!productosEtiquetaCargados) cargarProductosEtiqueta();
-    volverMenuEtiquetas(); // igual que la macro: siempre entra por la pantalla de selección
   } else if (seccion === 'reportes') {
     document.getElementById('seccionReportes').classList.remove('hidden');
     if (tipoReporteActual) {
@@ -2655,24 +2636,32 @@ async function cargarNombresPedido() {
 // MÓDULO ETIQUETAS (código de barras)
 // ═══════════════════════════════════════
 
-// Menú "Selección de Etiquetas": igual que la macro, siempre se entra por aquí
-// y cada botón abre su propio formulario (RACK, CÓDIGO o RUTA, según tamaño).
+// Navegación por submenú lateral, igual que Movimientos y Reportes: el botón principal
+// solo despliega la lista de tipos, y cada sub-ítem abre directamente su formulario.
 const PANEL_ETIQUETA = { CODIGO_150: 'etqFormCodigo150', CODIGO_50: 'etqFormCodigo50', RUTA_100: 'etqFormRuta100', RACK_150: 'etqFormRack150', RACK_50: 'etqFormRack50' };
+
+function toggleSubmenuEtiquetas() {
+  document.getElementById('submenuEtiquetas').classList.toggle('expandido');
+  document.getElementById('etqCaret').classList.toggle('rotado');
+}
+
+function irAEtiqueta(tipo, el) {
+  document.getElementById('submenuEtiquetas').classList.add('expandido');
+  document.getElementById('etqCaret').classList.add('rotado');
+  mostrarSeccion('etiquetas', document.getElementById('btnEtiquetas'));
+  document.querySelectorAll('.sb-subitem').forEach(i => i.classList.remove('activo'));
+  el.classList.add('activo');
+  seleccionarTipoEtiqueta(tipo);
+}
 
 function seleccionarTipoEtiqueta(tipo) {
   tipoEtiquetaActual = tipo;
   document.getElementById('etqMenu').classList.add('hidden');
   document.querySelectorAll('.etq-form-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById(PANEL_ETIQUETA[tipo]).classList.remove('hidden');
-  if ((tipo === 'RACK_150' || tipo === 'RACK_50')) {
+  if (tipo === 'RACK_150' || tipo === 'RACK_50') {
     if (!listasRackCargadas) cargarListasRack(); else llenarSelectsRack();
   }
-}
-
-function volverMenuEtiquetas() {
-  tipoEtiquetaActual = '';
-  document.getElementById('etqMenu').classList.remove('hidden');
-  document.querySelectorAll('.etq-form-panel').forEach(p => p.classList.add('hidden'));
 }
 
 function cargarProductosEtiqueta() {
