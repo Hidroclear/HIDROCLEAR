@@ -32,22 +32,44 @@
   .btn-login { width: 100%; background: var(--azul); color: #fff; border: none; padding: 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
   .login-error { background: #fde8ea; border: 1px solid #ffb3b8; border-radius: 8px; padding: 10px 14px; color: #a00; font-size: 13px; margin-top: 12px; display: none; text-align: center; }
 
-  /* HEADER */
-  .header { background: var(--azul); padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--celeste); }
-  .header-logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: #fff; letter-spacing: 3px; }
-  .header-logo span { color: var(--celeste); }
-  .header-sub { font-size: 12px; color: #8aaad0; letter-spacing: 2px; text-transform: uppercase; }
-  .header-right { display: flex; align-items: center; gap: 16px; }
-  .usuario-info .nombre { font-size: 13px; font-weight: 600; color: #fff; }
-  .usuario-info .rol { font-size: 11px; color: #8aaad0; }
-  .btn-logout { background: transparent; color: #8aaad0; border: 1px solid #3a5a8e; padding: 6px 14px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
-  .btn-logout:hover { background: #ff4455; color: #fff; border-color: #ff4455; }
+  /* ===== SHELL: menú lateral + área principal ===== */
+  .app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+  .sidebar { width: 232px; flex-shrink: 0; background: #0a1930; display: flex; flex-direction: column; }
+  .sb-logo { padding: 20px 16px 16px; }
+  .sb-logo-card { background: #fff; border-radius: 8px; padding: 10px 12px; display: flex; justify-content: center; }
+  .sb-logo-card img { height: 26px; object-fit: contain; }
+  .sb-nav { flex: 1; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .sb-section-label { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: #5f7aa8; padding: 14px 10px 6px; }
+  .sb-item { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 8px; color: #c3d3ec; font-size: 13.5px; font-weight: 500; cursor: pointer; border: none; border-left: 3px solid transparent; background: none; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
+  .sb-item .ic { width: 20px; text-align: center; font-size: 16px; flex-shrink: 0; }
+  .sb-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .sb-item.activo { background: rgba(0,170,255,0.14); border-left: 3px solid var(--celeste); color: #fff; font-weight: 700; }
+  .sb-item .badge { margin-left: auto; background: var(--rojo); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+  .sb-caret { margin-left: auto; font-size: 10px; transition: transform 0.15s; }
+  .sb-caret.rotado { transform: rotate(90deg); }
+  .sb-submenu { display: flex; flex-direction: column; gap: 2px; overflow: hidden; max-height: 0; transition: max-height 0.2s ease; }
+  .sb-submenu.expandido { max-height: 220px; }
+  .sb-subitem { display: block; padding: 9px 12px 9px 42px; border-radius: 8px; color: #9fb3d6; font-size: 12.5px; font-weight: 500; cursor: pointer; border: none; border-left: 3px solid transparent; background: none; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
+  .sb-subitem:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .sb-subitem.activo { background: rgba(0,170,255,0.14); border-left: 3px solid var(--celeste); color: #fff; font-weight: 700; }
+  .sb-user { padding: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 10px; }
+  .sb-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--celeste); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .sb-user-info { flex: 1; min-width: 0; }
+  .sb-user-info .n { color: #fff; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-user-info .r { color: #7c93bd; font-size: 10.5px; }
+  .sb-logout { background: none; border: none; color: #7c93bd; cursor: pointer; font-size: 16px; padding: 4px; }
+  .sb-logout:hover { color: var(--rojo); }
 
-  /* NAV */
-  .nav-botones { background: #fff; border-bottom: 1px solid var(--gris); padding: 16px 32px; display: flex; gap: 12px; }
-  .btn-nav { padding: 12px 28px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
-  .btn-nav-consulta { background: var(--celeste); color: #fff; }
-  .btn-nav-movimientos { background: var(--verde); color: #fff; }
+  /* ===== MAIN AREA ===== */
+  .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar { background: #fff; border-bottom: 1px solid var(--gris); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .breadcrumb { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+  .titulo-pagina { font-size: 19px; font-weight: 700; color: var(--azul); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .live-indicador { display: none; align-items: center; gap: 6px; font-size: 12px; color: #0a8a4a; font-weight: 600; background: #e9fbf1; padding: 6px 12px; border-radius: 20px; white-space: nowrap; }
+  .live-indicador.visible { display: flex; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #17c964; box-shadow: 0 0 0 3px rgba(23,201,100,.25); }
+  .content-scroll { flex: 1; overflow-y: auto; }
 
   /* MAIN */
   .main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
@@ -83,16 +105,14 @@
   .hidden { display: none !important; }
 
   /* MOVIMIENTOS */
-  .mov-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-  .mov-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
-  .mov-card:hover { border-color: var(--celeste); }
-  .mov-card.activo { border-color: var(--azul); background: #f0f5ff; }
-  .mov-card .icon { font-size: 36px; margin-bottom: 10px; }
-  .mov-card .titulo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--azul); }
-  .mov-card .desc { font-size: 12px; color: var(--texto-suave); margin-top: 4px; }
+  .mov-placeholder { background: #fff; border-radius: 12px; padding: 60px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; color: var(--texto-suave); font-size: 14px; }
+  .mov-placeholder-icon { font-size: 40px; margin-bottom: 14px; }
   .form-movimiento { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .form-movimiento h3 { font-size: 16px; font-weight: 600; color: var(--azul); margin-bottom: 20px; border-bottom: 2px solid var(--gris); padding-bottom: 12px; }
-  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .form-grid { display: flex; flex-direction: column; gap: 14px; }
+  .form-row { display: flex; gap: 16px; align-items: flex-start; }
+  .form-row > .form-field, .form-row > .form-field-stack, .form-row > .form-field-spacer { flex: 1 1 0; min-width: 0; }
+  .form-field-stack { display: flex; flex-direction: column; gap: 14px; }
   .form-field { display: flex; flex-direction: column; gap: 6px; }
   .form-field.full { grid-column: 1 / -1; }
   .form-field label { font-size: 12px; font-weight: 600; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; }
@@ -108,6 +128,43 @@
   .btn-registrar { background: var(--azul); color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 20px; }
   .btn-registrar:disabled { background: #aaa; cursor: not-allowed; }
   .success-msg { background: #d4f5e7; border: 1px solid #00c97a; border-radius: 10px; padding: 14px 20px; color: #007a4a; font-size: 14px; margin-top: 16px; display: none; }
+
+  /* MODAL: Consulta de Stock — ventana emergente, se abre desde el menú lateral en cualquier momento sin afectar la operación en curso */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10,20,40,0.55); z-index: 1000; align-items: flex-start; justify-content: center; padding: 8vh 16px; }
+  .modal-overlay.visible { display: flex; }
+  .modal-box { background: #fff; border-radius: 14px; width: 100%; max-width: 420px; max-height: 78vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+  .modal-box-ancho { max-width: 980px; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 2px solid var(--gris); position: sticky; top: 0; background: #fff; border-radius: 14px 14px 0 0; }
+  .modal-header-titulo { font-size: 15px; font-weight: 700; color: var(--azul); }
+  .modal-close { background: none; border: none; font-size: 18px; color: var(--texto-suave); cursor: pointer; line-height: 1; padding: 4px; }
+  .modal-close:hover { color: var(--rojo); }
+  .modal-body { padding: 20px 22px; }
+  .consulta-filtros { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px; }
+  .consulta-filtros .form-field { flex: 1 1 180px; min-width: 150px; }
+  .consulta-filtros .btn-limpiar { flex: 0 0 auto; }
+  .consulta-tabla-wrap { border: 1px solid var(--gris); border-radius: 10px; overflow: hidden; max-height: 48vh; overflow-y: auto; }
+  .consulta-tabla-wrap table { width: 100%; border-collapse: collapse; }
+  .consulta-tabla-wrap thead th { position: sticky; top: 0; z-index: 1; }
+  .mov-consulta-placeholder { font-size: 13px; color: var(--texto-suave); text-align: center; padding: 34px 12px; }
+  .mov-acciones-form { display: flex; gap: 12px; margin-top: 12px; }
+  .mov-acciones-form .btn-registrar { margin-top: 0; }
+  .btn-cancelar-mov { background: #fff; color: var(--texto-suave); border: 1.5px solid #c5d5ea; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-cancelar-mov:hover { background: #f5f8ff; }
+  .mov-listbox-wrap { margin-top: 24px; }
+  .mov-listbox-titulo { font-size: 12px; font-weight: 700; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .mov-listbox { border: 1.5px solid #c5d5ea; border-radius: 10px; min-height: 140px; max-height: 420px; overflow-y: auto; background: #fbfcff; scrollbar-width: thin; scrollbar-color: var(--celeste) #dfe8f7; }
+  .mov-listbox::-webkit-scrollbar { width: 10px; }
+  .mov-listbox::-webkit-scrollbar-track { background: #dfe8f7; border-radius: 0 10px 10px 0; }
+  .mov-listbox::-webkit-scrollbar-thumb { background: var(--celeste); border-radius: 10px; border: 2px solid #dfe8f7; }
+  .mov-listbox-vacio { padding: 24px 16px; text-align: center; color: var(--texto-suave); font-size: 13px; }
+  .mov-listbox-item { padding: 10px 16px; font-size: 13px; color: var(--texto); border-bottom: 1px solid var(--gris); cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+  .mov-listbox-item:last-child { border-bottom: none; }
+  .mov-listbox-item:hover { background: #f0f5ff; }
+  .mov-listbox-item.seleccionado { background: #e3edff; border-left: 4px solid var(--azul); }
+  .mov-acciones-lista { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .mov-acciones-lista .btn-registrar { margin-top: 0; }
+  .btn-modificar-mov { background: var(--amarillo); color: #4a3800; border: none; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-eliminar-mov { background: var(--rojo, #e0403f); color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
 
   /* PEDIDOS */
   .pedidos-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
@@ -260,15 +317,27 @@
 
   /* ===== RESPONSIVE: TABLET Y CELULAR ===== */
   @media (max-width: 768px) {
-    .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
-    .header img { height: 36px !important; }
-    .nav-botones { padding: 12px 16px; gap: 8px; flex-wrap: wrap; }
-    .btn-nav { padding: 10px 14px; font-size: 13px; flex: 1 1 auto; text-align: center; }
+    .app-shell { flex-direction: column; }
+    .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 6px 8px; overflow-x: auto; }
+    .sb-logo { padding: 0 8px 0 0; }
+    .sb-logo-card { padding: 6px 8px; }
+    .sb-logo-card img { height: 18px; }
+    .sb-nav { flex-direction: row; padding: 0; overflow-y: visible; }
+    .sb-section-label { display: none; }
+    .sb-item { flex-direction: column; gap: 2px; font-size: 9.5px; padding: 6px 10px; border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; width: auto; }
+    .sb-item.activo { border-left: none; border-bottom: 3px solid var(--celeste); }
+    .sb-nav { position: relative; }
+    .sb-submenu { position: absolute; left: 0; top: 100%; background: #0a1930; border-radius: 0 0 10px 10px; min-width: 180px; z-index: 200; box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+    .sb-submenu.expandido { max-height: 400px; }
+    .sb-subitem { padding: 10px 14px; font-size: 12px; }
+    .sb-user { display: none; }
+    .topbar { padding: 12px 16px; }
+    .titulo-pagina { font-size: 16px; }
     .main, .pedidos-wrap, .pendientes-wrap { padding: 16px 12px; }
     .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .mov-selector { grid-template-columns: 1fr; gap: 12px; }
-    .mov-card { padding: 16px; }
     .form-grid, .pedidos-filtros, .pedido-datos { grid-template-columns: 1fr; }
+    .modal-box { max-width: 100%; }
+    .form-row { flex-direction: column; gap: 14px; }
     .buscador-wrap { padding: 14px; }
     .login-box { padding: 28px 24px; }
 
@@ -280,7 +349,6 @@
     .stats { grid-template-columns: 1fr; }
     .stat-card .valor { font-size: 26px; }
     .pedido-item-row, .pedido-item-row-entrega { grid-template-columns: 84px 1fr 68px; gap: 8px; padding: 10px 12px; font-size: 12px; }
-    .header img { height: 28px !important; }
     .login-logo { font-size: 28px; }
   }
 
@@ -305,33 +373,54 @@
   </div>
 </div>
 
-<div id="appContent" class="hidden">
+<div id="appContent" class="hidden app-shell">
 
-<div class="header">
-  <div>
-    <img src="logo.png" alt="HidroClear" style="height:48px;object-fit:contain;">
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-card"><img src="logo.png" alt="HidroClear"></div>
   </div>
-  <div class="header-right">
-    <div class="usuario-info">
-      <div class="nombre" id="nombreUsuario"></div>
-      <div class="rol">Sesión activa</div>
+  <div class="sb-nav">
+    <div class="sb-section-label">Operación</div>
+    <button class="sb-item activo" id="sbConsulta" onclick="mostrarSeccion('consulta', this)"><span class="ic">📦</span> Consulta de Inventario</button>
+    <button class="sb-item hidden" id="btnMovimientos" onclick="toggleSubmenuMovimientos()"><span class="ic">📋</span> Movimientos <span class="sb-caret" id="movCaret">▸</span></button>
+    <div class="sb-submenu" id="submenuMovimientos">
+      <button class="sb-subitem" onclick="irAMovimiento('INGRESO', this)">📥 Ingreso</button>
+      <button class="sb-subitem" onclick="irAMovimiento('SALIDA', this)">📤 Salida</button>
+      <button class="sb-subitem" onclick="irAMovimiento('TRASLADO', this)">🔄 Traslado</button>
+      <button class="sb-subitem" onclick="irAMovimiento('RESERVA', this)">🔒 Reserva</button>
     </div>
-    <button class="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+    <button class="sb-item hidden" id="btnConsultaStock" onclick="abrirModalConsulta()"><span class="ic">🔍</span> Consulta de Stock</button>
+    <button class="sb-item hidden" id="btnEtiquetas" onclick="mostrarSeccion('etiquetas', this)"><span class="ic">🏷️</span> Imprimir Etiquetas</button>
+    <div class="sb-section-label">Solicitudes</div>
+    <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
+    <button class="sb-item hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes', this)"><span class="ic">📬</span> Pedidos Pendientes</button>
+  </div>
+  <div class="sb-user">
+    <div class="sb-avatar" id="sbAvatar"></div>
+    <div class="sb-user-info">
+      <div class="n" id="nombreUsuario"></div>
+      <div class="r">Sesión activa</div>
+    </div>
+    <button class="sb-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
   </div>
 </div>
 
-<div class="nav-botones">
-  <button class="btn-nav btn-nav-consulta" onclick="mostrarSeccion('consulta')">📦 Consulta de Inventario</button>
-  <button class="btn-nav btn-nav-movimientos hidden" id="btnMovimientos" onclick="mostrarSeccion('movimientos')">📋 Movimientos</button>
-  <button class="btn-nav btn-nav-pedidos hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos')">🛒 Solicitud de Materiales</button>
-  <button class="btn-nav hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes')" style="background:var(--rojo)">📬 Pedidos Pendientes</button>
-  <button class="btn-nav hidden" id="btnEtiquetas" onclick="mostrarSeccion('etiquetas')" style="background:#8e44ad">🏷️ Imprimir Etiquetas</button>
-</div>
+<div class="main-area">
+  <div class="topbar">
+    <div>
+      <div class="breadcrumb" id="crumb">HidroClear / Inventario</div>
+      <div class="titulo-pagina" id="tituloPag">Consulta de Inventario</div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-indicador" id="liveIndicador"><span class="live-dot"></span><span id="liveTexto">Actualizado ahora</span></div>
+    </div>
+  </div>
+  <div class="content-scroll">
 
 <div id="seccionConsulta" class="main">
   <div class="stats">
     <div class="stat-card">
-      <div class="label">Códigos con Stock</div>
+      <div class="label" id="labelCodigos">Códigos con Stock</div>
       <div class="valor" id="statCodigos">—</div>
     </div>
     <div class="stat-card" style="border-left-color: var(--verde)">
@@ -360,87 +449,275 @@
 </div>
 
 <div id="seccionMovimientos" class="main hidden">
-  <div class="mov-selector">
-    <div class="mov-card" onclick="seleccionarMovimiento('INGRESO', this)">
-      <div class="icon">📥</div>
-      <div class="titulo">Ingreso</div>
-      <div class="desc">Registrar entrada de mercadería</div>
-    </div>
-    <div class="mov-card" onclick="seleccionarMovimiento('SALIDA', this)">
-      <div class="icon">📤</div>
-      <div class="titulo">Salida</div>
-      <div class="desc">Registrar despacho de mercadería</div>
-    </div>
-    <div class="mov-card" onclick="seleccionarMovimiento('TRASLADO', this)">
-      <div class="icon">🔄</div>
-      <div class="titulo">Traslado</div>
-      <div class="desc">Mover entre ubicaciones</div>
-    </div>
+  <div class="mov-placeholder" id="movPlaceholder">
+    <div class="mov-placeholder-icon">📋</div>
+    <div>Seleccione un tipo de movimiento en el menú <strong>Movimientos</strong> del panel lateral.</div>
   </div>
   <div class="form-movimiento hidden" id="formMovimiento">
     <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
     <div class="form-grid">
       <div class="form-field">
-        <label>Fecha</label>
-        <input type="date" id="movFecha" readonly>
+        <label>Tipo</label>
+        <input type="text" id="movTipoDisplay" readonly tabindex="-1">
       </div>
-      <div class="form-field">
-        <label>Responsable</label>
-        <input type="text" id="movResponsable" readonly>
-      </div>
-      <div class="form-field full">
-        <label>Buscar Código</label>
-        <div class="codigo-search-wrap">
-          <input type="text" id="movCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigo(this.value)" autocomplete="off">
-          <div class="codigo-dropdown" id="codigoDropdown"></div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Buscar Código</label>
+          <div class="codigo-search-wrap">
+            <input type="text" id="movCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigo(this.value)" autocomplete="off">
+            <div class="codigo-dropdown" id="codigoDropdown"></div>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Código Seleccionado</label>
+          <input type="text" id="movCodigo" readonly tabindex="-1" placeholder="Se llenará al seleccionar">
         </div>
       </div>
-      <div class="form-field full">
-        <label>Código Seleccionado</label>
-        <input type="text" id="movCodigo" readonly placeholder="Se llenará al seleccionar">
+
+      <div class="form-row">
+        <div class="form-field-stack">
+          <div class="form-field hidden" id="campoUbicacion">
+            <label id="labelUbicacion">Ubicación</label>
+            <select id="movUbicacion"><option value="">Seleccione...</option></select>
+          </div>
+          <div class="form-field hidden" id="campoUbicacionOrigen">
+            <label>Ubicación Saliente</label>
+            <select id="movUbicacionOrigen"><option value="">Seleccione...</option></select>
+          </div>
+          <div class="form-field hidden" id="campoUbicacionDestino">
+            <label>Ubicación Entrante</label>
+            <select id="movUbicacionDestino"><option value="">Seleccione...</option></select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Descripción</label>
+          <input type="text" id="movDescripcion" readonly tabindex="-1" placeholder="Se llenará automáticamente">
+        </div>
       </div>
-      <div class="form-field full">
-        <label>Descripción</label>
-        <input type="text" id="movDescripcion" readonly placeholder="Se llenará automáticamente">
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Cantidad</label>
+          <input type="number" id="movCantidad" placeholder="0" min="1">
+        </div>
+        <div class="form-field-spacer"></div>
       </div>
-      <div class="form-field hidden" id="campoUbicacion">
-        <label>Ubicación</label>
-        <select id="movUbicacion"><option value="">Seleccione...</option></select>
+
+      <div class="form-row" id="filaExtraDocumento">
+        <div class="form-field-stack">
+          <div class="form-field hidden" id="campoProveedor">
+            <label>Proveedor</label>
+            <input type="text" id="movProveedor" placeholder="Nombre del proveedor">
+          </div>
+          <div class="form-field hidden" id="campoDespacho">
+            <label>Despacho con</label>
+            <select id="movDespacho">
+              <option value="">Seleccione...</option>
+              <option value="FACTURA">FACTURA</option>
+              <option value="BOLETA SALIDA">BOLETA SALIDA</option>
+              <option value="COTIZACION">COTIZACION</option>
+            </select>
+          </div>
+          <div class="form-field hidden" id="campoReservaCon">
+            <label>Reserva Con</label>
+            <select id="movReservaCon">
+              <option value="">Seleccione...</option>
+              <option value="COTIZACION">COTIZACIÓN</option>
+              <option value="PEDIDO">PEDIDO</option>
+              <option value="STOCK SEGURIDAD">STOCK DE SEGURIDAD</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field hidden" id="campoDocumento">
+          <label>N° Documento</label>
+          <input type="text" id="movDocumento" placeholder="Número de documento">
+        </div>
       </div>
-      <div class="form-field hidden" id="campoUbicacionOrigen">
-        <label>Ubicación Origen</label>
-        <select id="movUbicacionOrigen"><option value="">Seleccione...</option></select>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Responsable</label>
+          <input type="text" id="movResponsable" readonly tabindex="-1">
+        </div>
+        <div class="form-field">
+          <label>Fecha</label>
+          <input type="date" id="movFecha" readonly tabindex="-1">
+        </div>
       </div>
-      <div class="form-field hidden" id="campoUbicacionDestino">
-        <label>Ubicación Destino</label>
-        <select id="movUbicacionDestino"><option value="">Seleccione...</option></select>
-      </div>
-      <div class="form-field">
-        <label>Cantidad</label>
-        <input type="number" id="movCantidad" placeholder="0" min="1">
-      </div>
-      <div class="form-field hidden" id="campoDespacho">
-        <label>Despacho con</label>
-        <select id="movDespacho">
-          <option value="">Seleccione...</option>
-          <option value="FACTURA">FACTURA</option>
-          <option value="BOLETA SALIDA">BOLETA SALIDA</option>
-          <option value="COTIZACION">COTIZACION</option>
-        </select>
-      </div>
-      <div class="form-field">
-        <label>N° Documento</label>
-        <input type="text" id="movDocumento" placeholder="Número de documento">
+
+      <div class="form-row hidden" id="filaReservaExtra">
+        <div class="form-field hidden" id="campoComercial">
+          <label>Comercial</label>
+          <select id="movComercial"><option value="">Seleccione...</option></select>
+        </div>
+        <div class="form-field hidden" id="campoNombreCliente">
+          <label>Nombre Cliente</label>
+          <input type="text" id="movNombreCliente" placeholder="Nombre del cliente">
+        </div>
       </div>
     </div>
-    <button class="btn-registrar" onclick="registrarMovimiento()" id="btnRegistrar">Registrar Movimiento</button>
-    <div class="success-msg" id="successMsg">✅ Movimiento registrado correctamente.</div>
+    <div class="mov-acciones-form">
+      <button class="btn-registrar" onclick="agregarItemLista()" id="btnIngresarItem">Ingresar</button>
+      <button class="btn-cancelar-mov" type="button" onclick="cancelarFormularioMovimiento()">Cancelar</button>
+    </div>
+    <div class="mov-listbox-wrap">
+      <div class="mov-listbox-titulo">Movimientos por registrar (<span id="movListboxCount">0</span>)</div>
+      <div class="mov-listbox" id="movListbox">
+        <div class="mov-listbox-vacio">Aún no hay movimientos ingresados. Complete los campos y presione "Ingresar".</div>
+      </div>
+    </div>
+    <div class="mov-acciones-lista">
+      <button class="btn-registrar" onclick="registrarListaMovimientos()" id="btnRegistrarLista">Registrar Movimientos</button>
+      <button class="btn-modificar-mov" type="button" onclick="modificarItemLista()">Modificar</button>
+      <button class="btn-eliminar-mov" type="button" onclick="eliminarItemLista()">Eliminar</button>
+    </div>
+    <div class="success-msg" id="successMsg">✅ Movimiento(s) registrado(s) correctamente.</div>
   </div>
 </div>
 
+<!-- SECCIÓN PEDIDOS -->
+<div id="seccionPedidos" class="hidden">
+  <div class="pedidos-wrap">
+    <div class="pedidos-header">🛒 Solicitud de Materiales</div>
+    <div class="pedido-datos">
+      <select id="pedidoResponsable" style="padding:10px 14px;border:1.5px solid #c5d5ea;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--texto);outline:none;width:100%;">
+        <option value="">— Seleccione su nombre —</option>
+      </select>
+      <input type="text" id="pedidoOrden" placeholder="Nombre del cliente" autocomplete="off">
+    </div>
+    <div class="pedidos-filtros">
+      <select id="pedidoCategoria" onchange="filtrarPedidoCategoria()">
+        <option value="">— Seleccione categoría —</option>
+      </select>
+      <input type="text" id="pedidoBusqueda" placeholder="🔍 Buscar por código o descripción..." oninput="filtrarProductosPedido()">
+    </div>
+    <div class="productos-lista" id="productosLista">
+      <div class="no-productos">Seleccione una categoría para ver los productos</div>
+    </div>
+    <div class="carrito-titulo">📋 Artículos del pedido (<span id="carritoCount">0</span>)</div>
+    <div class="carrito-lista" id="carritoLista">
+      <div class="carrito-empty">No hay artículos agregados</div>
+    </div>
+    <button class="btn-enviar-pedido" onclick="enviarPedido()" id="btnEnviarPedido">✅ Enviar Pedido</button>
+    <button class="btn-imprimir hidden" onclick="imprimirSolicitud()" id="btnImprimir">🖨️ Imprimir Solicitud</button>
+    <div class="msg-pedido" id="msgPedido"></div>
+
+    <!-- ÁREA DE IMPRESIÓN -->
+    <div id="printArea">
+      <div class="print-header">
+        <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+        <div class="print-titulo">SOLICITUD DE MATERIALES<br><span id="printFecha" style="font-size:12px;font-weight:400"></span></div>
+      </div>
+      <div class="print-datos">
+        <div class="print-dato"><strong>Técnico / Solicitante</strong><span id="printTecnico"></span></div>
+        <div class="print-dato"><strong>Cliente</strong><span id="printCliente"></span></div>
+      </div>
+      <table class="print-tabla">
+        <thead><tr><th>#</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Cantidad</th></tr></thead>
+        <tbody id="printItems"></tbody>
+      </table>
+      <div class="print-firmas">
+        <div class="print-firma"><div class="print-firma-linea">Firma del Solicitante</div></div>
+        <div class="print-firma"><div class="print-firma-linea">Firma del Responsable de Bodega</div></div>
+      </div>
+      <div class="print-footer">HidroClear — Solicitud generada el <span id="printFechaFooter"></span></div>
+    </div>
+  </div>
 </div>
 
+<!-- SECCIÓN PEDIDOS PENDIENTES -->
+<div id="seccionPendientes" class="hidden">
+  <div class="pendientes-wrap">
+    <div class="pendientes-header">
+      <div class="pendientes-titulo">📬 Pedidos Pendientes</div>
+      <button class="btn-recargar" id="btnRecargarPendientes" onclick="cargarPedidosPendientes()">↻ Actualizar</button>
+    </div>
+    <div class="filtro-pendientes">
+      <select id="filtroPendientes" onchange="renderPedidosPendientes()">
+        <option value="PENDIENTE">Solo Pendientes</option>
+        <option value="TODOS">Todos</option>
+        <option value="COMPLETADO">Entregadas</option>
+        <option value="CANCELADO">Canceladas</option>
+      </select>
+      <input type="text" class="buscador-pendientes" id="buscadorPendientes" placeholder="🔍 Buscar por N° solicitud, técnico o cliente..." oninput="renderPedidosPendientes()">
+    </div>
+    <div id="listaPendientes">
+      <div class="no-pendientes">Cargando pedidos...</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECCIÓN ETIQUETAS -->
+<div id="seccionEtiquetas" class="hidden">
+  <div class="etq-wrap">
+    <div class="etq-header">🏷️ Imprimir Etiquetas</div>
+    <div class="etq-form">
+      <div class="form-field full">
+        <label>Buscar Código</label>
+        <div class="codigo-search-wrap">
+          <input type="text" id="etqCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoEtiqueta(this.value)" autocomplete="off">
+          <div class="codigo-dropdown" id="etqCodigoDropdown"></div>
+        </div>
+      </div>
+      <div class="etq-preview" id="etqPreview">
+        <div><strong>Código:</strong> <span id="etqPreviewCodigo"></span></div>
+        <div><strong>Descripción:</strong> <span id="etqPreviewDescripcion"></span></div>
+        <div><strong>Categoría:</strong> <span id="etqPreviewCategoria"></span></div>
+      </div>
+      <div class="form-field">
+        <label>Cantidad de etiquetas</label>
+        <input type="number" id="etqCantidad" placeholder="1" min="1" value="1">
+      </div>
+      <button class="btn-registrar" id="btnImprimirEtiqueta" onclick="imprimirEtiquetas()" disabled>🖨️ Imprimir Etiqueta(s)</button>
+      <div class="success-msg" id="etqSuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+    </div>
+  </div>
+</div>
+
+  </div><!-- /.content-scroll -->
+</div><!-- /.main-area -->
+
+</div><!-- /#appContent.app-shell -->
+
 <div class="footer">HIDROCLEAR &copy; 2026 — Sistema de Inventario</div>
+
+<!-- MODAL: Consulta de Códigos — se abre desde el menú lateral, independiente de cualquier operación en curso -->
+<div class="modal-overlay" id="modalConsulta" onclick="if (event.target === this) cerrarModalConsulta()">
+  <div class="modal-box modal-box-ancho">
+    <div class="modal-header">
+      <div class="modal-header-titulo">🔍 Consulta de Códigos</div>
+      <button class="modal-close" type="button" onclick="cerrarModalConsulta()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="consulta-filtros">
+        <div class="form-field">
+          <label>Código</label>
+          <div class="codigo-search-wrap">
+            <input type="text" id="consultaModalBuscar" placeholder="Escriba código..." oninput="buscarCodigoConsultaModal(this.value)" autocomplete="off">
+            <div class="codigo-dropdown" id="consultaModalDropdown"></div>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Ubicación</label>
+          <select id="consultaModalUbicacion" onchange="filtrarConsultaModal()"><option value="">Todas</option></select>
+        </div>
+        <div class="form-field">
+          <label>Descripción</label>
+          <input type="text" id="consultaModalDescripcion" placeholder="Filtrar por descripción..." oninput="filtrarConsultaModal()" autocomplete="off">
+        </div>
+        <button class="btn-limpiar" type="button" onclick="limpiarFiltrosConsultaModal()">✕ Limpiar</button>
+      </div>
+      <div class="consulta-tabla-wrap">
+        <table class="hidden" id="consultaModalTabla">
+          <thead><tr><th>Código</th><th>Descripción</th><th>Ubicación</th><th>Stock Ubic.</th><th>Stock Total</th><th>Reservado</th><th>Disponible</th></tr></thead>
+          <tbody id="consultaModalTbody"></tbody>
+        </table>
+        <div class="mov-consulta-placeholder" id="consultaModalPlaceholder">Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Puede dejar esta ventana abierta o cerrarla en cualquier momento — no afecta el movimiento que esté llenando.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
@@ -465,9 +742,23 @@ let todasUbicaciones = [];
 let reservasPorCodigo = {};
 let tipoMovimientoActual = '';
 let listasMovimientosCargadas = false;
+let movimientosPendientes = [];
+let indiceEdicionLista = null;
 let todosProductosEtiqueta = [];
 let productosEtiquetaCargados = false;
+let nombresPedidoCargados = false;
 let etiquetaSeleccionada = null;
+let ultimaActualizacionDatos = null;
+
+function actualizarLiveIndicador() {
+  const ind = document.getElementById('liveIndicador');
+  const txt = document.getElementById('liveTexto');
+  if (!ultimaActualizacionDatos) { ind.classList.remove('visible'); return; }
+  const minutos = Math.floor((Date.now() - ultimaActualizacionDatos.getTime()) / 60000);
+  txt.textContent = minutos < 1 ? 'Actualizado ahora' : ('Actualizado hace ' + minutos + ' min');
+  ind.classList.add('visible');
+}
+setInterval(actualizarLiveIndicador, 30000);
 
 function iniciarSesion() {
   const usuario = document.getElementById('loginUsuario').value.trim().toUpperCase();
@@ -488,8 +779,11 @@ function mostrarApp() {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('appContent').classList.remove('hidden');
   document.getElementById('nombreUsuario').textContent = usuarioActivo.nombre;
+  const iniciales = usuarioActivo.nombre.trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
+  document.getElementById('sbAvatar').textContent = iniciales;
   if (usuarioActivo.rol === 'admin') {
     document.getElementById('btnMovimientos').classList.remove('hidden');
+    document.getElementById('btnConsultaStock').classList.remove('hidden');
     cargarListasMovimientos(); // carga en background mientras el usuario ve el inventario
   }
   if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'tecnico' || usuarioActivo.rol === 'comercial') {
@@ -517,17 +811,42 @@ if (sesionGuardada) {
   mostrarApp();
 }
 
-function mostrarSeccion(seccion) {
+const TITULOS_SECCION = {
+  consulta:    ['HidroClear / Inventario',   'Consulta de Inventario'],
+  movimientos: ['HidroClear / Operación',    'Movimientos'],
+  etiquetas:   ['HidroClear / Operación',    'Imprimir Etiquetas'],
+  pedidos:     ['HidroClear / Solicitudes',  'Solicitud de Materiales'],
+  pendientes:  ['HidroClear / Solicitudes',  'Pedidos Pendientes']
+};
+
+function mostrarSeccion(seccion, el) {
   document.getElementById('seccionConsulta').classList.add('hidden');
   document.getElementById('seccionMovimientos').classList.add('hidden');
   document.getElementById('seccionPedidos').classList.add('hidden');
   document.getElementById('seccionPendientes').classList.add('hidden');
   document.getElementById('seccionEtiquetas').classList.add('hidden');
+
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('activo'));
+  if (el) el.classList.add('activo');
+
+  const titulos = TITULOS_SECCION[seccion];
+  if (titulos) {
+    document.getElementById('crumb').textContent = titulos[0];
+    document.getElementById('tituloPag').textContent = titulos[1];
+  }
+
   if (seccion === 'consulta') {
     document.getElementById('seccionConsulta').classList.remove('hidden');
   } else if (seccion === 'movimientos') {
     document.getElementById('seccionMovimientos').classList.remove('hidden');
     if (!listasMovimientosCargadas) cargarListasMovimientos();
+    if (tipoMovimientoActual) {
+      document.getElementById('movPlaceholder').classList.add('hidden');
+      document.getElementById('formMovimiento').classList.remove('hidden');
+    } else {
+      document.getElementById('movPlaceholder').classList.remove('hidden');
+      document.getElementById('formMovimiento').classList.add('hidden');
+    }
   } else if (seccion === 'pedidos') {
     document.getElementById('seccionPedidos').classList.remove('hidden');
     inicializarPedidos();
@@ -538,6 +857,21 @@ function mostrarSeccion(seccion) {
     document.getElementById('seccionEtiquetas').classList.remove('hidden');
     if (!productosEtiquetaCargados) cargarProductosEtiqueta();
   }
+}
+
+// El inventario ya trae código+descripción+categoría de sobra: en vez de volver a pedirle
+// esta misma lista al Apps Script cada vez que se abre Pedidos, Etiquetas o se busca un
+// código en Movimientos/Consulta (3 llamadas de red redundantes y lentas), la derivamos
+// una sola vez aquí, en memoria, a partir de datosInventario ya cargado.
+function obtenerCodigosUnicos() {
+  const seen = new Set();
+  return datosInventario
+    .filter(d => {
+      if (seen.has(d.codigo)) return false;
+      seen.add(d.codigo);
+      return true;
+    })
+    .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
 }
 
 async function cargarDatos() {
@@ -556,6 +890,14 @@ async function cargarDatos() {
     if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
     datosInventario = result.datos || [];
 
+    // Un solo cálculo en memoria alimenta Movimientos, Consulta de Stock, Pedidos y Etiquetas
+    const codigosUnicos = obtenerCodigosUnicos();
+    todosCodigos = codigosUnicos;
+    todosProductosPedido = codigosUnicos;
+    todosProductosEtiqueta = codigosUnicos;
+    productosEtiquetaCargados = true;
+    cargarCategoriasPedido();
+
     reservasPorCodigo = {};
     try {
       const resultRes = await respRes.json();
@@ -572,6 +914,8 @@ async function cargarDatos() {
     datosFiltrados = [...datosInventario];
     actualizarStats();
     renderTabla();
+    ultimaActualizacionDatos = new Date();
+    actualizarLiveIndicador();
   } catch (err) {
     document.getElementById('contenidoTabla').innerHTML = `<div class="error-msg"><strong>Error al cargar:</strong> ${err.message}</div>`;
   }
@@ -591,11 +935,31 @@ function actualizarFiltros() {
 }
 
 function actualizarStats() {
-  const codigosConStock = new Set(datosInventario.filter(d => d.stock > 0).map(d => d.codigo));
-  const totalUnidades = datosInventario.reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
-  document.getElementById('statCodigos').textContent = codigosConStock.size;
-  document.getElementById('statConStock').textContent = totalUnidades;
+  actualizarStatsPrincipales();
   actualizarStatReservados();
+}
+
+function actualizarStatsPrincipales() {
+  const labelEl = document.getElementById('labelCodigos');
+  const valCodigosEl = document.getElementById('statCodigos');
+  const valUnidadesEl = document.getElementById('statConStock');
+  const codigosFiltrados = new Set((datosFiltrados || []).map(d => String(d.codigo).trim()));
+  const busq = document.getElementById('busqueda').value.trim();
+  if (busq && codigosFiltrados.size === 1) {
+    // Consulta de un código específico: mostrar ubicaciones con stock y total de unidades de ESE código
+    const ubicacionesConStock = new Set(datosFiltrados.filter(d => d.stock > 0).map(d => d.bodega));
+    const totalUnidadesCodigo = datosFiltrados.reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
+    labelEl.textContent = 'Ubicaciones con Stock';
+    valCodigosEl.textContent = ubicacionesConStock.size;
+    valUnidadesEl.textContent = totalUnidadesCodigo;
+  } else {
+    // Vista general: códigos únicos con stock y total de unidades de todo el inventario
+    const codigosConStock = new Set(datosInventario.filter(d => d.stock > 0).map(d => d.codigo));
+    const totalUnidades = datosInventario.reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
+    labelEl.textContent = 'Códigos con Stock';
+    valCodigosEl.textContent = codigosConStock.size;
+    valUnidadesEl.textContent = totalUnidades;
+  }
 }
 
 function actualizarStatReservados() {
@@ -622,6 +986,7 @@ function filtrar() {
     const coincideCategoria = !categoria || d.categoria === categoria;
     return coincideBusq && coincideBodega && coincideCategoria;
   });
+  actualizarStatsPrincipales();
   actualizarStatReservados();
   renderTabla();
 }
@@ -631,6 +996,7 @@ function limpiarFiltros() {
   document.getElementById('filtroBodega').value = '';
   document.getElementById('filtroCategoria').value = '';
   datosFiltrados = [...datosInventario];
+  actualizarStatsPrincipales();
   actualizarStatReservados();
   renderTabla();
 }
@@ -652,14 +1018,13 @@ function renderTabla() {
 }
 
 async function cargarListasMovimientos() {
+  // Los códigos ya no se piden aparte al Apps Script: se derivan del inventario (ver
+  // obtenerCodigosUnicos). Solo Ubicaciones necesita su propia llamada, porque incluye
+  // bodegas/posiciones vacías que no aparecen en el inventario actual.
   try {
-    const [respCod, respUbic] = await Promise.all([
-      fetch(GS_URL + '?tipo=CODIGOS'),
-      fetch(GS_URL + '?tipo=UBICACIONES')
-    ]);
-    const jsonCod  = await respCod.json();
+    const respUbic = await fetch(GS_URL + '?tipo=UBICACIONES');
     const jsonUbic = await respUbic.json();
-    todosCodigos     = jsonCod.status  === 'ok' ? jsonCod.datos  : [];
+    todosCodigos = obtenerCodigosUnicos();
     todasUbicaciones = jsonUbic.status === 'ok' ? jsonUbic.datos : [];
     llenarSelectUbicaciones();
     listasMovimientosCargadas = true;
@@ -675,14 +1040,35 @@ function llenarSelectUbicaciones() {
     sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
     todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
   });
+  const selConsulta = document.getElementById('consultaModalUbicacion');
+  if (selConsulta) {
+    const valorActual = selConsulta.value;
+    selConsulta.innerHTML = '<option value="">Todas</option>';
+    todasUbicaciones.forEach(u => { selConsulta.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
+    selConsulta.value = valorActual;
+  }
 }
 
-function seleccionarMovimiento(tipo, el) {
-  tipoMovimientoActual = tipo;
-  document.querySelectorAll('.mov-card').forEach(c => c.classList.remove('activo'));
+function toggleSubmenuMovimientos() {
+  document.getElementById('submenuMovimientos').classList.toggle('expandido');
+  document.getElementById('movCaret').classList.toggle('rotado');
+}
+
+function irAMovimiento(tipo, el) {
+  document.getElementById('submenuMovimientos').classList.add('expandido');
+  document.getElementById('movCaret').classList.add('rotado');
+  mostrarSeccion('movimientos', document.getElementById('btnMovimientos'));
+  document.querySelectorAll('.sb-subitem').forEach(i => i.classList.remove('activo'));
   el.classList.add('activo');
+  seleccionarMovimiento(tipo);
+}
+
+function seleccionarMovimiento(tipo) {
+  tipoMovimientoActual = tipo;
+  document.getElementById('movPlaceholder').classList.add('hidden');
   document.getElementById('formMovimiento').classList.remove('hidden');
   document.getElementById('tituloFormMovimiento').textContent = 'Registro de ' + tipo;
+  document.getElementById('movTipoDisplay').value = tipo;
   document.getElementById('movCodigoBuscar').value = '';
   document.getElementById('movCodigo').value = '';
   document.getElementById('movDescripcion').value = '';
@@ -696,15 +1082,406 @@ function seleccionarMovimiento(tipo, el) {
   document.getElementById('campoUbicacionOrigen').classList.add('hidden');
   document.getElementById('campoUbicacionDestino').classList.add('hidden');
   document.getElementById('campoDespacho').classList.add('hidden');
+  document.getElementById('campoProveedor').classList.add('hidden');
+  document.getElementById('campoReservaCon').classList.add('hidden');
+  document.getElementById('campoComercial').classList.add('hidden');
+  document.getElementById('campoNombreCliente').classList.add('hidden');
+  document.getElementById('campoDocumento').classList.add('hidden');
+  document.getElementById('filaExtraDocumento').classList.remove('hidden');
+  document.getElementById('filaReservaExtra').classList.add('hidden');
+  document.getElementById('movProveedor').value = '';
+  document.getElementById('movReservaCon').value = '';
+  document.getElementById('movNombreCliente').value = '';
+
+  // Cada tipo de movimiento tiene su propia lista de "por registrar" (como el macro, un cuadro por formulario)
+  movimientosPendientes = [];
+  indiceEdicionLista = null;
+  renderListaMovimientos();
+
+  const labelBtnLista = tipo === 'RESERVA' ? 'Aplicar Reservas' : 'Registrar Movimientos';
+  document.getElementById('btnRegistrarLista').textContent = labelBtnLista;
+
   if (tipo === 'INGRESO') {
+    document.getElementById('labelUbicacion').textContent = 'Ubicación Entrante';
     document.getElementById('campoUbicacion').classList.remove('hidden');
+    document.getElementById('campoProveedor').classList.remove('hidden');
+    document.getElementById('campoDocumento').classList.remove('hidden');
   } else if (tipo === 'SALIDA') {
+    document.getElementById('labelUbicacion').textContent = 'Ubicación';
     document.getElementById('campoUbicacion').classList.remove('hidden');
     document.getElementById('campoDespacho').classList.remove('hidden');
+    document.getElementById('campoDocumento').classList.remove('hidden');
   } else if (tipo === 'TRASLADO') {
     document.getElementById('campoUbicacionOrigen').classList.remove('hidden');
     document.getElementById('campoUbicacionDestino').classList.remove('hidden');
+    document.getElementById('filaExtraDocumento').classList.add('hidden');
+  } else if (tipo === 'RESERVA') {
+    document.getElementById('labelUbicacion').textContent = 'Ubicación';
+    document.getElementById('campoUbicacion').classList.remove('hidden');
+    document.getElementById('campoReservaCon').classList.remove('hidden');
+    document.getElementById('campoDocumento').classList.remove('hidden');
+    document.getElementById('filaReservaExtra').classList.remove('hidden');
+    document.getElementById('campoComercial').classList.remove('hidden');
+    document.getElementById('campoNombreCliente').classList.remove('hidden');
+    cargarComercialesReserva();
   }
+}
+
+async function cargarComercialesReserva() {
+  const sel = document.getElementById('movComercial');
+  sel.innerHTML = '<option value="">Seleccione...</option>';
+  try {
+    const resp = await fetch(GS_URL + '?tipo=USUARIOS_PEDIDO&perfil=COMERCIAL&t=' + Date.now());
+    const json = await resp.json();
+    if (json.status === 'ok' && json.datos.length > 0) {
+      json.datos.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    // Si falla la carga, se deja el select solo con "Seleccione..."
+  }
+}
+
+// ── Consulta de Stock: ventana emergente, independiente de cualquier operación en curso ──
+// Se abre desde el menú lateral y se puede usar en cualquier momento (aunque haya un
+// movimiento a medio llenar) sin tocar los campos ni la lista de ese movimiento.
+function abrirModalConsulta() {
+  document.getElementById('modalConsulta').classList.add('visible');
+  document.getElementById('consultaModalBuscar').value = '';
+  document.getElementById('consultaModalDescripcion').value = '';
+  document.getElementById('consultaModalUbicacion').value = '';
+  document.getElementById('consultaModalDropdown').classList.remove('visible');
+  if (!listasMovimientosCargadas) cargarListasMovimientos();
+  filtrarConsultaModal();
+  setTimeout(() => document.getElementById('consultaModalBuscar').focus(), 50);
+}
+
+function cerrarModalConsulta() {
+  document.getElementById('modalConsulta').classList.remove('visible');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') cerrarModalConsulta();
+});
+
+// ── Navegación con Enter en el formulario de movimientos ──
+// Al presionar Enter en un campo del formulario, se salta al siguiente campo
+// editable/seleccionable (se omiten los campos readonly u ocultos), igual que Tab.
+function esCampoNavegable(el) {
+  if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'SELECT')) return false;
+  if (el.disabled || el.readOnly) return false;
+  if (el.offsetParent === null) return false; // oculto (display:none propio o de un ancestro)
+  return true;
+}
+
+function enfocarSiguienteCampoMovimiento(actual) {
+  const campos = Array.from(document.querySelectorAll('#formMovimiento input, #formMovimiento select'));
+  const idxActual = campos.indexOf(actual);
+  for (let i = idxActual + 1; i < campos.length; i++) {
+    if (esCampoNavegable(campos[i])) {
+      campos[i].focus();
+      if (typeof campos[i].select === 'function' && campos[i].type !== 'date') campos[i].select();
+      return true;
+    }
+  }
+  return false;
+}
+
+document.getElementById('formMovimiento').addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const el = e.target;
+  if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT') return;
+  e.preventDefault();
+  enfocarSiguienteCampoMovimiento(el);
+});
+
+function buscarCodigoConsultaModal(texto) {
+  const dropdown = document.getElementById('consultaModalDropdown');
+  filtrarConsultaModal();
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
+  dropdown.innerHTML = resultados.map(c =>
+    `<div class="codigo-item" onclick="seleccionarCodigoConsultaModal('${c.codigo.replace(/'/g,"\\'")}','${c.descripcion.replace(/'/g,"\\'")}')">
+      <div class="cod">${c.codigo}</div>
+      <div class="desc-cod">${c.descripcion}</div>
+    </div>`).join('');
+  dropdown.classList.add('visible');
+}
+
+function seleccionarCodigoConsultaModal(codigo, descripcion) {
+  document.getElementById('consultaModalBuscar').value = codigo;
+  document.getElementById('consultaModalDropdown').classList.remove('visible');
+  filtrarConsultaModal();
+}
+
+function limpiarFiltrosConsultaModal() {
+  document.getElementById('consultaModalBuscar').value = '';
+  document.getElementById('consultaModalDescripcion').value = '';
+  document.getElementById('consultaModalUbicacion').value = '';
+  document.getElementById('consultaModalDropdown').classList.remove('visible');
+  filtrarConsultaModal();
+  document.getElementById('consultaModalBuscar').focus();
+}
+
+// Filtra el inventario según Código / Ubicación / Descripción (los tres filtros se combinan)
+// y arma la tabla de resultados, igual que la ventana "Consulta de Códigos" de la macro.
+function filtrarConsultaModal() {
+  const tabla = document.getElementById('consultaModalTabla');
+  const tbody = document.getElementById('consultaModalTbody');
+  const placeholder = document.getElementById('consultaModalPlaceholder');
+  const codigoFiltro = document.getElementById('consultaModalBuscar').value.trim().toLowerCase();
+  const ubicacionFiltro = document.getElementById('consultaModalUbicacion').value;
+  const descFiltro = document.getElementById('consultaModalDescripcion').value.trim().toLowerCase();
+
+  if (!codigoFiltro && !ubicacionFiltro && !descFiltro) {
+    tabla.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    placeholder.textContent = 'Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Puede dejar esta ventana abierta o cerrarla en cualquier momento — no afecta el movimiento que esté llenando.';
+    tbody.innerHTML = '';
+    return;
+  }
+
+  const filas = datosInventario.filter(d => {
+    const coincideCodigo = !codigoFiltro || String(d.codigo).toLowerCase().includes(codigoFiltro) || (d.descripcion || '').toLowerCase().includes(codigoFiltro);
+    const coincideUbicacion = !ubicacionFiltro || d.bodega === ubicacionFiltro;
+    const coincideDesc = !descFiltro || (d.descripcion || '').toLowerCase().includes(descFiltro);
+    return coincideCodigo && coincideUbicacion && coincideDesc;
+  }).sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
+
+  if (!filas.length) {
+    tabla.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    placeholder.textContent = 'Sin resultados para ese filtro.';
+    tbody.innerHTML = '';
+    return;
+  }
+
+  placeholder.classList.add('hidden');
+  tabla.classList.remove('hidden');
+  tbody.innerHTML = filas.map(d => {
+    const stockTotal = datosInventario.filter(x => x.codigo === d.codigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
+    const reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
+    const disponible = stockTotal - reservado;
+    return `<tr>
+      <td><span class="codigo-cell">${d.codigo}</span></td>
+      <td>${d.descripcion}</td>
+      <td>${d.bodega}</td>
+      <td><strong>${d.stock}</strong></td>
+      <td>${stockTotal}</td>
+      <td>${reservado}</td>
+      <td>${disponible}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Validación de campos comunes según el tipo de movimiento activo ──
+function validarCamposMovimiento() {
+  const codigo = document.getElementById('movCodigo').value;
+  const descripcion = document.getElementById('movDescripcion').value;
+  const cantidad = document.getElementById('movCantidad').value;
+  if (!codigo) return { ok: false, mensaje: 'Debe seleccionar un código' };
+  if (!cantidad || cantidad <= 0) return { ok: false, mensaje: 'Debe ingresar una cantidad válida' };
+
+  let ubicacion = '', ubicacionDestino = '', proveedor = '', despacho = '', reservaCon = '', comercial = '', nombreCliente = '';
+
+  if (tipoMovimientoActual === 'INGRESO') {
+    ubicacion = document.getElementById('movUbicacion').value;
+    proveedor = document.getElementById('movProveedor').value.trim();
+    if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar una ubicación' };
+  } else if (tipoMovimientoActual === 'SALIDA') {
+    ubicacion = document.getElementById('movUbicacion').value;
+    despacho = document.getElementById('movDespacho').value;
+    if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar una ubicación' };
+  } else if (tipoMovimientoActual === 'TRASLADO') {
+    ubicacion = document.getElementById('movUbicacionOrigen').value;
+    ubicacionDestino = document.getElementById('movUbicacionDestino').value;
+    if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar ubicación origen' };
+    if (!ubicacionDestino) return { ok: false, mensaje: 'Debe seleccionar ubicación destino' };
+  } else if (tipoMovimientoActual === 'RESERVA') {
+    ubicacion = document.getElementById('movUbicacion').value;
+    reservaCon = document.getElementById('movReservaCon').value;
+    comercial = document.getElementById('movComercial').value;
+    nombreCliente = document.getElementById('movNombreCliente').value.trim();
+    if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar una ubicación' };
+    if (!reservaCon) return { ok: false, mensaje: 'Debe seleccionar "Reserva Con"' };
+    if (!nombreCliente) return { ok: false, mensaje: 'Debe ingresar el nombre del cliente' };
+  }
+
+  const item = {
+    tipo: tipoMovimientoActual,
+    codigo, descripcion,
+    cantidad: parseFloat(cantidad),
+    ubicacion, ubicacionDestino, proveedor, despacho, reservaCon, comercial, nombreCliente,
+    documento: String(document.getElementById('movDocumento').value).trim(),
+    responsable: document.getElementById('movResponsable').value,
+    fecha: document.getElementById('movFecha').value // "YYYY-MM-DD"
+  };
+  return { ok: true, item };
+}
+
+// ── Limpia solo los campos "por ítem" del formulario, sin tocar la lista ──
+function limpiarCamposItemMovimiento() {
+  document.getElementById('movCodigoBuscar').value = '';
+  document.getElementById('movCodigo').value = '';
+  document.getElementById('movDescripcion').value = '';
+  document.getElementById('movCantidad').value = '';
+  document.getElementById('movDocumento').value = '';
+  document.getElementById('movProveedor').value = '';
+  document.getElementById('movReservaCon').value = '';
+  document.getElementById('movNombreCliente').value = '';
+  if (document.getElementById('movUbicacion')) document.getElementById('movUbicacion').value = '';
+  if (document.getElementById('movUbicacionOrigen')) document.getElementById('movUbicacionOrigen').value = '';
+  if (document.getElementById('movUbicacionDestino')) document.getElementById('movUbicacionDestino').value = '';
+  if (document.getElementById('movDespacho')) document.getElementById('movDespacho').value = '';
+}
+
+function cancelarFormularioMovimiento() {
+  limpiarCamposItemMovimiento();
+  indiceEdicionLista = null;
+  renderListaMovimientos();
+}
+
+// ── "Ingresar": agrega el ítem actual del formulario al cuadro de lista (aún no se envía a Sheets) ──
+function agregarItemLista() {
+  const v = validarCamposMovimiento();
+  if (!v.ok) { alert(v.mensaje); return; }
+  movimientosPendientes.push(v.item);
+  limpiarCamposItemMovimiento();
+  indiceEdicionLista = null;
+  renderListaMovimientos();
+}
+
+function textoResumenItem(item) {
+  const partes = [item.tipo, item.codigo + (item.descripcion ? ' — ' + item.descripcion : ''), 'Cant: ' + item.cantidad];
+  if (item.ubicacionDestino) { partes.push('De: ' + item.ubicacion, 'A: ' + item.ubicacionDestino); }
+  else if (item.ubicacion) { partes.push('Ubic: ' + item.ubicacion); }
+  if (item.proveedor) partes.push('Prov: ' + item.proveedor);
+  if (item.despacho) partes.push('Despacho: ' + item.despacho);
+  if (item.reservaCon) partes.push('Reserva con: ' + item.reservaCon);
+  if (item.nombreCliente) partes.push('Cliente: ' + item.nombreCliente);
+  if (item.documento) partes.push('Doc: ' + item.documento);
+  return partes.join(' · ');
+}
+
+function renderListaMovimientos() {
+  const cont = document.getElementById('movListbox');
+  document.getElementById('movListboxCount').textContent = movimientosPendientes.length;
+  if (movimientosPendientes.length === 0) {
+    cont.innerHTML = '<div class="mov-listbox-vacio">Aún no hay movimientos ingresados. Complete los campos y presione "Ingresar".</div>';
+    return;
+  }
+  cont.innerHTML = movimientosPendientes.map((item, idx) =>
+    `<div class="mov-listbox-item${idx === indiceEdicionLista ? ' seleccionado' : ''}" onclick="cargarItemEnFormulario(${idx})">${textoResumenItem(item)}</div>`
+  ).join('');
+}
+
+// ── Selecciona un ítem de la lista y lo carga de vuelta al formulario para poder Modificar/Eliminar ──
+function cargarItemEnFormulario(idx) {
+  const item = movimientosPendientes[idx];
+  if (!item) return;
+  indiceEdicionLista = idx;
+  document.getElementById('movCodigoBuscar').value = item.codigo + (item.descripcion ? ' - ' + item.descripcion : '');
+  document.getElementById('movCodigo').value = item.codigo;
+  document.getElementById('movDescripcion').value = item.descripcion;
+  document.getElementById('movCantidad').value = item.cantidad;
+  document.getElementById('movDocumento').value = item.documento;
+  if (tipoMovimientoActual === 'INGRESO') {
+    document.getElementById('movUbicacion').value = item.ubicacion;
+    document.getElementById('movProveedor').value = item.proveedor;
+  } else if (tipoMovimientoActual === 'SALIDA') {
+    document.getElementById('movUbicacion').value = item.ubicacion;
+    document.getElementById('movDespacho').value = item.despacho;
+  } else if (tipoMovimientoActual === 'TRASLADO') {
+    document.getElementById('movUbicacionOrigen').value = item.ubicacion;
+    document.getElementById('movUbicacionDestino').value = item.ubicacionDestino;
+  } else if (tipoMovimientoActual === 'RESERVA') {
+    document.getElementById('movUbicacion').value = item.ubicacion;
+    document.getElementById('movReservaCon').value = item.reservaCon;
+    document.getElementById('movComercial').value = item.comercial;
+    document.getElementById('movNombreCliente').value = item.nombreCliente;
+  }
+  renderListaMovimientos();
+}
+
+// ── "Modificar": reemplaza el ítem seleccionado con los valores actuales del formulario ──
+function modificarItemLista() {
+  if (indiceEdicionLista === null) { alert('Seleccione primero un ítem de la lista para modificar'); return; }
+  const v = validarCamposMovimiento();
+  if (!v.ok) { alert(v.mensaje); return; }
+  movimientosPendientes[indiceEdicionLista] = v.item;
+  const idx = indiceEdicionLista;
+  limpiarCamposItemMovimiento();
+  indiceEdicionLista = null;
+  renderListaMovimientos();
+}
+
+// ── "Eliminar": quita el ítem seleccionado de la lista (aún no se había enviado a Sheets) ──
+function eliminarItemLista() {
+  if (indiceEdicionLista === null) { alert('Seleccione primero un ítem de la lista para eliminar'); return; }
+  movimientosPendientes.splice(indiceEdicionLista, 1);
+  limpiarCamposItemMovimiento();
+  indiceEdicionLista = null;
+  renderListaMovimientos();
+}
+
+function construirPayloadItem(item) {
+  const [yy, mm, dd] = item.fecha.split('-');
+  const fechaFormateada = `${dd}/${mm}/${yy}`;
+  return {
+    tipo_peticion: 'MOVIMIENTO',
+    tipo: item.tipo,
+    fecha: fechaFormateada,
+    codigo: item.codigo,
+    cantidad: item.cantidad,
+    ubicacion: item.ubicacion,
+    ubicacion_destino: item.ubicacionDestino,
+    proveedor: item.proveedor,
+    responsable: item.responsable,
+    documento: item.documento,
+    despacho: item.despacho,
+    reserva_con: item.reservaCon,
+    comercial: item.comercial,
+    nombre_cliente: item.nombreCliente
+  };
+}
+
+// ── "Registrar Movimientos" / "Aplicar Reservas": envía TODOS los ítems de la lista a Google Sheets ──
+async function registrarListaMovimientos() {
+  if (movimientosPendientes.length === 0) { alert('No hay movimientos en la lista para registrar'); return; }
+  const btn = document.getElementById('btnRegistrarLista');
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
+  // Se manda toda la lista en una sola petición (lote) para que el Apps Script la
+  // escriba de una sola vez en la hoja, en lugar de una llamada por cada movimiento.
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        tipo_peticion: 'MOVIMIENTOS_LOTE',
+        items: movimientosPendientes.map(construirPayloadItem)
+      })
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      movimientosPendientes = [];
+      indiceEdicionLista = null;
+      renderListaMovimientos();
+      document.getElementById('successMsg').style.display = 'block';
+    } else {
+      alert('No se pudo registrar el lote de movimientos:\n' + (result.mensaje || 'Error desconocido') + '\nLos movimientos quedan en la lista para reintentar.');
+    }
+  } catch (err) {
+    alert('Error de conexión al registrar los movimientos. Quedan en la lista para reintentar.\n' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = tipoMovimientoActual === 'RESERVA' ? 'Aplicar Reservas' : 'Registrar Movimientos';
 }
 
 function buscarCodigo(texto) {
@@ -743,63 +1520,9 @@ function seleccionarCodigo(codigo, descripcion) {
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.codigo-search-wrap')) {
     document.getElementById('codigoDropdown').classList.remove('visible');
+    document.getElementById('consultaModalDropdown').classList.remove('visible');
   }
 });
-
-async function registrarMovimiento() {
-  const codigo = document.getElementById('movCodigo').value;
-  const cantidad = document.getElementById('movCantidad').value;
-  if (!codigo) { alert('Debe seleccionar un código'); return; }
-  if (!cantidad || cantidad <= 0) { alert('Debe ingresar una cantidad válida'); return; }
-  let ubicacion = '', ubicacionDestino = '';
-  if (tipoMovimientoActual === 'INGRESO' || tipoMovimientoActual === 'SALIDA') {
-    ubicacion = document.getElementById('movUbicacion').value;
-    if (!ubicacion) { alert('Debe seleccionar una ubicación'); return; }
-  } else if (tipoMovimientoActual === 'TRASLADO') {
-    ubicacion = document.getElementById('movUbicacionOrigen').value;
-    ubicacionDestino = document.getElementById('movUbicacionDestino').value;
-    if (!ubicacion) { alert('Debe seleccionar ubicación origen'); return; }
-    if (!ubicacionDestino) { alert('Debe seleccionar ubicación destino'); return; }
-  }
-  const btn = document.getElementById('btnRegistrar');
-  btn.disabled = true;
-  btn.textContent = 'Registrando...';
-  try {
-    // Fecha: convertir "2026-06-15" a "15/06/2026" para que Apps Script la trate como fecha
-    const fechaRaw = document.getElementById('movFecha').value; // "YYYY-MM-DD"
-    const [yy, mm, dd] = fechaRaw.split('-');
-    const fechaFormateada = `${dd}/${mm}/${yy}`; // "DD/MM/YYYY"
-
-    const datos = {
-      tipo_peticion: 'MOVIMIENTO',
-      tipo: tipoMovimientoActual,
-      fecha: fechaFormateada,
-      codigo,
-      cantidad: parseFloat(cantidad),
-      ubicacion,
-      ubicacion_destino: ubicacionDestino,
-      responsable: document.getElementById('movResponsable').value,
-      documento: String(document.getElementById('movDocumento').value).trim(),
-      despacho: tipoMovimientoActual === 'SALIDA' ? document.getElementById('movDespacho').value : ''
-    };
-    const resp = await fetch(GS_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'text/plain' }, 
-      body: JSON.stringify(datos)
-    });
-    const result = await resp.json();
-    if (result.status === 'ok') {
-      document.getElementById('successMsg').style.display = 'block';
-      document.getElementById('movCodigoBuscar').value = '';
-      document.getElementById('movCodigo').value = '';
-      document.getElementById('movDescripcion').value = '';
-      document.getElementById('movCantidad').value = '';
-      document.getElementById('movDocumento').value = '';
-    } else { alert('Error: ' + result.mensaje); }
-  } catch (err) { alert('Error al registrar: ' + err.message); }
-  btn.disabled = false;
-  btn.textContent = 'Registrar Movimiento';
-}
 
 // ═══════════════════════════════════════
 // MÓDULO PEDIDOS
@@ -810,27 +1533,18 @@ let carritoPedido = [];
 let productosFiltrados = [];
 
 async function inicializarPedidos() {
-  // Cargar lista de nombres según rol desde Sheets
-  await cargarNombresPedido();
+  // Nombres según rol: solo se piden al Apps Script la primera vez que se abre esta sección
+  if (!nombresPedidoCargados) await cargarNombresPedido();
 
-  document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
-  try {
-    const resp = await fetch(GS_URL + '?tipo=INVENTARIO&t=' + Date.now());
-    const json = await resp.json();
-    if (json.status !== 'ok') throw new Error(json.mensaje);
-    // Deduplicar por código y extraer categoría
-    const seen = new Set();
-    todosProductosPedido = (json.datos || [])
-      .filter(d => {
-        if (seen.has(d.codigo)) return false;
-        seen.add(d.codigo);
-        return true;
-      })
-      .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
+  // La lista de productos ya no se vuelve a pedir al Apps Script cada vez que se entra
+  // aquí: se deriva al instante del inventario que ya está en memoria (obtenerCodigosUnicos).
+  if (datosInventario.length > 0) {
+    todosProductosPedido = obtenerCodigosUnicos();
     cargarCategoriasPedido();
     document.getElementById('productosLista').innerHTML = '<div class="no-productos">Seleccione una categoría para ver los productos</div>';
-  } catch(err) {
-    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Error al cargar productos. Intente nuevamente.</div>';
+  } else {
+    // Caso borde: se entró a Pedidos antes de que terminara de cargar el inventario inicial
+    document.getElementById('productosLista').innerHTML = '<div class="no-productos">Cargando productos...</div>';
   }
 }
 
@@ -1016,7 +1730,16 @@ function mostrarMsgPedido(texto, tipo) {
 let todosPedidos = [];
 
 async function cargarPedidosPendientes() {
-  document.getElementById('listaPendientes').innerHTML = '<div class="no-pendientes">Cargando pedidos...</div>';
+  // Los pedidos sí cambian seguido, así que siempre se piden de nuevo — pero si ya había
+  // una lista en pantalla, se deja visible mientras llega la actualización (en vez de
+  // borrarla y mostrar "Cargando..." cada vez, que es lo que hacía sentir lenta la app
+  // al entrar y salir de esta sección repetidas veces).
+  const huboDatosPrevios = todosPedidos.length > 0;
+  if (!huboDatosPrevios) {
+    document.getElementById('listaPendientes').innerHTML = '<div class="no-pendientes">Cargando pedidos...</div>';
+  } else {
+    document.getElementById('btnRecargarPendientes').textContent = '↻ Actualizando...';
+  }
   try {
     const resp = await fetch(GS_URL + '?tipo=PEDIDOS&t=' + Date.now());
     const json = await resp.json();
@@ -1024,8 +1747,11 @@ async function cargarPedidosPendientes() {
     todosPedidos = json.datos || [];
     renderPedidosPendientes();
   } catch(err) {
-    document.getElementById('listaPendientes').innerHTML = '<div class="no-pendientes">Error al cargar pedidos.</div>';
+    if (!huboDatosPrevios) {
+      document.getElementById('listaPendientes').innerHTML = '<div class="no-pendientes">Error al cargar pedidos.</div>';
+    }
   }
+  document.getElementById('btnRecargarPendientes').textContent = '↻ Actualizar';
 }
 
 function renderPedidosPendientes() {
@@ -1174,20 +1900,14 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
         fecha: fechaEntrega,
         responsable: tecnico,
         cliente,
-        items
+        items,
+        // Las filas a marcar como ENTREGADA van en la misma petición: el Apps Script
+        // las marca todas en la misma ejecución, sin una llamada de red por fila.
+        filas: JSON.parse(filasJson.replace(/&quot;/g, '"'))
       })
     });
 
-    // Marcar todas las filas como ENTREGADA en COLA_PEDIDOS
     const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
-    for (const fila of filas) {
-      await fetch(GS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ tipo_peticion: 'MARCAR_PEDIDO_LISTO', fila })
-      });
-    }
-
     todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'ENTREGADA'; });
     renderPedidosPendientes();
 
@@ -1199,13 +1919,12 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
 async function cancelarPedido(filasJson) {
   const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
   try {
-    for (const fila of filas) {
-      await fetch(GS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ tipo_peticion: 'CANCELAR_PEDIDO', fila })
-      });
-    }
+    // Una sola petición con todas las filas, en vez de una llamada por fila.
+    await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo_peticion: 'CANCELAR_PEDIDOS_LOTE', filas })
+    });
     todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'CANCELADA'; });
     renderPedidosPendientes();
   } catch(err) {
@@ -1261,6 +1980,7 @@ async function cargarNombresPedido() {
         sel.appendChild(opt);
       });
     }
+    nombresPedidoCargados = true;
   } catch(err) {
     // Si falla, poner el nombre del usuario
     const opt = document.createElement('option');
@@ -1275,24 +1995,15 @@ async function cargarNombresPedido() {
 // MÓDULO ETIQUETAS (código de barras)
 // ═══════════════════════════════════════
 
-async function cargarProductosEtiqueta() {
-  document.getElementById('etqCodigoBuscar').placeholder = 'Cargando códigos...';
-  try {
-    const resp = await fetch(GS_URL + '?tipo=INVENTARIO&t=' + Date.now());
-    const json = await resp.json();
-    if (json.status !== 'ok') throw new Error(json.mensaje);
-    const seen = new Set();
-    todosProductosEtiqueta = (json.datos || [])
-      .filter(d => {
-        if (seen.has(d.codigo)) return false;
-        seen.add(d.codigo);
-        return true;
-      })
-      .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
+function cargarProductosEtiqueta() {
+  // Ya no se pide al Apps Script: se deriva al instante del inventario en memoria.
+  if (datosInventario.length > 0) {
+    todosProductosEtiqueta = obtenerCodigosUnicos();
     productosEtiquetaCargados = true;
     document.getElementById('etqCodigoBuscar').placeholder = 'Escriba código o descripción...';
-  } catch (err) {
-    document.getElementById('etqCodigoBuscar').placeholder = 'Error al cargar códigos, reintente...';
+  } else {
+    // Caso borde: se entró a Etiquetas antes de que terminara de cargar el inventario inicial
+    document.getElementById('etqCodigoBuscar').placeholder = 'Cargando códigos...';
     productosEtiquetaCargados = false;
   }
 }
@@ -1405,106 +2116,6 @@ function imprimirEtiquetas() {
 }
 
 </script>
-
-<!-- SECCIÓN PEDIDOS -->
-<div id="seccionPedidos" class="hidden">
-  <div class="pedidos-wrap">
-    <div class="pedidos-header">🛒 Solicitud de Materiales</div>
-    <div class="pedido-datos">
-      <select id="pedidoResponsable" style="padding:10px 14px;border:1.5px solid #c5d5ea;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--texto);outline:none;width:100%;">
-        <option value="">— Seleccione su nombre —</option>
-      </select>
-      <input type="text" id="pedidoOrden" placeholder="Nombre del cliente" autocomplete="off">
-    </div>
-    <div class="pedidos-filtros">
-      <select id="pedidoCategoria" onchange="filtrarPedidoCategoria()">
-        <option value="">— Seleccione categoría —</option>
-      </select>
-      <input type="text" id="pedidoBusqueda" placeholder="🔍 Buscar por código o descripción..." oninput="filtrarProductosPedido()">
-    </div>
-    <div class="productos-lista" id="productosLista">
-      <div class="no-productos">Seleccione una categoría para ver los productos</div>
-    </div>
-    <div class="carrito-titulo">📋 Artículos del pedido (<span id="carritoCount">0</span>)</div>
-    <div class="carrito-lista" id="carritoLista">
-      <div class="carrito-empty">No hay artículos agregados</div>
-    </div>
-    <button class="btn-enviar-pedido" onclick="enviarPedido()" id="btnEnviarPedido">✅ Enviar Pedido</button>
-    <button class="btn-imprimir hidden" onclick="imprimirSolicitud()" id="btnImprimir">🖨️ Imprimir Solicitud</button>
-    <div class="msg-pedido" id="msgPedido"></div>
-
-    <!-- ÁREA DE IMPRESIÓN -->
-    <div id="printArea">
-      <div class="print-header">
-        <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
-        <div class="print-titulo">SOLICITUD DE MATERIALES<br><span id="printFecha" style="font-size:12px;font-weight:400"></span></div>
-      </div>
-      <div class="print-datos">
-        <div class="print-dato"><strong>Técnico / Solicitante</strong><span id="printTecnico"></span></div>
-        <div class="print-dato"><strong>Cliente</strong><span id="printCliente"></span></div>
-      </div>
-      <table class="print-tabla">
-        <thead><tr><th>#</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Cantidad</th></tr></thead>
-        <tbody id="printItems"></tbody>
-      </table>
-      <div class="print-firmas">
-        <div class="print-firma"><div class="print-firma-linea">Firma del Solicitante</div></div>
-        <div class="print-firma"><div class="print-firma-linea">Firma del Responsable de Bodega</div></div>
-      </div>
-      <div class="print-footer">HidroClear — Solicitud generada el <span id="printFechaFooter"></span></div>
-    </div>
-  </div>
-</div>
-
-
-<!-- SECCIÓN PEDIDOS PENDIENTES -->
-<div id="seccionPendientes" class="hidden">
-  <div class="pendientes-wrap">
-    <div class="pendientes-header">
-      <div class="pendientes-titulo">📬 Pedidos Pendientes</div>
-      <button class="btn-recargar" onclick="cargarPedidosPendientes()">↻ Actualizar</button>
-    </div>
-    <div class="filtro-pendientes">
-      <select id="filtroPendientes" onchange="renderPedidosPendientes()">
-        <option value="PENDIENTE">Solo Pendientes</option>
-        <option value="TODOS">Todos</option>
-        <option value="COMPLETADO">Entregadas</option>
-        <option value="CANCELADO">Canceladas</option>
-      </select>
-      <input type="text" class="buscador-pendientes" id="buscadorPendientes" placeholder="🔍 Buscar por N° solicitud, técnico o cliente..." oninput="renderPedidosPendientes()">
-    </div>
-    <div id="listaPendientes">
-      <div class="no-pendientes">Cargando pedidos...</div>
-    </div>
-  </div>
-</div>
-
-<!-- SECCIÓN ETIQUETAS -->
-<div id="seccionEtiquetas" class="hidden">
-  <div class="etq-wrap">
-    <div class="etq-header">🏷️ Imprimir Etiquetas</div>
-    <div class="etq-form">
-      <div class="form-field full">
-        <label>Buscar Código</label>
-        <div class="codigo-search-wrap">
-          <input type="text" id="etqCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoEtiqueta(this.value)" autocomplete="off">
-          <div class="codigo-dropdown" id="etqCodigoDropdown"></div>
-        </div>
-      </div>
-      <div class="etq-preview" id="etqPreview">
-        <div><strong>Código:</strong> <span id="etqPreviewCodigo"></span></div>
-        <div><strong>Descripción:</strong> <span id="etqPreviewDescripcion"></span></div>
-        <div><strong>Categoría:</strong> <span id="etqPreviewCategoria"></span></div>
-      </div>
-      <div class="form-field">
-        <label>Cantidad de etiquetas</label>
-        <input type="number" id="etqCantidad" placeholder="1" min="1" value="1">
-      </div>
-      <button class="btn-registrar" id="btnImprimirEtiqueta" onclick="imprimirEtiquetas()" disabled>🖨️ Imprimir Etiqueta(s)</button>
-      <div class="success-msg" id="etqSuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
-    </div>
-  </div>
-</div>
 
 <!-- ÁREA DE IMPRESIÓN DE ETIQUETAS (código de barras) -->
 <div id="printAreaEtiqueta"></div>
