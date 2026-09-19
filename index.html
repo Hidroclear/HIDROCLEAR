@@ -2713,8 +2713,13 @@ function renderTablaConteo(filas) {
 const MINIMO_STOCK_CATEGORIA_ESPECIAL = 'TUBOS Y ACCESORIOS PVC';
 
 function buscarPrimeraUbicacionPorTipo(filasCodigo, tipo, requiereStock) {
+  // En la hoja UBICACIONES solo se escribe "PRIMARIA" cuando aplica; si la columna viene
+  // en blanco, esa ubicación se considera SECUNDARIA por defecto (igual que buscarUbicacion()
+  // en el backend, que trata todo lo que no sea "PRIMARIA" como no-primaria).
   const tiposUbic = {};
-  todasUbicaciones.forEach(u => { tiposUbic[u.ubicacion] = String(u.tipo || '').toUpperCase(); });
+  todasUbicaciones.forEach(u => {
+    tiposUbic[u.ubicacion] = String(u.tipo || '').toUpperCase() === 'PRIMARIA' ? 'PRIMARIA' : 'SECUNDARIA';
+  });
   const candidatas = filasCodigo.filter(f => tiposUbic[f.bodega] === tipo && (!requiereStock || f.stock > 0));
   return candidatas.length ? candidatas[0] : null;
 }
