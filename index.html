@@ -271,6 +271,16 @@
   .etq-preview.visible { display: block; }
   .etq-preview strong { color: var(--azul); }
   #btnImprimirEtiqueta:disabled { background: #aaa; cursor: not-allowed; }
+  #btnImprimirEtiqueta50:disabled { background: #aaa; cursor: not-allowed; }
+
+  /* Menú "Selección de Etiquetas" (igual al de la macro: RACK / CÓDIGO / RUTA) */
+  .etq-menu-grid { display: flex; flex-wrap: wrap; gap: 28px; background: #fff; border-radius: 12px; padding: 28px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .etq-menu-cat { flex: 1 1 160px; min-width: 150px; }
+  .etq-menu-cat-titulo { font-size: 15px; font-weight: 800; color: var(--azul); text-decoration: underline; margin-bottom: 12px; }
+  .etq-menu-btn { display: block; width: 100%; background: #eef4ff; color: var(--azul); border: 1.5px solid #c5d5ea; border-radius: 8px; padding: 12px 14px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; margin-bottom: 10px; text-align: center; }
+  .etq-menu-btn:hover { background: #dcebff; }
+  .etq-form-titulo { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; color: var(--azul); margin-bottom: 16px; }
+  .etq-volver { background: var(--gris); color: var(--texto-suave); border: none; padding: 8px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; cursor: pointer; }
 
   /* Área de impresión de la etiqueta física (no se ve en pantalla) */
   #printAreaEtiqueta { display: none; }
@@ -314,6 +324,80 @@
   .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 140mm; overflow: hidden; text-overflow: ellipsis; }
   .etq-codigo-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 40px; color: #000; }
   .etq-barcode-svg { transform: rotate(-90deg); }
+
+  /* Etiqueta de Código 100mm x 50mm (sin rotación, texto horizontal) */
+  .etq50-label {
+    width: 100mm; height: 50mm; box-sizing: border-box; border: 1px solid #000;
+    display: flex; flex-direction: column; overflow: hidden;
+    page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .etq50-label:last-child { page-break-after: auto; break-after: auto; }
+  .etq50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
+  .etq50-row:last-child { border-bottom: none; }
+  .etq50-codigo { flex: 54 0 auto; font-weight: 900; font-size: 30px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .etq50-desc { flex: 35.25 0 auto; font-size: 13px; }
+  .etq50-barcode-row { flex: 33.75 0 auto; }
+  .etq50-cat { flex: 17.25 0 auto; font-size: 11px; font-weight: 700; }
+  .etq50-hidroclear { flex: 18.75 0 auto; font-size: 14px; font-weight: 900; }
+
+  /* Etiqueta para Ruta 100mm x 100mm (sin código de barras) */
+  .etqruta-label {
+    width: 100mm; height: 100mm; box-sizing: border-box; border: 1px solid #000;
+    display: flex; flex-direction: column; overflow: hidden;
+    page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .etqruta-label:last-child { page-break-after: auto; break-after: auto; }
+  .etqruta-row { display: flex; align-items: center; border-bottom: 1px solid #000; overflow: hidden; }
+  .etqruta-row:last-child { border-bottom: none; }
+  .etqruta-full { justify-content: center; text-align: center; padding: 0 6px; }
+  .etqruta-label-col { flex: 0 0 30%; text-align: right; padding-right: 6px; font-weight: 600; font-size: 12px; }
+  .etqruta-valor-col { flex: 1; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
+  .etqruta-titulo { flex: 39 0 auto; font-size: 22px; font-weight: 900; }
+  .etqruta-cliente { flex: 82.5 0 auto; }
+  .etqruta-cliente .etqruta-valor-col { font-weight: 700; text-decoration: underline; font-size: 19px; white-space: normal; }
+  .etqruta-factura { flex: 39.75 0 auto; }
+  .etqruta-factura .etqruta-valor-col { font-weight: 700; font-size: 20px; white-space: nowrap; }
+  .etqruta-bultos { flex: 64.5 0 auto; }
+  .etqruta-bultos .etqruta-valor-col { font-weight: 900; font-size: 28px; text-align: center; white-space: nowrap; }
+  .etqruta-obs { flex: 34.5 0 auto; }
+  .etqruta-obs .etqruta-valor-col { font-weight: 700; font-size: 13px; white-space: normal; }
+  .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; }
+
+  /* Etiqueta de Rack 100mm x 150mm (rotada, con flechas apuntando al código de barras) */
+  .rack150-label {
+    width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
+    display: flex; flex-direction: row; overflow: hidden;
+    page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .rack150-label:last-child { page-break-after: auto; break-after: auto; }
+  .rack150-col { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; }
+  .rack150-col:last-child { border-right: none; }
+  .rack150-colA { flex: 0.5 0 auto; }
+  .rack150-colB { flex: 6.57 0 auto; }
+  .rack150-colC { flex: 21.57 0 auto; flex-direction: column; }
+  .rack150-colD { flex: 28.57 0 auto; }
+  .rack150-colE { flex: 15 0 auto; }
+  .rack150-caption-txt { font-size: 20px; font-weight: 400; white-space: nowrap; }
+  .rack150-flecha-row { flex: 182.25 0 auto; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 900; }
+  .rack150-barcode-row { flex: 330 0 auto; display: flex; align-items: center; justify-content: center; }
+  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; }
+  .rack150-hidro-txt { font-size: 30px; font-weight: 900; white-space: nowrap; }
+  .rack-barcode-svg { transform: rotate(-90deg); }
+
+  /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas horizontales) */
+  .rack50-label {
+    width: 100mm; height: 50mm; box-sizing: border-box; border: 1px solid #000;
+    display: flex; flex-direction: column; overflow: hidden;
+    page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .rack50-label:last-child { page-break-after: auto; break-after: auto; }
+  .rack50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 8px; }
+  .rack50-row:last-child { border-bottom: none; }
+  .rack50-hidro { flex: 22 0 auto; font-size: 14px; font-weight: 900; }
+  .rack50-ubic { flex: 52 0 auto; font-size: 32px; font-weight: 900; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rack50-barcode-row { flex: 40 0 auto; }
+  .rack50-flecha { font-size: 18px; font-weight: 900; }
+  .rack50-caption { flex: 18 0 auto; font-size: 9px; }
 
 
   /* PEDIDOS PENDIENTES */
@@ -707,27 +791,161 @@
 <!-- SECCIÓN ETIQUETAS -->
 <div id="seccionEtiquetas" class="hidden">
   <div class="etq-wrap">
-    <div class="etq-header">🏷️ Imprimir Etiquetas</div>
-    <div class="etq-form">
-      <div class="form-field full">
-        <label>Buscar Código</label>
-        <div class="codigo-search-wrap">
-          <input type="text" id="etqCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoEtiqueta(this.value)" autocomplete="off">
-          <div class="codigo-dropdown" id="etqCodigoDropdown"></div>
+
+    <!-- MENÚ "SELECCIÓN ETIQUETAS": igual al de la macro (RACK / CÓDIGO / RUTA) -->
+    <div id="etqMenu">
+      <div class="etq-header">🏷️ Selección de Etiquetas</div>
+      <div class="etq-menu-grid">
+        <div class="etq-menu-cat">
+          <div class="etq-menu-cat-titulo">RACK</div>
+          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('RACK_150')">100mm x 150mm</button>
+          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('RACK_50')">100mm x 50mm</button>
+        </div>
+        <div class="etq-menu-cat">
+          <div class="etq-menu-cat-titulo">CÓDIGO</div>
+          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('CODIGO_150')">100mm x 150mm</button>
+          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('CODIGO_50')">100mm x 50mm</button>
+        </div>
+        <div class="etq-menu-cat">
+          <div class="etq-menu-cat-titulo">RUTA</div>
+          <button class="etq-menu-btn" onclick="seleccionarTipoEtiqueta('RUTA_100')">100mm x 100mm</button>
         </div>
       </div>
-      <div class="etq-preview" id="etqPreview">
-        <div><strong>Código:</strong> <span id="etqPreviewCodigo"></span></div>
-        <div><strong>Descripción:</strong> <span id="etqPreviewDescripcion"></span></div>
-        <div><strong>Categoría:</strong> <span id="etqPreviewCategoria"></span></div>
-      </div>
-      <div class="form-field">
-        <label>Cantidad de etiquetas</label>
-        <input type="number" id="etqCantidad" placeholder="1" min="1" value="1">
-      </div>
-      <button class="btn-registrar" id="btnImprimirEtiqueta" onclick="imprimirEtiquetas()" disabled>🖨️ Imprimir Etiqueta(s)</button>
-      <div class="success-msg" id="etqSuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
     </div>
+
+    <!-- FORMULARIO: CÓDIGO 100mm x 150mm (el que ya teníamos, reubicado aquí) -->
+    <div id="etqFormCodigo150" class="etq-form-panel hidden">
+      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Código (100mm x 150mm)</div>
+      <div class="etq-form">
+        <div class="form-field full">
+          <label>Buscar Código</label>
+          <div class="codigo-search-wrap">
+            <input type="text" id="etqCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoEtiqueta(this.value)" autocomplete="off">
+            <div class="codigo-dropdown" id="etqCodigoDropdown"></div>
+          </div>
+        </div>
+        <div class="etq-preview" id="etqPreview">
+          <div><strong>Código:</strong> <span id="etqPreviewCodigo"></span></div>
+          <div><strong>Descripción:</strong> <span id="etqPreviewDescripcion"></span></div>
+          <div><strong>Categoría:</strong> <span id="etqPreviewCategoria"></span></div>
+        </div>
+        <div class="form-field">
+          <label>Cantidad de etiquetas</label>
+          <input type="number" id="etqCantidad" placeholder="1" min="1" value="1">
+        </div>
+        <button class="btn-registrar" id="btnImprimirEtiqueta" onclick="imprimirEtiquetas()" disabled>🖨️ Imprimir Etiqueta(s)</button>
+        <div class="success-msg" id="etqSuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO: CÓDIGO 100mm x 50mm -->
+    <div id="etqFormCodigo50" class="etq-form-panel hidden">
+      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Código (100mm x 50mm)</div>
+      <div class="etq-form">
+        <div class="form-field full">
+          <label>Buscar Código</label>
+          <div class="codigo-search-wrap">
+            <input type="text" id="etq50CodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoEtiqueta50(this.value)" autocomplete="off">
+            <div class="codigo-dropdown" id="etq50CodigoDropdown"></div>
+          </div>
+        </div>
+        <div class="etq-preview" id="etq50Preview">
+          <div><strong>Código:</strong> <span id="etq50PreviewCodigo"></span></div>
+          <div><strong>Descripción:</strong> <span id="etq50PreviewDescripcion"></span></div>
+          <div><strong>Categoría:</strong> <span id="etq50PreviewCategoria"></span></div>
+        </div>
+        <div class="form-field">
+          <label>Cantidad de etiquetas</label>
+          <input type="number" id="etq50Cantidad" placeholder="1" min="1" value="1">
+        </div>
+        <button class="btn-registrar" id="btnImprimirEtiqueta50" onclick="imprimirEtiquetaCodigo50()" disabled>🖨️ Imprimir Etiqueta(s)</button>
+        <div class="success-msg" id="etq50SuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO: RUTA 100mm x 100mm -->
+    <div id="etqFormRuta100" class="etq-form-panel hidden">
+      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta para Ruta (100mm x 100mm)</div>
+      <div class="etq-form">
+        <div class="form-field full">
+          <label>Cliente</label>
+          <input type="text" id="rutaCliente" placeholder="Nombre del cliente" autocomplete="off">
+        </div>
+        <div class="form-field full">
+          <label>N° Factura</label>
+          <input type="text" id="rutaFactura" placeholder="Número de factura" autocomplete="off">
+        </div>
+        <div class="form-field">
+          <label>Cantidad de Bultos</label>
+          <input type="number" id="rutaBultos" placeholder="1" min="1">
+        </div>
+        <div class="form-field full">
+          <label>Observaciones</label>
+          <input type="text" id="rutaObservaciones" placeholder="Opcional" autocomplete="off">
+        </div>
+        <button class="btn-registrar" type="button" onclick="imprimirEtiquetaRuta()">🖨️ Imprimir Etiqueta(s) de Ruta</button>
+        <div class="success-msg" id="rutaSuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO: RACK 100mm x 150mm -->
+    <div id="etqFormRack150" class="etq-form-panel hidden">
+      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Rack (100mm x 150mm)</div>
+      <div class="etq-form">
+        <div class="form-field">
+          <label>Bodega</label>
+          <select class="rack-select" id="rack150Bodega"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Pasillo</label>
+          <select class="rack-select" id="rack150Pasillo"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Tramo</label>
+          <select class="rack-select" id="rack150Tramo"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Nivel Inicial</label>
+          <select class="rack-select" id="rack150NInicial"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Nivel Final</label>
+          <select class="rack-select" id="rack150NFinal"><option value="">Cargando...</option></select>
+        </div>
+        <button class="btn-registrar" type="button" onclick="imprimirEtiquetaRack('150')">🖨️ Imprimir Etiqueta(s) de Rack</button>
+        <div class="success-msg" id="rack150SuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO: RACK 100mm x 50mm -->
+    <div id="etqFormRack50" class="etq-form-panel hidden">
+      <div class="etq-form-titulo"><button class="etq-volver" type="button" onclick="volverMenuEtiquetas()">‹ Volver</button> Etiqueta de Rack (100mm x 50mm)</div>
+      <div class="etq-form">
+        <div class="form-field">
+          <label>Bodega</label>
+          <select class="rack-select" id="rack50Bodega"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Pasillo</label>
+          <select class="rack-select" id="rack50Pasillo"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Tramo</label>
+          <select class="rack-select" id="rack50Tramo"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Nivel Inicial</label>
+          <select class="rack-select" id="rack50NInicial"><option value="">Cargando...</option></select>
+        </div>
+        <div class="form-field">
+          <label>Nivel Final</label>
+          <select class="rack-select" id="rack50NFinal"><option value="">Cargando...</option></select>
+        </div>
+        <button class="btn-registrar" type="button" onclick="imprimirEtiquetaRack('50')">🖨️ Imprimir Etiqueta(s) de Rack</button>
+        <div class="success-msg" id="rack50SuccessMsg">✅ Etiqueta(s) enviada(s) a imprimir.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -954,6 +1172,10 @@ let todosProductosEtiqueta = [];
 let productosEtiquetaCargados = false;
 let nombresPedidoCargados = false;
 let etiquetaSeleccionada = null;
+let etiqueta50Seleccionada = null;
+let tipoEtiquetaActual = '';
+let listasRack = { bodegas: [], pasillos: [], tramos: [], niveles: [] };
+let listasRackCargadas = false;
 let ultimaActualizacionDatos = null;
 let tipoReporteActual = '';
 let datosReportesCargados = false;
@@ -1073,6 +1295,7 @@ function mostrarSeccion(seccion, el) {
   } else if (seccion === 'etiquetas') {
     document.getElementById('seccionEtiquetas').classList.remove('hidden');
     if (!productosEtiquetaCargados) cargarProductosEtiqueta();
+    volverMenuEtiquetas(); // igual que la macro: siempre entra por la pantalla de selección
   } else if (seccion === 'reportes') {
     document.getElementById('seccionReportes').classList.remove('hidden');
     if (tipoReporteActual) {
@@ -2432,15 +2655,37 @@ async function cargarNombresPedido() {
 // MÓDULO ETIQUETAS (código de barras)
 // ═══════════════════════════════════════
 
+// Menú "Selección de Etiquetas": igual que la macro, siempre se entra por aquí
+// y cada botón abre su propio formulario (RACK, CÓDIGO o RUTA, según tamaño).
+const PANEL_ETIQUETA = { CODIGO_150: 'etqFormCodigo150', CODIGO_50: 'etqFormCodigo50', RUTA_100: 'etqFormRuta100', RACK_150: 'etqFormRack150', RACK_50: 'etqFormRack50' };
+
+function seleccionarTipoEtiqueta(tipo) {
+  tipoEtiquetaActual = tipo;
+  document.getElementById('etqMenu').classList.add('hidden');
+  document.querySelectorAll('.etq-form-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(PANEL_ETIQUETA[tipo]).classList.remove('hidden');
+  if ((tipo === 'RACK_150' || tipo === 'RACK_50')) {
+    if (!listasRackCargadas) cargarListasRack(); else llenarSelectsRack();
+  }
+}
+
+function volverMenuEtiquetas() {
+  tipoEtiquetaActual = '';
+  document.getElementById('etqMenu').classList.remove('hidden');
+  document.querySelectorAll('.etq-form-panel').forEach(p => p.classList.add('hidden'));
+}
+
 function cargarProductosEtiqueta() {
   // Ya no se pide al Apps Script: se deriva al instante del inventario en memoria.
   if (datosInventario.length > 0) {
     todosProductosEtiqueta = obtenerCodigosUnicos();
     productosEtiquetaCargados = true;
     document.getElementById('etqCodigoBuscar').placeholder = 'Escriba código o descripción...';
+    document.getElementById('etq50CodigoBuscar').placeholder = 'Escriba código o descripción...';
   } else {
     // Caso borde: se entró a Etiquetas antes de que terminara de cargar el inventario inicial
     document.getElementById('etqCodigoBuscar').placeholder = 'Cargando códigos...';
+    document.getElementById('etq50CodigoBuscar').placeholder = 'Cargando códigos...';
     productosEtiquetaCargados = false;
   }
 }
@@ -2548,6 +2793,270 @@ function imprimirEtiquetas() {
 
   const msg = document.getElementById('etqSuccessMsg');
   msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+}
+
+/* ---------- CÓDIGO 100mm x 50mm (mismos datos de producto, layout sin rotar) ---------- */
+
+function buscarCodigoEtiqueta50(texto) {
+  const dropdown = document.getElementById('etq50CodigoDropdown');
+  etiqueta50Seleccionada = null;
+  document.getElementById('btnImprimirEtiqueta50').disabled = true;
+  document.getElementById('etq50Preview').classList.remove('visible');
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosProductosEtiqueta.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
+  dropdown.innerHTML = resultados.map((c, i) =>
+    `<div class="codigo-item" onclick="seleccionarCodigoEtiqueta50(${i})">
+      <div class="cod">${c.codigo}</div>
+      <div class="desc-cod">${c.descripcion}</div>
+    </div>`).join('');
+  dropdown.dataset.resultados = JSON.stringify(resultados);
+  dropdown.classList.add('visible');
+}
+
+function seleccionarCodigoEtiqueta50(idx) {
+  const dropdown = document.getElementById('etq50CodigoDropdown');
+  const resultados = JSON.parse(dropdown.dataset.resultados || '[]');
+  const prod = resultados[idx];
+  if (!prod) return;
+  etiqueta50Seleccionada = prod;
+  document.getElementById('etq50CodigoBuscar').value = prod.codigo + ' - ' + prod.descripcion;
+  document.getElementById('etq50PreviewCodigo').textContent = prod.codigo;
+  document.getElementById('etq50PreviewDescripcion').textContent = prod.descripcion;
+  document.getElementById('etq50PreviewCategoria').textContent = prod.categoria || '(sin categoría)';
+  document.getElementById('etq50Preview').classList.add('visible');
+  document.getElementById('btnImprimirEtiqueta50').disabled = false;
+  dropdown.classList.remove('visible');
+}
+
+function imprimirEtiquetaCodigo50() {
+  if (!etiqueta50Seleccionada) { alert('Debe seleccionar un código'); return; }
+  const cantidad = parseInt(document.getElementById('etq50Cantidad').value, 10);
+  if (!cantidad || cantidad <= 0) { alert('Debe ingresar una cantidad válida'); return; }
+
+  const { codigo, descripcion, categoria } = etiqueta50Seleccionada;
+  const printArea = document.getElementById('printAreaEtiqueta');
+
+  let html = '';
+  for (let n = 0; n < cantidad; n++) {
+    html += `
+      <div class="etq50-label">
+        <div class="etq50-row etq50-codigo">${codigo}</div>
+        <div class="etq50-row etq50-desc">${descripcion}</div>
+        <div class="etq50-row etq50-barcode-row"><svg class="etq50-barcode-svg" data-codigo="${codigo}"></svg></div>
+        <div class="etq50-row etq50-cat"><span>CATEGORIA:</span><span>${categoria || ''}</span></div>
+        <div class="etq50-row etq50-hidroclear">HIDROCLEAR</div>
+      </div>`;
+  }
+  printArea.innerHTML = html;
+
+  printArea.querySelectorAll('.etq50-barcode-svg').forEach(svg => {
+    JsBarcode(svg, svg.dataset.codigo, { format: 'CODE128', displayValue: false, margin: 0, width: 1.2, height: 60 });
+  });
+
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: 100mm 50mm; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+
+  document.head.removeChild(estiloPagina);
+  printArea.innerHTML = '';
+
+  const msg = document.getElementById('etq50SuccessMsg');
+  msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+}
+
+/* ---------- RUTA 100mm x 100mm (cliente/factura/bultos, sin código de barras) ---------- */
+
+function imprimirEtiquetaRuta() {
+  const cliente = document.getElementById('rutaCliente').value.trim();
+  const factura = document.getElementById('rutaFactura').value.trim();
+  const totalBultos = parseInt(document.getElementById('rutaBultos').value, 10);
+  const observaciones = document.getElementById('rutaObservaciones').value.trim();
+
+  if (!cliente) { alert('Debe ingresar el nombre del cliente.'); return; }
+  if (!factura) { alert('Debe ingresar el número de factura.'); return; }
+  if (!totalBultos || totalBultos <= 0) { alert('La cantidad de bultos debe ser un número válido.'); return; }
+
+  const printArea = document.getElementById('printAreaEtiqueta');
+
+  // Una etiqueta por bulto, numerada "n DE totalBultos" — igual que CMDIMPRIMIR100_100_Click
+  let html = '';
+  for (let n = 1; n <= totalBultos; n++) {
+    html += `
+      <div class="etqruta-label">
+        <div class="etqruta-row etqruta-full etqruta-titulo">HIDROCLEAR</div>
+        <div class="etqruta-row etqruta-cliente">
+          <div class="etqruta-label-col">CLIENTE:</div>
+          <div class="etqruta-valor-col">${cliente.toUpperCase()}</div>
+        </div>
+        <div class="etqruta-row etqruta-factura">
+          <div class="etqruta-label-col">FACTURA:</div>
+          <div class="etqruta-valor-col">${factura.toUpperCase()}</div>
+        </div>
+        <div class="etqruta-row etqruta-bultos">
+          <div class="etqruta-label-col">BULTOS</div>
+          <div class="etqruta-valor-col">${n} DE ${totalBultos}</div>
+        </div>
+        <div class="etqruta-row etqruta-obs">
+          <div class="etqruta-label-col">OBS:</div>
+          <div class="etqruta-valor-col">${observaciones.toUpperCase()}</div>
+        </div>
+        <div class="etqruta-row etqruta-full etqruta-pie">HIDROCLEAR - Tel: (506) 2282-0100</div>
+      </div>`;
+  }
+  printArea.innerHTML = html;
+
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: 100mm 100mm; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+
+  document.head.removeChild(estiloPagina);
+  printArea.innerHTML = '';
+
+  const msg = document.getElementById('rutaSuccessMsg');
+  msg.textContent = '✅ ' + totalBultos + ' etiqueta(s) de ruta enviada(s) a imprimir.';
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+
+  // Se limpia el formulario después de imprimir, para la siguiente ruta (igual que cerrar/reabrir el UserForm)
+  document.getElementById('rutaCliente').value = '';
+  document.getElementById('rutaFactura').value = '';
+  document.getElementById('rutaBultos').value = '';
+  document.getElementById('rutaObservaciones').value = '';
+}
+
+/* ---------- RACK 100mm x 150mm y 100mm x 50mm (ubicación física del rack) ---------- */
+/* Bodega/Pasillo/Tramo/Nivel salen de la hoja "LISTAS" (columnas J,K,L,M), igual que la macro. */
+
+async function cargarListasRack() {
+  document.querySelectorAll('.rack-select').forEach(s => { s.innerHTML = '<option value="">Cargando...</option>'; });
+  try {
+    const resp = await fetch(GS_URL + '?tipo=LISTAS_RACK');
+    const json = await resp.json();
+    if (json.status === 'ok') {
+      listasRack = json.datos;
+      listasRackCargadas = true;
+      llenarSelectsRack();
+    }
+  } catch (err) {
+    console.error('Error cargando listas de rack:', err);
+  }
+}
+
+function llenarSelectsRack() {
+  const opt = arr => '<option value="">Seleccione...</option>' + arr.map(v => `<option value="${v}">${v}</option>`).join('');
+  ['rack150Bodega', 'rack50Bodega'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.bodegas); });
+  ['rack150Pasillo', 'rack50Pasillo'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.pasillos); });
+  ['rack150Tramo', 'rack50Tramo'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.tramos); });
+  ['rack150NInicial', 'rack50NInicial', 'rack150NFinal', 'rack50NFinal'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.niveles); });
+}
+
+// Mientras más larga la ubicación (bodega-pasillo-tramo-nivel), más chico el texto rotado
+// en la columna D de la etiqueta de 150mm, igual que el ajuste dinámico de la macro.
+function tamanoFuenteUbicacionRack(ubicacion) {
+  const len = ubicacion.length;
+  if (len <= 9) return 34;
+  if (len <= 11) return 30;
+  if (len <= 13) return 26;
+  return 22;
+}
+
+function imprimirEtiquetaRack(tam) {
+  const pref = 'rack' + tam;
+  const bodega = document.getElementById(pref + 'Bodega').value;
+  const pasillo = document.getElementById(pref + 'Pasillo').value;
+  const tramo = document.getElementById(pref + 'Tramo').value;
+  const nInicialStr = document.getElementById(pref + 'NInicial').value;
+  const nFinalStr = document.getElementById(pref + 'NFinal').value;
+
+  if (!bodega) { alert('Debe seleccionar una bodega'); return; }
+  if (!pasillo) { alert('Debe seleccionar un pasillo'); return; }
+  if (!tramo) { alert('Debe seleccionar un tramo'); return; }
+  if (!nInicialStr || !nFinalStr) { alert('Debe seleccionar nivel inicial y final'); return; }
+
+  const nInicial = parseInt(nInicialStr, 10);
+  const nFinal = parseInt(nFinalStr, 10);
+  if (isNaN(nInicial) || isNaN(nFinal)) { alert('Los niveles deben ser numéricos'); return; }
+  if (nFinal < nInicial) { alert('El nivel final debe ser mayor o igual al nivel inicial'); return; }
+
+  const printArea = document.getElementById('printAreaEtiqueta');
+  let html = '';
+  let total = 0;
+
+  for (let n = nInicial; n <= nFinal; n++) {
+    const nivelStr = String(n).padStart(2, '0');
+    const ubicacion = bodega + '-' + pasillo + '-' + tramo + '-' + nivelStr;
+    total++;
+    if (tam === '150') {
+      const tamUbic = tamanoFuenteUbicacionRack(ubicacion);
+      html += `
+        <div class="rack150-label">
+          <div class="rack150-col rack150-colA"></div>
+          <div class="rack150-col rack150-colB"><div class="etq-rot"><span class="rack150-caption-txt">Bodega / Pasillo / Tramo / Nivel</span></div></div>
+          <div class="rack150-col rack150-colC">
+            <div class="rack150-flecha-row">▼</div>
+            <div class="rack150-barcode-row"><svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg></div>
+            <div class="rack150-flecha-row">▲</div>
+          </div>
+          <div class="rack150-col rack150-colD"><div class="etq-rot"><span class="rack150-ubic-txt" style="font-size:${tamUbic}px">${ubicacion}</span></div></div>
+          <div class="rack150-col rack150-colE"><div class="etq-rot"><span class="rack150-hidro-txt">HIDROCLEAR</span></div></div>
+        </div>`;
+    } else {
+      html += `
+        <div class="rack50-label">
+          <div class="rack50-row rack50-hidro">HIDROCLEAR</div>
+          <div class="rack50-row rack50-ubic">${ubicacion}</div>
+          <div class="rack50-row rack50-barcode-row">
+            <span class="rack50-flecha">▶</span>
+            <svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg>
+            <span class="rack50-flecha">◀</span>
+          </div>
+          <div class="rack50-row rack50-caption">Bodega / Pasillo / Tramo / Nivel</div>
+        </div>`;
+    }
+  }
+  printArea.innerHTML = html;
+
+  const barcodeOpts = tam === '150'
+    ? { format: 'CODE128', displayValue: false, margin: 0, width: 1.4, height: 470 }
+    : { format: 'CODE128', displayValue: false, margin: 0, width: 1.2, height: 55 };
+  printArea.querySelectorAll('.rack-barcode-svg').forEach(svg => {
+    JsBarcode(svg, svg.dataset.codigo, barcodeOpts);
+  });
+
+  const tamañoPagina = tam === '150' ? '100mm 150mm' : '100mm 50mm';
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: ' + tamañoPagina + '; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+
+  document.head.removeChild(estiloPagina);
+  printArea.innerHTML = '';
+
+  const msg = document.getElementById(pref + 'SuccessMsg');
+  msg.textContent = '✅ ' + total + ' etiqueta(s) de rack enviada(s) a imprimir.';
   msg.style.display = 'block';
   setTimeout(() => { msg.style.display = 'none'; }, 4000);
 }
