@@ -372,15 +372,20 @@
      agrande el bloque completo (el mismo tipo de bug que ya se corrigió antes). */
   .rack150-inner {
     width: 150mm; height: 100mm; flex: 0 0 150mm; min-width: 0; box-sizing: border-box;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
-    overflow: hidden; padding: 3mm 6mm; transform: rotate(90deg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; padding: 2mm 5mm; transform: rotate(90deg);
     font-family: 'DM Sans', sans-serif; color: #000;
   }
-  .rack150-hidro-txt { font-size: 26px; font-weight: 900; white-space: nowrap; }
-  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; text-decoration: underline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  .rack150-fila-barcode { display: flex; align-items: center; justify-content: center; gap: 6mm; max-width: 100%; }
-  .rack150-flecha { font-size: 30px; font-weight: 900; line-height: 1; }
-  .rack150-caption-txt { font-size: 15px; font-weight: 400; white-space: nowrap; }
+  .rack150-hidro-txt { font-size: 50px; font-weight: 900; white-space: nowrap; line-height: 1; margin-bottom: 2mm; }
+  /* Más espacio ANTES del código de barras que después: así el código de barras queda
+     pegado a la leyenda "Bodega/Pasillo/Tramo/Nivel", como se pidió. */
+  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; text-decoration: underline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 1; margin-bottom: 7mm; }
+  /* Las flechas miden lo mismo de alto que el código de barras (mismo valor, 36mm, en
+     ambos), y el gap entre flecha/código/flecha se redujo para dejar más ancho disponible
+     al código de barras y que no sobre tanto espacio vacío a los costados. */
+  .rack150-fila-barcode { display: flex; align-items: center; justify-content: center; gap: 3mm; max-width: 100%; margin-bottom: 2mm; }
+  .rack150-flecha-svg { width: 36mm; height: 36mm; flex-shrink: 0; }
+  .rack150-caption-txt { font-size: 22px; font-weight: 400; white-space: nowrap; }
 
   /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas horizontales) */
   .rack50-label {
@@ -391,11 +396,11 @@
   .rack50-label:last-child { page-break-after: auto; break-after: auto; }
   .rack50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 8px; min-height: 0; box-sizing: border-box; }
   .rack50-row:last-child { border-bottom: none; }
-  .rack50-hidro { flex: 22 0 auto; font-size: 14px; font-weight: 900; }
-  .rack50-ubic { flex: 52 0 auto; font-size: 32px; font-weight: 900; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rack50-hidro { flex: 22 0 auto; font-size: 20px; font-weight: 900; }
+  .rack50-ubic { flex: 52 0 auto; font-size: 46px; font-weight: 900; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .rack50-barcode-row { flex: 40 0 auto; }
-  .rack50-flecha { font-size: 18px; font-weight: 900; }
-  .rack50-caption { flex: 18 0 auto; font-size: 9px; }
+  .rack50-flecha { font-size: 26px; font-weight: 900; }
+  .rack50-caption { flex: 18 0 auto; font-size: 12px; }
 
 
   /* PEDIDOS PENDIENTES */
@@ -2677,11 +2682,22 @@ function seleccionarTipoEtiqueta(tipo) {
 // viewBox con las medidas originales y fija el tamaño final en milímetros, para que el
 // navegador reescale el dibujo completo dentro del espacio real de la etiqueta.
 function ajustarBarcodeSVG(svg, anchoFinalMM, altoFinalMM, rotado) {
-  const anchoOriginal = svg.getAttribute('width');
-  const altoOriginal = svg.getAttribute('height');
+  // OJO: getAttribute('width')/('height') en el SVG que genera JsBarcode devuelven texto
+  // CON unidades, ej. "268px" — poner eso tal cual en el viewBox lo vuelve inválido
+  // ("Expected number"), el navegador lo IGNORA por completo, y entonces el código de
+  // barras deja de escalarse bien (por eso a veces quedaba más chico, descuadrado, o con
+  // espacio vacío sobrante de lo esperado). Hay que sacar solo el número con parseFloat
+  // antes de armar el viewBox.
+  const anchoOriginal = parseFloat(svg.getAttribute('width'));
+  const altoOriginal = parseFloat(svg.getAttribute('height'));
   svg.setAttribute('viewBox', `0 0 ${anchoOriginal} ${altoOriginal}`);
   svg.removeAttribute('width');
   svg.removeAttribute('height');
+  // Todas las llamadas a esta función calculan anchoFinalMM/altoFinalMM para llenar
+  // exactamente el espacio de su celda — por eso el código de barras siempre se estira a
+  // ese tamaño exacto (preserveAspectRatio="none") en vez de conservar su proporción
+  // original y dejar franjas vacías (que es el comportamiento por defecto de un <svg>).
+  svg.setAttribute('preserveAspectRatio', 'none');
   if (rotado) {
     // Antes de aplicar rotate(-90deg), lo que se ve como "ancho" y "alto" en pantalla
     // queda intercambiado, así que se asignan al revés aquí.
@@ -2993,13 +3009,15 @@ function llenarSelectsRack() {
 // Mientras más larga la ubicación (bodega-pasillo-tramo-nivel), más chico el texto rotado
 // en la columna D de la etiqueta de 150mm, igual que el ajuste dinámico de la macro.
 function tamanoFuenteUbicacionRack(ubicacion) {
-  // La ubicación ahora se imprime horizontal (sin rotar) en una columna más ancha,
-  // así que puede ir más grande que antes. Ajustar en sitio el lunes con impresiones reales.
+  // La ubicación es el texto más grande de la etiqueta de rack: debe ocupar casi todo el
+  // ancho disponible (150mm menos márgenes) sin desbordarse. Ajustar en sitio el lunes
+  // con impresiones reales si algún código queda muy justo o muy chico.
   const len = ubicacion.length;
-  if (len <= 9) return 38;
-  if (len <= 11) return 34;
-  if (len <= 13) return 30;
-  return 24;
+  if (len <= 9) return 92;
+  if (len <= 11) return 80;
+  if (len <= 13) return 68;
+  if (len <= 15) return 58;
+  return 48;
 }
 
 function imprimirEtiquetaRack(tam) {
@@ -3030,15 +3048,20 @@ function imprimirEtiquetaRack(tam) {
     total++;
     if (tam === '150') {
       const tamUbic = tamanoFuenteUbicacionRack(ubicacion);
+      // Flecha sólida en SVG (en vez del carácter de texto "▼"): así se ve igual de
+      // definida en cualquier navegador/impresora, como la flecha de la foto de referencia.
+      // Apunta hacia abajo en este bloque "derecho"; al rotar el bloque completo queda
+      // apuntando hacia la ubicación, indicando hacia dónde corresponde ese nivel.
+      const flechaSVG = '<svg class="rack150-flecha-svg" viewBox="0 0 100 100"><path d="M30,0 L70,0 L70,38 L92,38 L50,100 L8,38 L30,38 Z" fill="#000"/></svg>';
       html += `
         <div class="rack150-label">
           <div class="rack150-inner">
             <div class="rack150-hidro-txt">HIDROCLEAR</div>
             <div class="rack150-ubic-txt" style="font-size:${tamUbic}px">${ubicacion}</div>
             <div class="rack150-fila-barcode">
-              <span class="rack150-flecha">▼</span>
+              ${flechaSVG}
               <svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg>
-              <span class="rack150-flecha">▼</span>
+              ${flechaSVG}
             </div>
             <div class="rack150-caption-txt">Bodega / Pasillo / Tramo / Nivel</div>
           </div>
@@ -3060,15 +3083,19 @@ function imprimirEtiquetaRack(tam) {
   printArea.innerHTML = html;
 
   const barcodeOpts = tam === '150'
-    ? { format: 'CODE128', displayValue: true, fontSize: 14, margin: 0, width: 1.6, height: 90 }
+    // Menos alto de barras ("height") y más tamaño de letra ("fontSize") que antes: así,
+    // al escalar todo el código de barras a su tamaño final, el texto pequeño debajo de
+    // las barras queda proporcionalmente más grande y se puede leer bien.
+    ? { format: 'CODE128', displayValue: true, fontSize: 26, margin: 0, width: 2, height: 70 }
     : { format: 'CODE128', displayValue: false, margin: 0, width: 1.2, height: 55 };
   printArea.querySelectorAll('.rack-barcode-svg').forEach(svg => {
     JsBarcode(svg, svg.dataset.codigo, barcodeOpts);
     if (tam === '150') {
       // El código de barras NO se rota individualmente: es parte del bloque completo
       // (.rack150-inner) que se arma derecho y se rota una sola vez como unidad, igual
-      // que en la macro. Tamaño aproximado; ajustar en sitio el lunes con impresiones reales.
-      ajustarBarcodeSVG(svg, 45, 40, false);
+      // que en la macro. Mismo alto (36mm) que las flechas, y bien ancho (62mm, casi
+      // todo lo que queda del ancho disponible) para no dejar espacio vacío a los lados.
+      ajustarBarcodeSVG(svg, 62, 36, false);
     } else {
       // Fila del código: 40 de 132 unidades de alto total (50mm), sin rotar.
       ajustarBarcodeSVG(svg, 75, 50 * 40 / 132, false);
