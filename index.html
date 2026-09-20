@@ -356,35 +356,31 @@
   .etqruta-obs .etqruta-valor-col { font-weight: 700; font-size: 13px; white-space: normal; }
   .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; }
 
-  /* Etiqueta de Rack 100mm x 150mm — según la foto de referencia de la etiqueta real:
-     solo la leyenda "Bodega/Pasillo/Tramo/Nivel" (con flechas) y "HIDROCLEAR" van rotadas
-     -90°; la ubicación y el código de barras van SIN rotar, de frente, uno encima del otro.
-     Las proporciones exactas (tamaños de fuente, alturas) quedan pendientes de ajustar en
-     sitio con impresiones reales. */
+  /* Etiqueta de Rack 100mm x 150mm — la foto que enviaste (una vez girada) muestra que TODO
+     el contenido (HIDROCLEAR, la ubicación, las flechas+código de barras y la leyenda) es en
+     realidad UN SOLO bloque diseñado normal/horizontal y luego rotado -90° como unidad para
+     caber en la hoja angosta de 100x150mm — igual que en la macro de Excel. Por eso ya no hay
+     columnas separadas: se arma todo apilado y derecho (HIDROCLEAR arriba, código, flechas +
+     barcode, leyenda abajo) dentro de un bloque de 150x100mm, y ese bloque completo se rota. */
   .rack150-label {
     width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
-    display: flex; flex-direction: row; overflow: hidden;
-    page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    page-break-after: always; break-after: page;
   }
   .rack150-label:last-child { page-break-after: auto; break-after: auto; }
-  /* min-width:0 es clave: por defecto un flex item no se encoge más chico que su contenido
-     (aunque flex-shrink sea 0 igual puede CRECER más allá de su tamaño asignado si el
-     contenido es más ancho). Eso era el bug: el texto de la ubicación o el código de barras
-     empujaban su columna más allá de los 100mm de la etiqueta y "HIDROCLEAR" quedaba
-     recortado fuera de la hoja. Con min-width:0 + overflow:hidden, cada columna respeta
-     SIEMPRE su ancho fijo y lo que no quepa se recorta dentro de su propia columna. */
-  .rack150-col { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; min-width: 0; box-sizing: border-box; }
-  .rack150-col:last-child { border-right: none; }
-  .rack150-colFlechas { flex: 0 0 20mm; flex-direction: column; }
-  .rack150-colCodigo { flex: 0 0 62mm; flex-direction: column; align-items: stretch; }
-  .rack150-colHidro { flex: 0 0 18mm; }
-  .rack150-flecha-row { flex: 25 0 auto; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; }
-  .rack150-caption-wrap { flex: 100 0 auto; min-width: 0; overflow: hidden; }
-  .rack150-caption-txt { font-size: 20px; font-weight: 400; white-space: nowrap; }
-  .rack150-ubic-row { flex: 35 0 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; padding: 0 2mm; }
-  .rack150-ubic-txt { display: inline-block; font-weight: 900; white-space: nowrap; text-decoration: underline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  .rack150-barcode-row { flex: 115 0 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; overflow: hidden; }
-  .rack150-hidro-txt { font-size: 30px; font-weight: 900; white-space: nowrap; }
+  /* min-width:0 evita que si algún texto no cabe en 150mm, en vez de recortarse empuje y
+     agrande el bloque completo (el mismo tipo de bug que ya se corrigió antes). */
+  .rack150-inner {
+    width: 150mm; height: 100mm; flex: 0 0 150mm; min-width: 0; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+    overflow: hidden; padding: 3mm 6mm; transform: rotate(90deg);
+    font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .rack150-hidro-txt { font-size: 26px; font-weight: 900; white-space: nowrap; }
+  .rack150-ubic-txt { font-weight: 900; white-space: nowrap; text-decoration: underline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .rack150-fila-barcode { display: flex; align-items: center; justify-content: center; gap: 6mm; max-width: 100%; }
+  .rack150-flecha { font-size: 30px; font-weight: 900; line-height: 1; }
+  .rack150-caption-txt { font-size: 15px; font-weight: 400; white-space: nowrap; }
 
   /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas horizontales) */
   .rack50-label {
@@ -3036,16 +3032,16 @@ function imprimirEtiquetaRack(tam) {
       const tamUbic = tamanoFuenteUbicacionRack(ubicacion);
       html += `
         <div class="rack150-label">
-          <div class="rack150-col rack150-colFlechas">
-            <div class="rack150-flecha-row">◀</div>
-            <div class="rack150-caption-wrap etq-rot"><span class="rack150-caption-txt">Bodega / Pasillo / Tramo / Nivel</span></div>
-            <div class="rack150-flecha-row">◀</div>
+          <div class="rack150-inner">
+            <div class="rack150-hidro-txt">HIDROCLEAR</div>
+            <div class="rack150-ubic-txt" style="font-size:${tamUbic}px">${ubicacion}</div>
+            <div class="rack150-fila-barcode">
+              <span class="rack150-flecha">▼</span>
+              <svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg>
+              <span class="rack150-flecha">▼</span>
+            </div>
+            <div class="rack150-caption-txt">Bodega / Pasillo / Tramo / Nivel</div>
           </div>
-          <div class="rack150-col rack150-colCodigo">
-            <div class="rack150-ubic-row"><span class="rack150-ubic-txt" style="font-size:${tamUbic}px">${ubicacion}</span></div>
-            <div class="rack150-barcode-row"><svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg></div>
-          </div>
-          <div class="rack150-col rack150-colHidro"><div class="etq-rot"><span class="rack150-hidro-txt">HIDROCLEAR</span></div></div>
         </div>`;
     } else {
       html += `
@@ -3069,9 +3065,10 @@ function imprimirEtiquetaRack(tam) {
   printArea.querySelectorAll('.rack-barcode-svg').forEach(svg => {
     JsBarcode(svg, svg.dataset.codigo, barcodeOpts);
     if (tam === '150') {
-      // Código de barras SIN rotar (se lee de frente, igual que la ubicación arriba de él,
-      // según la foto de la etiqueta real). Tamaño aproximado; ajustar en sitio el lunes.
-      ajustarBarcodeSVG(svg, 55, 30, false);
+      // El código de barras NO se rota individualmente: es parte del bloque completo
+      // (.rack150-inner) que se arma derecho y se rota una sola vez como unidad, igual
+      // que en la macro. Tamaño aproximado; ajustar en sitio el lunes con impresiones reales.
+      ajustarBarcodeSVG(svg, 45, 40, false);
     } else {
       // Fila del código: 40 de 132 unidades de alto total (50mm), sin rotar.
       ajustarBarcodeSVG(svg, 75, 50 * 40 / 132, false);
