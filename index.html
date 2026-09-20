@@ -2342,6 +2342,32 @@ function ocultarTodasLasAreasDeImpresion() {
   document.getElementById('printAreaReporte').style.display = 'none';
 }
 
+// Imprime el área ya armada y solo LIMPIA (ocultar, borrar contenido, quitar el <style> de
+// tamaño de página) hasta que el navegador avisa que la impresión realmente terminó.
+// Antes se llamaba a window.print() y, en la línea siguiente, ya se estaba borrando/ocultando
+// el contenido — eso asume que window.print() bloquea la ejecución hasta cerrar el diálogo,
+// pero no siempre es así (sobre todo con varias etiquetas/páginas o en equipos más lentos):
+// el navegador puede seguir generando la vista previa de páginas siguientes mientras el
+// código ya está borrando el contenido, y el resultado es justo lo que se vio — una etiqueta
+// de menos, o una página con el texto de una ubicación y el código de barras de otra.
+// Con requestAnimationFrame (x2) además nos aseguramos de imprimir DESPUÉS de que el
+// navegador ya pintó todos los cambios (tamaños de letra, códigos de barras reescalados),
+// no a medio pintar.
+function imprimirYLimpiarCuandoTermine(printArea, estiloPagina, limpiarContenido, alTerminar) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+    });
+  });
+  window.onafterprint = () => {
+    printArea.style.display = 'none';
+    if (estiloPagina && estiloPagina.parentNode) estiloPagina.parentNode.removeChild(estiloPagina);
+    if (limpiarContenido) printArea.innerHTML = '';
+    window.onafterprint = null;
+    if (alTerminar) alTerminar();
+  };
+}
+
 function imprimirSolicitud() {
   if (!ultimoPedido) return;
   const hoy = new Date().toLocaleDateString('es-CR');
@@ -2821,16 +2847,12 @@ function imprimirEtiquetas() {
 
   ocultarTodasLasAreasDeImpresion();
   printArea.style.display = 'block';
-  window.print();
-  printArea.style.display = 'none';
-
-  document.head.removeChild(estiloPagina);
-  printArea.innerHTML = '';
-
-  const msg = document.getElementById('etqSuccessMsg');
-  msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
-  msg.style.display = 'block';
-  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, () => {
+    const msg = document.getElementById('etqSuccessMsg');
+    msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  });
 }
 
 /* ---------- CÓDIGO 100mm x 50mm (mismos datos de producto, layout sin rotar) ---------- */
@@ -2902,16 +2924,12 @@ function imprimirEtiquetaCodigo50() {
 
   ocultarTodasLasAreasDeImpresion();
   printArea.style.display = 'block';
-  window.print();
-  printArea.style.display = 'none';
-
-  document.head.removeChild(estiloPagina);
-  printArea.innerHTML = '';
-
-  const msg = document.getElementById('etq50SuccessMsg');
-  msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
-  msg.style.display = 'block';
-  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, () => {
+    const msg = document.getElementById('etq50SuccessMsg');
+    msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  });
 }
 
 /* ---------- RUTA 100mm x 100mm (cliente/factura/bultos, sin código de barras) ---------- */
@@ -2962,22 +2980,18 @@ function imprimirEtiquetaRuta() {
 
   ocultarTodasLasAreasDeImpresion();
   printArea.style.display = 'block';
-  window.print();
-  printArea.style.display = 'none';
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, () => {
+    const msg = document.getElementById('rutaSuccessMsg');
+    msg.textContent = '✅ ' + totalBultos + ' etiqueta(s) de ruta enviada(s) a imprimir.';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
 
-  document.head.removeChild(estiloPagina);
-  printArea.innerHTML = '';
-
-  const msg = document.getElementById('rutaSuccessMsg');
-  msg.textContent = '✅ ' + totalBultos + ' etiqueta(s) de ruta enviada(s) a imprimir.';
-  msg.style.display = 'block';
-  setTimeout(() => { msg.style.display = 'none'; }, 4000);
-
-  // Se limpia el formulario después de imprimir, para la siguiente ruta (igual que cerrar/reabrir el UserForm)
-  document.getElementById('rutaCliente').value = '';
-  document.getElementById('rutaFactura').value = '';
-  document.getElementById('rutaBultos').value = '';
-  document.getElementById('rutaObservaciones').value = '';
+    // Se limpia el formulario después de imprimir, para la siguiente ruta (igual que cerrar/reabrir el UserForm)
+    document.getElementById('rutaCliente').value = '';
+    document.getElementById('rutaFactura').value = '';
+    document.getElementById('rutaBultos').value = '';
+    document.getElementById('rutaObservaciones').value = '';
+  });
 }
 
 /* ---------- RACK 100mm x 150mm y 100mm x 50mm (ubicación física del rack) ---------- */
@@ -3110,16 +3124,12 @@ function imprimirEtiquetaRack(tam) {
 
   ocultarTodasLasAreasDeImpresion();
   printArea.style.display = 'block';
-  window.print();
-  printArea.style.display = 'none';
-
-  document.head.removeChild(estiloPagina);
-  printArea.innerHTML = '';
-
-  const msg = document.getElementById(pref + 'SuccessMsg');
-  msg.textContent = '✅ ' + total + ' etiqueta(s) de rack enviada(s) a imprimir.';
-  msg.style.display = 'block';
-  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, () => {
+    const msg = document.getElementById(pref + 'SuccessMsg');
+    msg.textContent = '✅ ' + total + ' etiqueta(s) de rack enviada(s) a imprimir.';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  });
 }
 
 /* =========================================================
