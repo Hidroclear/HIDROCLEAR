@@ -537,6 +537,7 @@
       <button class="sb-subitem" onclick="irAReporte('CONTEO', this)">🧮 Conteo de Inventario</button>
       <button class="sb-subitem" onclick="irAReporte('REABASTOS', this)">🔁 Reabastos</button>
       <button class="sb-subitem" onclick="irAReporte('SUGERIDO', this)">🛍️ Sugerido de Compras</button>
+      <button class="sb-subitem" onclick="irAReporte('RECETA', this)">🧩 Recetas (Componentes)</button>
     </div>
     <div class="sb-section-label">Solicitudes</div>
     <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
@@ -1040,6 +1041,36 @@
           </table>
         </div>
       </div>
+
+      <!-- RECETAS (COMPONENTES) -->
+      <div class="rep-panel hidden" id="repReceta">
+        <div class="rep-filtros">
+          <div class="form-field">
+            <label>Código de la receta (producto fabricado)</label>
+            <div class="codigo-search-wrap">
+              <input type="text" id="recetaCodigoBuscar" placeholder="Escriba código o nombre..." oninput="buscarCodigoGenerico(this.value, 'recetaCodigoDropdown', 'recetaCodigoBuscar')" autocomplete="off">
+              <div class="codigo-dropdown" id="recetaCodigoDropdown"></div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Cantidad a fabricar</label>
+            <input type="number" id="recetaCantidadFabricar" value="1" min="1" oninput="generarReceta()">
+          </div>
+          <button class="btn-registrar" type="button" onclick="generarReceta()">Buscar</button>
+          <button class="btn-limpiar" type="button" onclick="limpiarFiltrosReceta()">✕ Limpiar</button>
+        </div>
+        <div class="rep-acciones">
+          <button class="btn-limpiar" type="button" onclick="exportarReporteActual()">⬇️ Exportar CSV</button>
+          <button class="btn-limpiar" type="button" onclick="imprimirReporte()">🖨️ Imprimir</button>
+        </div>
+        <div id="recetaTituloProducto" class="rep-header" style="font-size:14px;padding:8px 0;"></div>
+        <div class="rep-tabla-wrap">
+          <table>
+            <thead><tr><th>Código Componente</th><th>Descripción</th><th>Cantidad por Unidad</th><th>Cantidad Necesaria</th></tr></thead>
+            <tbody id="recetaTbody"><tr><td colspan="4" class="rep-vacio">Escriba el código de un producto fabricado y presione Buscar.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1174,9 +1205,11 @@ let datosReportesCargados = false;
 let movimientosHistorial = [];
 let reservasDetalleReportes = [];
 let reporteResultadosActuales = [];
-let filtrosReporteListos = { CONTEO: false, REABASTOS: false, SUGERIDO: false };
-const PANEL_REPORTE = { CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido' };
-const TITULO_REPORTE = { CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras' };
+let filtrosReporteListos = { CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
+const PANEL_REPORTE = { CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
+const TITULO_REPORTE = { CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
+let datosRecetas = [];
+let datosRecetasCargados = false;
 
 function actualizarLiveIndicador() {
   const ind = document.getElementById('liveIndicador');
@@ -3162,6 +3195,7 @@ function seleccionarReporte(tipo) {
     document.getElementById('conteoFecha').value = new Date().toLocaleDateString('es-CR');
     if (!listasMovimientosCargadas) cargarListasMovimientos();
   }
+  if (tipo === 'RECETA' && !datosRecetasCargados) cargarDatosRecetas();
   prepararFiltrosReporte(tipo);
   if (!datosReportesCargados) cargarDatosReportes();
 }
@@ -3203,6 +3237,19 @@ async function cargarDatosReportes() {
   }
 }
 
+// La hoja RECETAS (~1900 filas) se pide una sola vez y queda en memoria, igual que el
+// resto de catálogos (Inventario, Códigos, Ubicaciones).
+async function cargarDatosRecetas() {
+  try {
+    const resp = await fetch(GS_URL + '?tipo=RECETAS');
+    const json = await resp.json();
+    datosRecetas = json.status === 'ok' ? json.datos : [];
+    datosRecetasCargados = true;
+  } catch (err) {
+    console.error('Error cargando recetas:', err);
+  }
+}
+
 function agruparReservasPorCodigoUbicacion() {
   const mapa = {};
   reservasDetalleReportes.forEach(r => {
@@ -3214,7 +3261,12 @@ function agruparReservasPorCodigoUbicacion() {
 
 function buscarCodigoGenerico(texto, dropdownId, inputId) {
   const dropdown = document.getElementById(dropdownId);
-  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); if (inputId === 'conteoCodigoBuscar') generarConteo(); return; }
+  if (!texto || texto.length < 2) {
+    dropdown.classList.remove('visible');
+    if (inputId === 'conteoCodigoBuscar') generarConteo();
+    if (inputId === 'recetaCodigoBuscar') generarReceta();
+    return;
+  }
   const busq = texto.toLowerCase();
   const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
@@ -3230,6 +3282,61 @@ function seleccionarCodigoGenerico(codigo, inputId, dropdownId) {
   document.getElementById(inputId).value = codigo;
   document.getElementById(dropdownId).classList.remove('visible');
   if (inputId === 'conteoCodigoBuscar') generarConteo();
+  if (inputId === 'recetaCodigoBuscar') generarReceta();
+}
+
+// Busca en datosRecetas todas las filas (componentes) del código de producto escrito y las
+// muestra en la tabla, multiplicando la cantidad por unidad por la "Cantidad a fabricar" —
+// exactamente la misma cuenta que hace el backend al registrar el ingreso (ver
+// expandirRecetas en Code_actualizado.gs), pero aquí es solo de consulta, no registra nada.
+function generarReceta() {
+  const codigoF = document.getElementById('recetaCodigoBuscar').value.trim().toUpperCase();
+  const cantidadFabricar = Math.max(1, parseFloat(document.getElementById('recetaCantidadFabricar').value) || 1);
+  const tituloEl = document.getElementById('recetaTituloProducto');
+
+  if (!codigoF) {
+    reporteResultadosActuales = [];
+    tituloEl.textContent = '';
+    document.getElementById('recetaTbody').innerHTML = '<tr><td colspan="4" class="rep-vacio">Escriba el código de un producto fabricado y presione Buscar.</td></tr>';
+    return;
+  }
+
+  const filasProducto = datosRecetas.filter(r => r.codigoProducto.toUpperCase() === codigoF);
+  if (filasProducto.length === 0) {
+    reporteResultadosActuales = [];
+    tituloEl.textContent = `"${codigoF}" no tiene una receta registrada (no es un producto de manufactura, o el código no existe en RECETAS).`;
+    document.getElementById('recetaTbody').innerHTML = '<tr><td colspan="4" class="rep-vacio">Sin resultados.</td></tr>';
+    return;
+  }
+
+  tituloEl.textContent = `${filasProducto[0].codigoProducto} — ${filasProducto[0].nombreProducto} · Fabricando ${cantidadFabricar} unidad(es): ${filasProducto.length} componente(s)`;
+
+  const filas = filasProducto.map(r => ({
+    codigoComponente: r.codigoComponente,
+    nombreComponente: r.nombreComponente,
+    cantidadUnidad: r.cantidad,
+    cantidadNecesaria: r.cantidad * cantidadFabricar
+  })).sort((a, b) => a.codigoComponente.localeCompare(b.codigoComponente));
+
+  reporteResultadosActuales = filas;
+  renderTablaReceta(filas);
+}
+
+function renderTablaReceta(filas) {
+  const tbody = document.getElementById('recetaTbody');
+  if (!filas.length) { tbody.innerHTML = '<tr><td colspan="4" class="rep-vacio">Sin resultados.</td></tr>'; return; }
+  tbody.innerHTML = filas.map(f =>
+    `<tr><td>${f.codigoComponente}</td><td>${f.nombreComponente}</td><td>${f.cantidadUnidad}</td><td>${f.cantidadNecesaria}</td></tr>`
+  ).join('');
+}
+
+function limpiarFiltrosReceta() {
+  document.getElementById('recetaCodigoBuscar').value = '';
+  document.getElementById('recetaCantidadFabricar').value = '1';
+  document.getElementById('recetaCodigoDropdown').classList.remove('visible');
+  reporteResultadosActuales = [];
+  document.getElementById('recetaTituloProducto').textContent = '';
+  document.getElementById('recetaTbody').innerHTML = '<tr><td colspan="4" class="rep-vacio">Escriba el código de un producto fabricado y presione Buscar.</td></tr>';
 }
 
 function limpiarFiltrosConteo() {
@@ -3436,6 +3543,13 @@ function exportarReporteActual() {
       reporteResultadosActuales.map(f => [f.codigo, f.descripcion, f.categoria, f.stockActual, f.totalSalidas, f.promMensual, f.sugerido, f.estado]),
       'sugerido_compras_' + hoy + '.csv'
     );
+  } else if (tipoReporteActual === 'RECETA') {
+    const codigoProd = document.getElementById('recetaCodigoBuscar').value.trim().toUpperCase();
+    exportarCSV(
+      ['CODIGO COMPONENTE', 'DESCRIPCION', 'CANTIDAD POR UNIDAD', 'CANTIDAD NECESARIA'],
+      reporteResultadosActuales.map(f => [f.codigoComponente, f.nombreComponente, f.cantidadUnidad, f.cantidadNecesaria]),
+      'receta_' + codigoProd + '_' + hoy + '.csv'
+    );
   }
 }
 
@@ -3458,6 +3572,10 @@ function imprimirReporte() {
     titulo = 'Sugerido de Compras';
     headers = ['Código', 'Descripción', 'Categoría', 'Stock Actual', 'Total Salidas', 'Prom. Mensual', 'Sugerido Compra', 'Estado'];
     filasHtml = reporteResultadosActuales.map(f => `<tr><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stockActual}</td><td>${f.totalSalidas}</td><td>${f.promMensual}</td><td>${f.sugerido}</td><td>${f.estado}</td></tr>`).join('');
+  } else if (tipoReporteActual === 'RECETA') {
+    titulo = document.getElementById('recetaTituloProducto').textContent || 'Receta';
+    headers = ['Código Componente', 'Descripción', 'Cantidad por Unidad', 'Cantidad Necesaria'];
+    filasHtml = reporteResultadosActuales.map(f => `<tr><td>${f.codigoComponente}</td><td>${f.nombreComponente}</td><td>${f.cantidadUnidad}</td><td>${f.cantidadNecesaria}</td></tr>`).join('');
   }
 
   const printArea = document.getElementById('printAreaReporte');
