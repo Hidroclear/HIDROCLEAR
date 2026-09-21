@@ -125,6 +125,9 @@
   .codigo-item:hover { background: #f0f5ff; }
   .codigo-item .cod { font-weight: 600; color: var(--azul-medio); }
   .codigo-item .desc-cod { font-size: 11px; color: var(--texto-suave); }
+  .btn-link-nuevo-codigo { align-self: flex-start; background: none; border: none; padding: 2px 0; margin-top: 2px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--azul-medio); cursor: pointer; text-decoration: underline; }
+  .btn-link-nuevo-codigo:hover { color: var(--azul); }
+  .modal-nuevo-codigo-msg { font-size: 13px; margin-bottom: 10px; min-height: 16px; }
   .btn-registrar { background: var(--azul); color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 20px; }
   .btn-registrar:disabled { background: #aaa; cursor: not-allowed; }
   .success-msg { background: #d4f5e7; border: 1px solid #00c97a; border-radius: 10px; padding: 14px 20px; color: #007a4a; font-size: 14px; margin-top: 16px; display: none; }
@@ -619,6 +622,7 @@
             <input type="text" id="movCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigo(this.value)" autocomplete="off">
             <div class="codigo-dropdown" id="codigoDropdown"></div>
           </div>
+          <button type="button" class="btn-link-nuevo-codigo" onclick="abrirModalNuevoCodigo('movCodigoBuscar')">+ ¿No aparece? Agregar código nuevo al catálogo</button>
         </div>
         <div class="form-field">
           <label>Código Seleccionado</label>
@@ -1166,6 +1170,31 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalNuevoCodigo" onclick="if (event.target === this) cerrarModalNuevoCodigo()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo">🆕 Agregar Código Nuevo</div>
+      <button class="modal-close" type="button" onclick="cerrarModalNuevoCodigo()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Código</label>
+        <input type="text" id="nuevoCodigoCodigo" placeholder="Ej: FC7FT3-CLACK38MM" autocomplete="off">
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Descripción</label>
+        <input type="text" id="nuevoCodigoDescripcion" placeholder="Nombre del producto" autocomplete="off">
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Categoría</label>
+        <input type="text" id="nuevoCodigoCategoria" placeholder="(Opcional)" autocomplete="off">
+      </div>
+      <div class="modal-nuevo-codigo-msg" id="nuevoCodigoMsg"></div>
+      <button class="btn-registrar" type="button" id="btnGuardarNuevoCodigo" onclick="guardarNuevoCodigo()">Guardar Código</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
 const SHEET_ID = '18ABHh-28OwyxIKTtehCgjFlbW1PG1B8zLR6sBXYCwJw';
@@ -1183,6 +1212,12 @@ const USUARIOS = {
 
 let usuarioActivo = null;
 let datosInventario = [];
+// Catálogo maestro de códigos (hoja CODIGOS): a diferencia de datosInventario (que solo
+// trae códigos con stock > 0 en EXISTENCIAS), este incluye TODOS los códigos que existen,
+// incluyendo los que nunca han tenido movimiento o que están en cero en todas las bodegas.
+// Es lo que permite buscar y registrar el primer INGRESO de un producto nuevo.
+let datosCodigos = [];
+let codigoNuevoPendienteInput = null;
 let datosFiltrados = [];
 let todosCodigos = [];
 let todasUbicaciones = [];
@@ -1334,19 +1369,31 @@ function mostrarSeccion(seccion, el) {
   }
 }
 
-// El inventario ya trae código+descripción+categoría de sobra: en vez de volver a pedirle
-// esta misma lista al Apps Script cada vez que se abre Pedidos, Etiquetas o se busca un
-// código en Movimientos/Consulta (3 llamadas de red redundantes y lentas), la derivamos
-// una sola vez aquí, en memoria, a partir de datosInventario ya cargado.
+// El catálogo de búsqueda se arma en memoria, una sola vez, a partir de dos fuentes:
+// - datosCodigos (hoja CODIGOS): el catálogo maestro real, incluye TODOS los códigos aunque
+//   tengan stock cero o nunca hayan tenido un movimiento (arreglo del bug donde un producto
+//   nuevo era invisible en todos los buscadores hasta su primer INGRESO).
+// - datosInventario (EXISTENCIAS): de respaldo, por si algún código tiene stock pero por lo
+//   que sea no está (todavía) en CODIGOS, y como relleno si a CODIGOS le falta descripción.
 function obtenerCodigosUnicos() {
-  const seen = new Set();
-  return datosInventario
-    .filter(d => {
-      if (seen.has(d.codigo)) return false;
-      seen.add(d.codigo);
-      return true;
-    })
-    .map(d => ({ codigo: d.codigo, descripcion: d.descripcion, categoria: d.categoria || '' }));
+  const mapa = new Map();
+  datosCodigos.forEach(c => {
+    const codigo = String(c.codigo || '').trim();
+    if (!codigo) return;
+    mapa.set(codigo, { codigo, descripcion: c.descripcion || '', categoria: c.categoria || '' });
+  });
+  datosInventario.forEach(d => {
+    const codigo = String(d.codigo || '').trim();
+    if (!codigo) return;
+    if (!mapa.has(codigo)) {
+      mapa.set(codigo, { codigo, descripcion: d.descripcion || '', categoria: d.categoria || '' });
+    } else {
+      const existente = mapa.get(codigo);
+      if (!existente.descripcion && d.descripcion) existente.descripcion = d.descripcion;
+      if (!existente.categoria && d.categoria) existente.categoria = d.categoria;
+    }
+  });
+  return Array.from(mapa.values());
 }
 
 async function cargarDatos() {
@@ -1356,14 +1403,25 @@ async function cargarDatos() {
   document.getElementById('contenidoTabla').innerHTML = '<div class="loading">Cargando datos...</div>';
   datosInventario = [];
   try {
-    const [respInv, respRes] = await Promise.all([
+    const [respInv, respRes, respCod] = await Promise.all([
       fetch(GS_URL + '?tipo=INVENTARIO'),
-      fetch(GS_URL + '?tipo=RESERVAS')
+      fetch(GS_URL + '?tipo=RESERVAS'),
+      fetch(GS_URL + '?tipo=CODIGOS')
     ]);
     if (!respInv.ok) throw new Error('Error de red: ' + respInv.status);
     const result = await respInv.json();
     if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
     datosInventario = result.datos || [];
+
+    // Catálogo maestro de códigos (ver obtenerCodigosUnicos) — si falla, no se detiene la
+    // carga: sencillamente los códigos con stock cero no aparecerán hasta el próximo refresh.
+    try {
+      const resultCod = await respCod.json();
+      datosCodigos = resultCod.status === 'ok' ? (resultCod.datos || []) : [];
+    } catch (errCod) {
+      console.error('Error cargando catálogo de códigos:', errCod);
+      datosCodigos = [];
+    }
 
     // Un solo cálculo en memoria alimenta Movimientos, Consulta de Stock, Pedidos y Etiquetas
     const codigosUnicos = obtenerCodigosUnicos();
@@ -2208,6 +2266,79 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.codigo-dropdown.visible').forEach(d => d.classList.remove('visible'));
   }
 });
+
+// ═══════════════════════════════════════
+// MODAL: Agregar Código Nuevo al catálogo (hoja CODIGOS)
+// ------------------------------------------------------
+// Da de alta un código nuevo directo desde la app, aunque todavía no tenga ningún
+// movimiento ni stock — antes era imposible registrar el primer INGRESO de un producto
+// nuevo porque el buscador solo conocía códigos que ya tuvieran stock en EXISTENCIAS.
+// ═══════════════════════════════════════
+
+function abrirModalNuevoCodigo(origenInputId) {
+  codigoNuevoPendienteInput = origenInputId || null;
+  const buscador = codigoNuevoPendienteInput ? document.getElementById(codigoNuevoPendienteInput) : null;
+  const textoBuscado = buscador ? buscador.value.trim() : '';
+  // Si el usuario ya escribió algo en el buscador (probablemente el código que no encontró),
+  // se lo pre-llena para que no tenga que volver a escribirlo.
+  document.getElementById('nuevoCodigoCodigo').value = textoBuscado.split(' - ')[0].toUpperCase();
+  document.getElementById('nuevoCodigoDescripcion').value = '';
+  document.getElementById('nuevoCodigoCategoria').value = '';
+  const msgEl = document.getElementById('nuevoCodigoMsg');
+  msgEl.textContent = '';
+  document.querySelectorAll('.codigo-dropdown.visible').forEach(d => d.classList.remove('visible'));
+  document.getElementById('modalNuevoCodigo').classList.add('visible');
+}
+
+function cerrarModalNuevoCodigo() {
+  document.getElementById('modalNuevoCodigo').classList.remove('visible');
+}
+
+async function guardarNuevoCodigo() {
+  const codigo = document.getElementById('nuevoCodigoCodigo').value.trim().toUpperCase();
+  const descripcion = document.getElementById('nuevoCodigoDescripcion').value.trim();
+  const categoria = document.getElementById('nuevoCodigoCategoria').value.trim();
+  const msgEl = document.getElementById('nuevoCodigoMsg');
+  msgEl.style.color = 'var(--rojo)';
+  if (!codigo) { msgEl.textContent = 'El código es obligatorio.'; return; }
+  if (todosCodigos.some(c => c.codigo.trim().toUpperCase() === codigo)) {
+    msgEl.textContent = 'Ese código ya existe en el catálogo — búsquelo arriba, no hace falta crearlo de nuevo.';
+    return;
+  }
+  const btn = document.getElementById('btnGuardarNuevoCodigo');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  msgEl.textContent = '';
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ tipo_peticion: 'AGREGAR_CODIGO', codigo, descripcion, categoria })
+    });
+    const result = await resp.json();
+    if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
+
+    // Se agrega al instante al catálogo en memoria, sin esperar a un refresco completo de datos.
+    datosCodigos.push({ codigo, descripcion, categoria });
+    todosCodigos = obtenerCodigosUnicos();
+    todosProductosPedido = todosCodigos;
+    todosProductosEtiqueta = todosCodigos;
+
+    cerrarModalNuevoCodigo();
+
+    // Si se abrió desde el buscador de Movimientos, deja el código recién creado ya
+    // seleccionado para que el usuario continúe el registro sin tener que buscarlo de nuevo.
+    if (codigoNuevoPendienteInput === 'movCodigoBuscar') {
+      seleccionarCodigo(codigo, descripcion);
+    } else if (codigoNuevoPendienteInput) {
+      const inputOrigen = document.getElementById(codigoNuevoPendienteInput);
+      if (inputOrigen) inputOrigen.value = codigo + (descripcion ? ' - ' + descripcion : '');
+    }
+  } catch (err) {
+    msgEl.textContent = 'No se pudo guardar: ' + err.message;
+  }
+  btn.disabled = false;
+  btn.textContent = 'Guardar Código';
+}
 
 // ═══════════════════════════════════════
 // MÓDULO PEDIDOS
