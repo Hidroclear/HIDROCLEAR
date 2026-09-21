@@ -1210,6 +1210,8 @@ const PANEL_REPORTE = { CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO
 const TITULO_REPORTE = { CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
 let datosRecetas = [];
 let datosRecetasCargados = false;
+let datosRecetasError = false;
+let recetasCargaPromise = null;
 
 function actualizarLiveIndicador() {
   const ind = document.getElementById('liveIndicador');
@@ -3237,17 +3239,26 @@ async function cargarDatosReportes() {
   }
 }
 
-// La hoja RECETAS (~1900 filas) se pide una sola vez y queda en memoria, igual que el
-// resto de catálogos (Inventario, Códigos, Ubicaciones).
-async function cargarDatosRecetas() {
-  try {
-    const resp = await fetch(GS_URL + '?tipo=RECETAS');
-    const json = await resp.json();
-    datosRecetas = json.status === 'ok' ? json.datos : [];
-    datosRecetasCargados = true;
-  } catch (err) {
-    console.error('Error cargando recetas:', err);
-  }
+// La hoja RECETAS (~2700 filas) se pide una sola vez y queda en memoria, igual que el resto
+// de catálogos (Inventario, Códigos, Ubicaciones). Como es una hoja grande, Apps Script
+// puede tardar varios segundos en responder — por eso esta función devuelve la MISMA
+// promesa mientras la carga esté en curso (así generarReceta() puede "esperarla" en vez de
+// buscar contra una lista todavía vacía, que antes se confundía con "este código no existe").
+function cargarDatosRecetas() {
+  if (recetasCargaPromise) return recetasCargaPromise;
+  datosRecetasError = false;
+  recetasCargaPromise = fetch(GS_URL + '?tipo=RECETAS')
+    .then(resp => resp.json())
+    .then(json => {
+      datosRecetas = json.status === 'ok' ? json.datos : [];
+      datosRecetasCargados = true;
+    })
+    .catch(err => {
+      console.error('Error cargando recetas:', err);
+      datosRecetasError = true;
+      recetasCargaPromise = null; // permite reintentar en la próxima búsqueda
+    });
+  return recetasCargaPromise;
 }
 
 function agruparReservasPorCodigoUbicacion() {
@@ -3289,7 +3300,7 @@ function seleccionarCodigoGenerico(codigo, inputId, dropdownId) {
 // muestra en la tabla, multiplicando la cantidad por unidad por la "Cantidad a fabricar" —
 // exactamente la misma cuenta que hace el backend al registrar el ingreso (ver
 // expandirRecetas en Code_actualizado.gs), pero aquí es solo de consulta, no registra nada.
-function generarReceta() {
+async function generarReceta() {
   const codigoF = document.getElementById('recetaCodigoBuscar').value.trim().toUpperCase();
   const cantidadFabricar = Math.max(1, parseFloat(document.getElementById('recetaCantidadFabricar').value) || 1);
   const tituloEl = document.getElementById('recetaTituloProducto');
@@ -3301,10 +3312,27 @@ function generarReceta() {
     return;
   }
 
+  // Si todavía no ha terminado de cargar el catálogo de recetas (la hoja es grande y puede
+  // tardar varios segundos), se espera aquí en vez de buscar contra una lista vacía — eso
+  // era lo que antes hacía parecer que "el código no existe" cuando en realidad solo faltaba
+  // esperar la respuesta del servidor.
+  if (!datosRecetasCargados) {
+    tituloEl.textContent = '';
+    document.getElementById('recetaTbody').innerHTML = '<tr><td colspan="4" class="rep-vacio">⏳ Cargando el catálogo de recetas (puede tardar unos segundos, es una hoja grande)...</td></tr>';
+    await cargarDatosRecetas();
+    // Si mientras tanto el usuario cambió el texto del código, no pisar su búsqueda actual.
+    if (document.getElementById('recetaCodigoBuscar').value.trim().toUpperCase() !== codigoF) return;
+    if (datosRecetasError) {
+      tituloEl.textContent = '';
+      document.getElementById('recetaTbody').innerHTML = '<tr><td colspan="4" class="rep-vacio">⚠️ No se pudo cargar el catálogo de recetas (falló la conexión). Presione Buscar de nuevo para reintentar.</td></tr>';
+      return;
+    }
+  }
+
   const filasProducto = datosRecetas.filter(r => r.codigoProducto.toUpperCase() === codigoF);
   if (filasProducto.length === 0) {
     reporteResultadosActuales = [];
-    tituloEl.textContent = `"${codigoF}" no tiene una receta registrada (no es un producto de manufactura, o el código no existe en RECETAS).`;
+    tituloEl.textContent = `"${codigoF}" no tiene una receta registrada (no es un producto de manufactura, o el código no existe en RECETAS). Se buscó entre ${datosRecetas.length ? new Set(datosRecetas.map(r=>r.codigoProducto)).size : 0} productos cargados.`;
     document.getElementById('recetaTbody').innerHTML = '<tr><td colspan="4" class="rep-vacio">Sin resultados.</td></tr>';
     return;
   }
