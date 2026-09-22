@@ -4225,6 +4225,45 @@ function imprimirEtiquetaReceta() {
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
 }
 
+// ── Protección contra doble clic/doble tap en los botones de Imprimir ──
+// Se reportó "en todas las pantallas, siempre salen 2 copias idénticas". Ninguno de los
+// botones de imprimir (Solicitud, Pedido a Bodega, Etiquetas de código/ruta/rack/receta,
+// Reportes) se desactivaba mientras se armaba y mandaba la impresión — así que un doble
+// clic (o un doble tap, muy fácil que pase sin querer en una pantalla táctil) llamaba DOS
+// VECES seguidas a la misma función, cada una con su propio window.print(): dos trabajos
+// de impresión independientes, dos copias idénticas. Esto pasaba igual sin importar el
+// tipo de papel/etiqueta porque el hueco estaba en el manejo del clic, no en el tamaño de
+// página de cada una.
+// Este envoltorio hace que, mientras una de estas funciones ya está imprimiendo, un
+// segundo clic/tap casi inmediato no dispare una segunda impresión: simplemente no hace
+// nada hasta que pasa el margen de espera. No cambia nada de lo que cada función imprime,
+// ni el tamaño de página; solo evita que se dispare dos veces.
+(function protegerBotonesDeImpresionContraDobleClic() {
+  const nombresFunciones = [
+    'imprimirSolicitud', 'imprimirPedidoBodega',
+    'imprimirEtiquetas', 'imprimirEtiquetaCodigo50', 'imprimirEtiquetaRuta', 'imprimirEtiquetaRack',
+    'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta'
+  ];
+  nombresFunciones.forEach(nombre => {
+    const original = window[nombre];
+    if (typeof original !== 'function') return; // por si algún nombre cambia más adelante, no rompe nada
+    let enProceso = false;
+    window[nombre] = function(...args) {
+      if (enProceso) return;
+      enProceso = true;
+      try {
+        return original.apply(this, args);
+      } finally {
+        // Se libera con un margen (no de inmediato): cubre tanto el patrón síncrono
+        // (window.print() y sigue de una vez) como el asíncrono de
+        // imprimirYLimpiarCuandoTermine (doble requestAnimationFrame + esperar a que el
+        // navegador avise "afterprint"), que puede tardar un poco más en aparecer/cerrarse.
+        setTimeout(() => { enProceso = false; }, 1500);
+      }
+    };
+  });
+})();
+
 </script>
 
 <!-- ÁREA DE IMPRESIÓN DE ETIQUETAS (código de barras) -->
