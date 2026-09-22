@@ -301,9 +301,8 @@
   .rep-placeholder { text-align: center; color: #aaa; padding: 60px 20px; font-size: 14px; max-width: 500px; margin: 0 auto; }
   .rep-vacio { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
 
-  /* ===== DASHBOARD (pantalla de Inicio) ===== */
+  /* ===== REPORTES → RESUMEN MENSUAL (anillos por tipo de movimiento) ===== */
   .dash-header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin-bottom: 24px; }
-  .dash-titulo { font-size: 21px; font-weight: 700; color: var(--azul); margin-bottom: 4px; }
   .dash-subtitulo { font-size: 13px; color: var(--texto-suave); }
   .dash-mes-wrap { display: flex; flex-direction: column; gap: 4px; }
   .dash-mes-wrap label { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; }
@@ -318,9 +317,6 @@
   .dash-ring-hueco span { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--azul); }
   .dash-card-label { font-size: 13.5px; font-weight: 700; color: var(--azul); }
   .dash-card-sub { font-size: 12px; color: var(--texto-suave); }
-  .dash-footer { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-  .dash-footer-nota { font-size: 12.5px; color: var(--texto-suave); max-width: 640px; line-height: 1.5; }
-  .dash-footer .btn-registrar { margin-top: 0; white-space: nowrap; }
   @media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 520px) { .dash-grid { grid-template-columns: 1fr; } }
   tr.rep-urgente td { background: rgb(255,199,206) !important; }
@@ -571,15 +567,14 @@
   </div>
   <div class="sb-nav">
     <div class="sb-section-label">Operación</div>
-    <button class="sb-item activo" id="sbConsulta" onclick="mostrarSeccion('consulta', this)"><span class="ic">🏠</span> Inicio</button>
+    <button class="sb-item activo" id="sbConsulta" onclick="mostrarSeccion('consulta', this)"><span class="ic">🔍</span> Consulta de Códigos</button>
     <button class="sb-item hidden" id="btnMovimientos" onclick="toggleSubmenuMovimientos()"><span class="ic">📋</span> Movimientos <span class="sb-caret" id="movCaret">▸</span></button>
     <div class="sb-submenu" id="submenuMovimientos">
-      <button class="sb-subitem" onclick="irAMovimiento('INGRESO', this)">📥 Ingreso</button>
-      <button class="sb-subitem" onclick="irAMovimiento('SALIDA', this)">📤 Salida</button>
-      <button class="sb-subitem" onclick="irAMovimiento('TRASLADO', this)">🔄 Traslado</button>
-      <button class="sb-subitem" onclick="irAMovimiento('RESERVA', this)">🔒 Reserva</button>
+      <button class="sb-subitem" id="sbSubIngreso" onclick="irAMovimiento('INGRESO', this)">📥 Ingreso</button>
+      <button class="sb-subitem" id="sbSubSalida" onclick="irAMovimiento('SALIDA', this)">📤 Salida</button>
+      <button class="sb-subitem" id="sbSubTraslado" onclick="irAMovimiento('TRASLADO', this)">🔄 Traslado</button>
+      <button class="sb-subitem" id="sbSubReserva" onclick="irAMovimiento('RESERVA', this)">🔒 Reserva</button>
     </div>
-    <button class="sb-item hidden" id="btnConsultaStock" onclick="abrirModalConsulta()"><span class="ic">🔍</span> Consulta de Stock</button>
     <button class="sb-item hidden" id="btnEtiquetas" onclick="toggleSubmenuEtiquetas()"><span class="ic">🏷️</span> Imprimir Etiquetas <span class="sb-caret" id="etqCaret">▸</span></button>
     <div class="sb-submenu" id="submenuEtiquetas">
       <button class="sb-subitem" onclick="irAEtiqueta('RACK_150', this)">🗄️ Rack 100x150mm</button>
@@ -590,6 +585,7 @@
     </div>
     <button class="sb-item hidden" id="btnReportes" onclick="toggleSubmenuReportes()"><span class="ic">📊</span> Reportes <span class="sb-caret" id="repCaret">▸</span></button>
     <div class="sb-submenu" id="submenuReportes">
+      <button class="sb-subitem" onclick="irAReporte('RESUMEN', this)">📅 Resumen Mensual</button>
       <button class="sb-subitem" onclick="irAReporte('EXISTENCIAS', this)">📦 Existencias</button>
       <button class="sb-subitem" onclick="irAReporte('CONTEO', this)">🧮 Conteo de Inventario</button>
       <button class="sb-subitem" onclick="irAReporte('REABASTOS', this)">🔁 Reabastos</button>
@@ -614,7 +610,7 @@
   <div class="topbar">
     <div>
       <div class="breadcrumb" id="crumb">HidroClear / Inventario</div>
-      <div class="titulo-pagina" id="tituloPag">Consulta de Inventario</div>
+      <div class="titulo-pagina" id="tituloPag">Consulta de Códigos</div>
     </div>
     <div class="topbar-right">
       <div class="live-indicador" id="liveIndicador"><span class="live-dot"></span><span id="liveTexto">Actualizado ahora</span></div>
@@ -622,42 +618,38 @@
   </div>
   <div class="content-scroll">
 
+<!-- INICIO = Consulta de Códigos, en línea (ya no en una ventana modal aparte). A propósito
+     no pide NADA al servidor para pintarse: arranca mostrando solo el mensaje de abajo, y
+     únicamente busca datos cuando el propio usuario escribe un código, elige una ubicación o
+     filtra por descripción (ver filtrarConsultaModal/buscarCodigoConsultaModal). Los ids se
+     conservan de cuando esto era una ventana modal (modalConsulta), que ya no existe. -->
 <div id="seccionConsulta" class="main">
-  <div class="dash-header">
-    <div>
-      <h2 class="dash-titulo">Panel de Control</h2>
-      <div class="dash-subtitulo">Movimientos registrados en el período seleccionado</div>
+  <div class="buscador-wrap consulta-filtros">
+    <div class="form-field">
+      <label>Código</label>
+      <div class="codigo-search-wrap">
+        <input type="text" id="consultaModalBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoConsultaModal(this.value)" autocomplete="off">
+        <div class="codigo-dropdown" id="consultaModalDropdown"></div>
+      </div>
     </div>
-    <div class="dash-mes-wrap">
-      <label for="dashboardMes">Mes</label>
-      <select id="dashboardMes" onchange="cambiarMesDashboard()"></select>
+    <div class="form-field">
+      <label>Ubicación</label>
+      <select id="consultaModalUbicacion" onchange="filtrarConsultaModal()"><option value="">Todas</option></select>
     </div>
+    <div class="form-field">
+      <label>Descripción</label>
+      <input type="text" id="consultaModalDescripcion" placeholder="Filtrar por descripción..." oninput="filtrarConsultaModal()" autocomplete="off">
+    </div>
+    <button class="btn-limpiar" type="button" onclick="limpiarFiltrosConsultaModal()">✕ Limpiar</button>
   </div>
-  <div class="dash-grid">
-    <div class="dash-card">
-      <div class="dash-ring-wrap"><div class="dash-ring" id="ringIngreso"><div class="dash-ring-hueco"><span id="dashValIngreso">—</span></div></div></div>
-      <div class="dash-card-label">📥 Ingresos</div>
-      <div class="dash-card-sub" id="dashPctIngreso">Cargando…</div>
+  <div class="tabla-wrap">
+    <div class="consulta-tabla-wrap">
+      <table class="hidden" id="consultaModalTabla">
+        <thead><tr><th>Código</th><th>Descripción</th><th>Ubicación</th><th>Stock Ubic.</th><th>Stock Total</th><th>Reservado</th><th>Disponible</th></tr></thead>
+        <tbody id="consultaModalTbody"></tbody>
+      </table>
+      <div class="mov-consulta-placeholder" id="consultaModalPlaceholder">Escriba un código, elija una ubicación o filtre por descripción para consultar el stock.</div>
     </div>
-    <div class="dash-card">
-      <div class="dash-ring-wrap"><div class="dash-ring" id="ringSalida"><div class="dash-ring-hueco"><span id="dashValSalida">—</span></div></div></div>
-      <div class="dash-card-label">📤 Salidas</div>
-      <div class="dash-card-sub" id="dashPctSalida">Cargando…</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-ring-wrap"><div class="dash-ring" id="ringTraslado"><div class="dash-ring-hueco"><span id="dashValTraslado">—</span></div></div></div>
-      <div class="dash-card-label">🔄 Traslados</div>
-      <div class="dash-card-sub" id="dashPctTraslado">Cargando…</div>
-    </div>
-    <div class="dash-card dash-card-disabled">
-      <div class="dash-ring-wrap"><div class="dash-ring dash-ring-vacio"><div class="dash-ring-hueco"><span>—</span></div></div></div>
-      <div class="dash-card-label">⚖️ Ajustes +/-</div>
-      <div class="dash-card-sub">Próximamente</div>
-    </div>
-  </div>
-  <div class="dash-footer">
-    <div class="dash-footer-nota">El detalle completo del inventario (existencias por código, bodega y categoría) ahora vive en <strong>Reportes → Existencias</strong>, para consultarlo o exportarlo cuando lo necesite.</div>
-    <button class="btn-registrar" type="button" onclick="irAExistenciasDesdeDashboard()">📦 Ver Existencias de Inventario</button>
   </div>
 </div>
 
@@ -1017,6 +1009,41 @@
     <div id="repContenido" class="hidden">
       <div class="rep-header" id="repTituloActual"></div>
 
+      <!-- RESUMEN MENSUAL: los indicadores que antes vivían en la pantalla de Inicio. Se
+           movieron aquí porque necesitan traer el historial completo de movimientos, y la
+           idea de Inicio es que cargue al instante sin depender de ningún dato del servidor. -->
+      <div class="rep-panel hidden" id="repResumen">
+        <div class="dash-header">
+          <div class="dash-subtitulo">Cantidad de movimientos registrados en el mes elegido (Ingresos, Salidas, Traslados)</div>
+          <div class="dash-mes-wrap">
+            <label for="resumenMes">Mes</label>
+            <select id="resumenMes" onchange="cambiarMesResumen()"></select>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <div class="dash-ring-wrap"><div class="dash-ring" id="ringIngreso"><div class="dash-ring-hueco"><span id="dashValIngreso">—</span></div></div></div>
+            <div class="dash-card-label">📥 Ingresos</div>
+            <div class="dash-card-sub" id="dashPctIngreso">Cargando…</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-ring-wrap"><div class="dash-ring" id="ringSalida"><div class="dash-ring-hueco"><span id="dashValSalida">—</span></div></div></div>
+            <div class="dash-card-label">📤 Salidas</div>
+            <div class="dash-card-sub" id="dashPctSalida">Cargando…</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-ring-wrap"><div class="dash-ring" id="ringTraslado"><div class="dash-ring-hueco"><span id="dashValTraslado">—</span></div></div></div>
+            <div class="dash-card-label">🔄 Traslados</div>
+            <div class="dash-card-sub" id="dashPctTraslado">Cargando…</div>
+          </div>
+          <div class="dash-card dash-card-disabled">
+            <div class="dash-ring-wrap"><div class="dash-ring dash-ring-vacio"><div class="dash-ring-hueco"><span>—</span></div></div></div>
+            <div class="dash-card-label">⚖️ Ajustes +/-</div>
+            <div class="dash-card-sub">Próximamente</div>
+          </div>
+        </div>
+      </div>
+
       <!-- EXISTENCIAS (antes vivía como pantalla de inicio "Consulta de Inventario") -->
       <div class="rep-panel hidden" id="repExistencias">
         <div class="rep-acciones">
@@ -1188,45 +1215,9 @@
 
 <div class="footer">HIDROCLEAR &copy; 2026 — Sistema de Inventario</div>
 
-<!-- MODAL: Consulta de Códigos — se abre desde el menú lateral, independiente de cualquier operación en curso -->
-<div class="modal-overlay" id="modalConsulta" onclick="if (event.target === this) cerrarModalConsulta()">
-  <div class="modal-box modal-box-ancho">
-    <div class="modal-header">
-      <div class="modal-header-titulo">🔍 Consulta de Códigos</div>
-      <div class="modal-header-marca">
-        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
-        <button class="modal-close" type="button" onclick="cerrarModalConsulta()">✕</button>
-      </div>
-    </div>
-    <div class="modal-body">
-      <div class="consulta-filtros">
-        <div class="form-field">
-          <label>Código</label>
-          <div class="codigo-search-wrap">
-            <input type="text" id="consultaModalBuscar" placeholder="Escriba código..." oninput="buscarCodigoConsultaModal(this.value)" autocomplete="off">
-            <div class="codigo-dropdown" id="consultaModalDropdown"></div>
-          </div>
-        </div>
-        <div class="form-field">
-          <label>Ubicación</label>
-          <select id="consultaModalUbicacion" onchange="filtrarConsultaModal()"><option value="">Todas</option></select>
-        </div>
-        <div class="form-field">
-          <label>Descripción</label>
-          <input type="text" id="consultaModalDescripcion" placeholder="Filtrar por descripción..." oninput="filtrarConsultaModal()" autocomplete="off">
-        </div>
-        <button class="btn-limpiar" type="button" onclick="limpiarFiltrosConsultaModal()">✕ Limpiar</button>
-      </div>
-      <div class="consulta-tabla-wrap">
-        <table class="hidden" id="consultaModalTabla">
-          <thead><tr><th>Código</th><th>Descripción</th><th>Ubicación</th><th>Stock Ubic.</th><th>Stock Total</th><th>Reservado</th><th>Disponible</th></tr></thead>
-          <tbody id="consultaModalTbody"></tbody>
-        </table>
-        <div class="mov-consulta-placeholder" id="consultaModalPlaceholder">Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Puede dejar esta ventana abierta o cerrarla en cualquier momento — no afecta el movimiento que esté llenando.</div>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- La ventana modal "Consulta de Códigos" que estaba aquí se quitó: ahora esa misma
+     pantalla vive en línea como Inicio (ver #seccionConsulta más arriba), reutilizando los
+     mismos ids/funciones (consultaModalBuscar, filtrarConsultaModal, etc.). -->
 
 <!-- MODAL: Aplicar Reservas — agrupa las reservas activas por comercial y documento, y
      permite aplicarlas (dar salida) o cancelarlas, igual que la ventana de la macro -->
@@ -1351,15 +1342,14 @@ let datosReportesCargados = false;
 let movimientosHistorial = [];
 let reservasDetalleReportes = [];
 let reporteResultadosActuales = [];
-let filtrosReporteListos = { EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
-const PANEL_REPORTE = { EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
-const TITULO_REPORTE = { EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
+let filtrosReporteListos = { RESUMEN: true, EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
+const PANEL_REPORTE = { RESUMEN: 'repResumen', EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
+const TITULO_REPORTE = { RESUMEN: '📅 Resumen Mensual de Movimientos', EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
 let datosRecetas = [];
 let datosRecetasCargados = false;
 let datosRecetasError = false;
 let recetasCargaPromise = null;
 let reportesCargaPromise = null;
-let dashboardMesSeleccionado = null; // 'YYYY-MM'; null = mes en curso
 
 function actualizarLiveIndicador() {
   const ind = document.getElementById('liveIndicador');
@@ -1394,9 +1384,7 @@ function mostrarApp() {
   document.getElementById('sbAvatar').textContent = iniciales;
   if (usuarioActivo.rol === 'admin') {
     document.getElementById('btnMovimientos').classList.remove('hidden');
-    document.getElementById('btnConsultaStock').classList.remove('hidden');
     document.getElementById('btnReportes').classList.remove('hidden');
-    cargarListasMovimientos(); // carga en background mientras el usuario ve el inventario
   }
   if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'tecnico' || usuarioActivo.rol === 'comercial') {
     document.getElementById('btnPedidos').classList.remove('hidden');
@@ -1405,14 +1393,13 @@ function mostrarApp() {
     document.getElementById('btnPendientes').classList.remove('hidden');
     document.getElementById('btnEtiquetas').classList.remove('hidden');
   }
-  // El panel de Inicio (dashboard) se muestra de inmediato, sin esperar ninguna carga: solo
-  // cuando el usuario pida el detalle en Reportes → Existencias hace falta el inventario
-  // completo. INVENTARIO/CODIGOS/RESERVAS y el historial de movimientos se piden en segundo
-  // plano (cargarDatos/cargarDatosReportes) porque Movimientos, Pedidos, Etiquetas y el
-  // propio dashboard los necesitan, pero ya no bloquean la pantalla con la que arranca la sesión.
-  inicializarDashboard();
+  // Inicio (= Consulta de Códigos) no pide NADA al servidor para pintarse: se ve de una vez,
+  // sin esperar ninguna carga. Eso sí, la Ubicación del buscador y el catálogo de códigos
+  // necesitan cargarse en segundo plano tarde o temprano para que la búsqueda funcione — se
+  // piden aquí para TODOS los roles (antes esto solo pasaba para 'admin', al entrar a
+  // Movimientos), pero como es en segundo plano no bloquea ni retrasa lo que el usuario ve.
+  if (!listasMovimientosCargadas) cargarListasMovimientos();
   cargarDatos();
-  cargarDatosReportes().then(renderDashboard);
 }
 
 function cerrarSesion() {
@@ -1431,7 +1418,7 @@ if (sesionGuardada) {
 }
 
 const TITULOS_SECCION = {
-  consulta:    ['HidroClear / Inicio',       'Panel de Control'],
+  consulta:    ['HidroClear / Inventario',   'Consulta de Códigos'],
   movimientos: ['HidroClear / Operación',    'Movimientos'],
   etiquetas:   ['HidroClear / Operación',    'Imprimir Etiquetas'],
   reportes:    ['HidroClear / Reportes',     'Reportes'],
@@ -1733,6 +1720,12 @@ function seleccionarMovimiento(tipo) {
   // "COMERCIAL" para excepciones) en vez de quedar fijo al usuario que inició sesión: así se
   // puede anotar a nombre de otra persona sin tener que cerrar sesión solo para cambiarlo.
   if (!listasRackCargadas) cargarListasRack(); else llenarSelectsRack();
+  // IMPORTANTE: reinicia el select de Ubicación a la lista completa cada vez que se cambia de
+  // tipo de movimiento. seleccionarCodigo() reduce esa lista solo a las bodegas con stock del
+  // código elegido (para Salida/Traslado) — si no se reiniciaba aquí, al pasar por ejemplo de
+  // Salida a Ingreso la casilla de Ubicación se quedaba "pegada" mostrando únicamente la
+  // bodega que había quedado de la Salida anterior, en vez de todas las ubicaciones.
+  if (listasMovimientosCargadas) llenarSelectUbicaciones();
   document.getElementById('campoUbicacion').classList.add('hidden');
   document.getElementById('campoUbicacionOrigen').classList.add('hidden');
   document.getElementById('campoUbicacionDestino').classList.add('hidden');
@@ -2012,26 +2005,8 @@ async function refrescarReservasPorCodigo() {
   }
 }
 
-// ── Consulta de Stock: ventana emergente, independiente de cualquier operación en curso ──
-// Se abre desde el menú lateral y se puede usar en cualquier momento (aunque haya un
-// movimiento a medio llenar) sin tocar los campos ni la lista de ese movimiento.
-function abrirModalConsulta() {
-  document.getElementById('modalConsulta').classList.add('visible');
-  document.getElementById('consultaModalBuscar').value = '';
-  document.getElementById('consultaModalDescripcion').value = '';
-  document.getElementById('consultaModalUbicacion').value = '';
-  document.getElementById('consultaModalDropdown').classList.remove('visible');
-  if (!listasMovimientosCargadas) cargarListasMovimientos();
-  filtrarConsultaModal();
-  setTimeout(() => document.getElementById('consultaModalBuscar').focus(), 50);
-}
-
-function cerrarModalConsulta() {
-  document.getElementById('modalConsulta').classList.remove('visible');
-}
-
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') { cerrarModalConsulta(); cerrarModalAplicarReservas(); }
+  if (e.key === 'Escape') { cerrarModalAplicarReservas(); }
 });
 
 // ── Navegación con Enter en el formulario de movimientos ──
@@ -2368,9 +2343,9 @@ async function registrarListaMovimientos() {
     });
     const result = await resp.json();
     if (result.status === 'ok') {
-      // Actualiza el dashboard de Inicio de forma optimista con lo que se acaba de registrar,
-      // sin esperar a un refresh completo — igual que pide el usuario ("dinámicos... según se
-      // van procesando"). OJO: las líneas de RESERVA no cuentan aquí (nunca tocan TRAZABILIDAD
+      // Actualiza el Resumen Mensual de forma optimista (si ya está abierto en esta sesión),
+      // sin esperar ningún refresh — igual que pide el usuario ("dinámicos... según se van
+      // procesando"). OJO: las líneas de RESERVA no cuentan aquí (nunca tocan TRAZABILIDAD
       // TOTAL hasta que se aplican), y las SALIDAs que la receta genera automáticamente en el
       // servidor (expandirRecetas) tampoco se ven reflejadas hasta el próximo refresh/login,
       // porque el cliente nunca recibe esas filas calculadas del lado del servidor.
@@ -2378,7 +2353,7 @@ async function registrarListaMovimientos() {
         if (item.tipo === 'RESERVA') return;
         movimientosHistorial.push({ fecha: item.fecha, tipo: item.tipo, codigo: item.codigo, cantidad: item.cantidad });
       });
-      renderDashboard();
+      renderResumenMensual();
       movimientosPendientes = [];
       indiceEdicionLista = null;
       renderListaMovimientos();
@@ -2407,19 +2382,41 @@ function buscarCodigo(texto) {
   dropdown.classList.add('visible');
 }
 
+// La hoja UBICACIONES marca una bodega como "PRIMARIA"; cualquier otro valor (o vacío) cuenta
+// como SECUNDARIA — mismo criterio que usa el reporte de Reabastos (ver
+// buscarPrimeraUbicacionPorTipo), para que "ubicación primaria" signifique lo mismo en toda
+// la app en vez de improvisar un criterio distinto aquí.
+function tipoDeUbicacion(bodega) {
+  const u = todasUbicaciones.find(x => x.ubicacion === bodega);
+  return u && String(u.tipo || '').toUpperCase() === 'PRIMARIA' ? 'PRIMARIA' : 'SECUNDARIA';
+}
+
 function seleccionarCodigo(codigo, descripcion) {
   document.getElementById('movCodigoBuscar').value = codigo + ' - ' + descripcion;
   document.getElementById('movCodigo').value = codigo;
   document.getElementById('movDescripcion').value = descripcion;
   document.getElementById('codigoDropdown').classList.remove('visible');
   if (tipoMovimientoActual === 'SALIDA' || tipoMovimientoActual === 'TRASLADO') {
-    const ubicacionesConStock = datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega);
+    // Deduplicado con Set: un mismo código puede tener más de una fila en EXISTENCIAS para la
+    // misma bodega — sin esto la ubicación aparecía repetida en la lista, y el autorrelleno de
+    // más abajo fallaba porque "hay exactamente 1 bodega con stock" dejaba de cumplirse aunque
+    // en realidad solo hubiera una bodega real.
+    const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega))];
     const selId = tipoMovimientoActual === 'SALIDA' ? 'movUbicacion' : 'movUbicacionOrigen';
     const sel = document.getElementById(selId);
     sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
     if (ubicacionesConStock.length > 0) {
       ubicacionesConStock.forEach(u => { sel.innerHTML += `<option value="${u}">${u}</option>`; });
-      if (ubicacionesConStock.length === 1) sel.value = ubicacionesConStock[0];
+      // Autorrellena con la ubicación PRIMARIA si tiene stock, sin importar cuántas otras
+      // bodegas (secundarias) también tengan stock de este código. Antes solo autorrellenaba
+      // cuando había EXACTAMENTE una bodega con stock en total, así que un código con stock
+      // en su Primaria Y en una Secundaria nunca se autocompletaba.
+      const primaria = ubicacionesConStock.find(u => tipoDeUbicacion(u) === 'PRIMARIA');
+      if (primaria) {
+        sel.value = primaria;
+      } else if (ubicacionesConStock.length === 1) {
+        sel.value = ubicacionesConStock[0];
+      }
     } else {
       todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
     }
@@ -3523,6 +3520,7 @@ function seleccionarReporte(tipo) {
     if (!listasMovimientosCargadas) cargarListasMovimientos();
   }
   if (tipo === 'RECETA' && !datosRecetasCargados) cargarDatosRecetas();
+  if (tipo === 'RESUMEN') inicializarResumenMensual();
   prepararFiltrosReporte(tipo);
   if (!datosReportesCargados) cargarDatosReportes();
 }
@@ -3570,15 +3568,18 @@ function cargarDatosReportes() {
 }
 
 /* =========================================================
-   DASHBOARD (pantalla de Inicio): indicadores de Ingresos, Salidas y
-   Traslados del mes, en vez del inventario completo (que ahora vive en
-   Reportes → Existencias). Se basa en movimientosHistorial, que ya se
-   traía para los reportes de Reabastos/Sugerido — no hace falta ningún
-   endpoint nuevo en el backend.
+   REPORTES → RESUMEN MENSUAL: los mismos indicadores que antes vivían en
+   Inicio, ahora movidos aquí porque sí necesitan traer el historial
+   completo de movimientos (movimientosHistorial) — es correcto que este
+   reporte tarde un poco en cargar la primera vez, igual que Conteo,
+   Reabastos, Sugerido o Recetas.
    ========================================================= */
 
 // "Ajustes +/-" queda pendiente a propósito (el usuario decidió no definirlo todavía):
 // la tarjeta se muestra deshabilitada y sin datos hasta que se defina qué debe contar.
+
+let resumenMesSeleccionado = null; // 'YYYY-MM'
+let resumenMensualInicializado = false;
 
 function nombreMesCorto(aaaaMM) {
   const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -3586,7 +3587,7 @@ function nombreMesCorto(aaaaMM) {
   return meses[parseInt(mm, 10) - 1] + ' ' + aaaa;
 }
 
-// Arma la lista de los últimos 12 meses (incluyendo el actual) para el selector del dashboard.
+// Arma la lista de los últimos 12 meses (incluyendo el actual) para el selector del resumen.
 function obtenerUltimosMeses() {
   const out = [];
   const hoy = new Date();
@@ -3598,46 +3599,76 @@ function obtenerUltimosMeses() {
   return out;
 }
 
-function inicializarDashboard() {
-  const sel = document.getElementById('dashboardMes');
+// Se llama la primera vez que se entra a Reportes → Resumen Mensual (ver seleccionarReporte).
+// Las siguientes veces solo se vuelve a pintar (renderResumenMensual), sin resetear el mes
+// que el usuario ya había elegido.
+function inicializarResumenMensual() {
+  if (resumenMensualInicializado) { renderResumenMensual(); return; }
+  resumenMensualInicializado = true;
+  const sel = document.getElementById('resumenMes');
   const meses = obtenerUltimosMeses();
-  dashboardMesSeleccionado = meses[0].valor; // mes en curso, por defecto
+  resumenMesSeleccionado = meses[0].valor; // mes en curso, por defecto
   sel.innerHTML = meses.map(m => `<option value="${m.valor}">${m.texto}${m.valor === meses[0].valor ? ' (actual)' : ''}</option>`).join('');
-  sel.value = dashboardMesSeleccionado;
-  renderDashboard(); // pinta de inmediato con lo que haya en memoria (puede estar vacío hasta que cargue)
+  sel.value = resumenMesSeleccionado;
+  if (!datosReportesCargados) cargarDatosReportes().then(renderResumenMensual);
+  renderResumenMensual(); // pinta de inmediato con lo que haya en memoria (puede estar vacío hasta que cargue)
 }
 
-function cambiarMesDashboard() {
-  dashboardMesSeleccionado = document.getElementById('dashboardMes').value;
-  renderDashboard();
+function cambiarMesResumen() {
+  resumenMesSeleccionado = document.getElementById('resumenMes').value;
+  renderResumenMensual();
 }
 
 // Pinta un anillo tipo "donut" en CSS puro (conic-gradient) según qué proporción del total
 // de movimientos del mes le corresponde a este tipo — no hay una "meta" definida para
 // Ingresos/Salidas/Traslados, así que el anillo representa su peso dentro del total, y el
-// número grande en el centro es la cantidad real de movimientos.
-function pintarAnilloDashboard(idAnillo, cantidad, pctDecimal, colorVar) {
+// número grande en el centro es la cantidad real de movimientos de ese tipo.
+function pintarAnilloResumen(idAnillo, pctDecimal, colorVar) {
   const anillo = document.getElementById(idAnillo);
+  if (!anillo) return;
   const grados = Math.max(0, Math.min(1, pctDecimal)) * 360;
   anillo.style.background = `conic-gradient(var(${colorVar}) ${grados}deg, var(--gris) ${grados}deg)`;
 }
 
-function renderDashboard() {
-  if (!dashboardMesSeleccionado) return;
-  const delMes = (movimientosHistorial || []).filter(m => String(m.fecha || '').startsWith(dashboardMesSeleccionado));
+// TRAZABILIDAD TOTAL normalmente trae la fecha ya formateada como 'yyyy-MM-dd' (ver
+// leerMovimientosHistorial), pero si alguna fila llegó como texto plano en vez de fecha real
+// (por ejemplo de una carga masiva pegada directo en la hoja, en vez de registrada desde la
+// app) puede venir en otro formato como 'dd/mm/yyyy' o sin ceros a la izquierda. Esta función
+// reconoce los formatos más comunes y siempre devuelve 'YYYY-MM' (o null si no pudo), para que
+// el resumen no muestre todo en cero solo porque una fecha no vino en el formato esperado.
+function mesDeFechaHistorial(fechaStr) {
+  const s = String(fechaStr || '').trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // yyyy-MM-dd / yyyy-M-d
+  if (m) return m[1] + '-' + m[2].padStart(2, '0');
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // dd/mm/yyyy
+  if (m) return m[3] + '-' + m[2].padStart(2, '0');
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  return null;
+}
+
+// Cada anillo muestra la CANTIDAD DE MOVIMIENTOS (líneas registradas) de ese tipo en el mes
+// elegido — ej. si en el mes hubo 3 salidas registradas (sin importar cuántas unidades cada
+// una), el anillo de Salidas muestra 3.
+function renderResumenMensual() {
+  if (!resumenMesSeleccionado) return;
+  const elIngreso = document.getElementById('dashValIngreso');
+  if (!elIngreso) return; // el reporte aún no se ha abierto en esta sesión
+  const delMes = (movimientosHistorial || []).filter(m => mesDeFechaHistorial(m.fecha) === resumenMesSeleccionado);
   const conteo = { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
   delMes.forEach(m => { if (conteo.hasOwnProperty(m.tipo)) conteo[m.tipo]++; });
   const total = conteo.INGRESO + conteo.SALIDA + conteo.TRASLADO;
 
-  document.getElementById('dashValIngreso').textContent = conteo.INGRESO;
+  elIngreso.textContent = conteo.INGRESO;
   document.getElementById('dashValSalida').textContent = conteo.SALIDA;
   document.getElementById('dashValTraslado').textContent = conteo.TRASLADO;
 
   if (total === 0) {
     ['Ingreso', 'Salida', 'Traslado'].forEach(t => { document.getElementById('dashPct' + t).textContent = datosReportesCargados ? 'Sin movimientos este mes' : 'Cargando…'; });
-    pintarAnilloDashboard('ringIngreso', 0, 0, '--verde');
-    pintarAnilloDashboard('ringSalida', 0, 0, '--rojo');
-    pintarAnilloDashboard('ringTraslado', 0, 0, '--celeste');
+    pintarAnilloResumen('ringIngreso', 0, '--verde');
+    pintarAnilloResumen('ringSalida', 0, '--rojo');
+    pintarAnilloResumen('ringTraslado', 0, '--celeste');
     return;
   }
 
@@ -3647,19 +3678,9 @@ function renderDashboard() {
   document.getElementById('dashPctIngreso').textContent = Math.round(pctIngreso * 100) + '% del total del mes';
   document.getElementById('dashPctSalida').textContent = Math.round(pctSalida * 100) + '% del total del mes';
   document.getElementById('dashPctTraslado').textContent = Math.round(pctTraslado * 100) + '% del total del mes';
-  pintarAnilloDashboard('ringIngreso', conteo.INGRESO, pctIngreso, '--verde');
-  pintarAnilloDashboard('ringSalida', conteo.SALIDA, pctSalida, '--rojo');
-  pintarAnilloDashboard('ringTraslado', conteo.TRASLADO, pctTraslado, '--celeste');
-}
-
-function irAExistenciasDesdeDashboard() {
-  document.getElementById('submenuReportes').classList.add('expandido');
-  document.getElementById('repCaret').classList.add('rotado');
-  mostrarSeccion('reportes', document.getElementById('btnReportes'));
-  document.querySelectorAll('.sb-subitem').forEach(i => i.classList.remove('activo'));
-  const btnExistencias = document.querySelector('#submenuReportes .sb-subitem');
-  if (btnExistencias) btnExistencias.classList.add('activo');
-  seleccionarReporte('EXISTENCIAS');
+  pintarAnilloResumen('ringIngreso', pctIngreso, '--verde');
+  pintarAnilloResumen('ringSalida', pctSalida, '--rojo');
+  pintarAnilloResumen('ringTraslado', pctTraslado, '--celeste');
 }
 
 // Exportar/Imprimir de Existencias trabajan sobre datosFiltrados (la vista actual de la
@@ -3791,14 +3812,19 @@ async function generarReceta() {
     return;
   }
 
-  tituloEl.textContent = `${filasProducto[0].codigoProducto} — ${filasProducto[0].nombreProducto} · Fabricando ${cantidadFabricar} unidad(es): ${filasProducto.length} componente(s)`;
+  // Los componentes con cantidad necesaria en 0 no se muestran (a pedido del usuario): solo
+  // interesan los que realmente hay que sacar/preparar (1 o más).
+  const filas = filasProducto
+    .map(r => ({
+      codigoComponente: r.codigoComponente,
+      nombreComponente: r.nombreComponente,
+      cantidadUnidad: r.cantidad,
+      cantidadNecesaria: r.cantidad * cantidadFabricar
+    }))
+    .filter(f => f.cantidadNecesaria > 0)
+    .sort((a, b) => a.codigoComponente.localeCompare(b.codigoComponente));
 
-  const filas = filasProducto.map(r => ({
-    codigoComponente: r.codigoComponente,
-    nombreComponente: r.nombreComponente,
-    cantidadUnidad: r.cantidad,
-    cantidadNecesaria: r.cantidad * cantidadFabricar
-  })).sort((a, b) => a.codigoComponente.localeCompare(b.codigoComponente));
+  tituloEl.textContent = `${filasProducto[0].codigoProducto} — ${filasProducto[0].nombreProducto} · Fabricando ${cantidadFabricar} unidad(es): ${filas.length} componente(s)`;
 
   reporteResultadosActuales = filas;
   renderTablaReceta(filas);
