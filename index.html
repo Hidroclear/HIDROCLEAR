@@ -233,22 +233,34 @@
   .no-productos { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
 
 
-  /* IMPRESIÓN SOLICITUD
-     IMPORTANTE: ninguna de las 3 áreas de impresión lleva aquí "display:block !important".
-     Cada una mantiene su display:none por defecto y solo la función de impresión
-     correspondiente (imprimirSolicitud / imprimirPedidoBodega / imprimirEtiquetas) la
-     muestra justo antes de imprimir y la vuelve a ocultar después. Forzar el display
-     aquí hacía que las 3 aparecieran superpuestas sin importar cuál se quisiera imprimir. */
+  /* IMPRESIÓN — CAUSA REAL DE LAS "2 HOJAS IDÉNTICAS" (todo tipo de papel, PDF incluido):
+     el enfoque anterior ocultaba con "visibility:hidden" TODO el contenido de la página
+     salvo el área a imprimir. El problema es que "visibility:hidden" NO saca los elementos
+     del flujo del documento: el sidebar, la barra superior, la sección activa de la app
+     (con tablas de reportes, listas de productos, etc.) e incluso el pie de página
+     (".footer", fuera de #appContent) seguían ocupando su alto real aunque fueran
+     invisibles. Cuando ese alto total superaba el de una página impresa, Chrome generaba
+     una 2ª página — y como las áreas de impresión usan "position:fixed", ese tipo de
+     elemento se REPITE en cada página que el navegador genere, así que la 2ª página salía
+     con el mismo contenido de la 1ª: de ahí las "2 hojas idénticas", en cualquier
+     papel/tamaño y también al exportar a PDF (que es justo lo que describe el usuario).
+     La solución: en vez de intentar "acordarse" de cada elemento nuevo que se agregue a
+     futuro (footer, modales, avisos, etc.), se ocultan con "display:none" TODOS los hijos
+     directos del <body> excepto las 4 áreas de impresión — así nada fuera de ellas puede
+     volver a sumar alto durante la impresión, sea lo que sea que se agregue después.
+     Por esto también se movió "#printArea" (Solicitud) fuera de #appContent más abajo en
+     este archivo: estando adentro, ocultar #appContent lo hubiera borrado también a él,
+     porque un descendiente no puede "revivir" un ancestro oculto con display:none. Las
+     otras 3 áreas de impresión (Bodega/Etiqueta/Reporte) ya vivían fuera de #appContent.
+     Nota importante: aquí NO se fuerza el display de las 4 áreas (ni :block ni :none) —
+     eso lo sigue controlando cada función de impresión con su propio estilo en línea
+     (así como antes), precisamente para que NUNCA se muestren dos a la vez superpuestas. */
   @media print {
-    body * { visibility: hidden; }
-    #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
-    #printArea * { visibility: visible; }
-    #printAreaBodega { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
-    #printAreaBodega * { visibility: visible; }
-    #printAreaEtiqueta { position: fixed; top: 0; left: 0; padding: 0; }
-    #printAreaEtiqueta * { visibility: visible; }
-    #printAreaReporte { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; }
-    #printAreaReporte * { visibility: visible; }
+    body > *:not(#printArea):not(#printAreaBodega):not(#printAreaEtiqueta):not(#printAreaReporte) {
+      display: none !important;
+    }
+    #printArea, #printAreaBodega, #printAreaReporte { width: 100%; padding: 20px; }
+    #printAreaEtiqueta { padding: 0; }
   }
   .btn-imprimir { width: 100%; background: #1a4a9e; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .btn-imprimir:hover { background: #0a3d6b; }
@@ -852,27 +864,6 @@
     <button class="btn-enviar-pedido" onclick="enviarPedido()" id="btnEnviarPedido">✅ Enviar Pedido</button>
     <button class="btn-imprimir hidden" onclick="imprimirSolicitud()" id="btnImprimir">🖨️ Imprimir Solicitud</button>
     <div class="msg-pedido" id="msgPedido"></div>
-
-    <!-- ÁREA DE IMPRESIÓN -->
-    <div id="printArea">
-      <div class="print-header">
-        <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
-        <div class="print-titulo">SOLICITUD DE MATERIALES<br><span id="printFecha" style="font-size:12px;font-weight:400"></span></div>
-      </div>
-      <div class="print-datos">
-        <div class="print-dato"><strong>Técnico / Solicitante</strong><span id="printTecnico"></span></div>
-        <div class="print-dato"><strong>Cliente</strong><span id="printCliente"></span></div>
-      </div>
-      <table class="print-tabla">
-        <thead><tr><th>#</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Cantidad</th></tr></thead>
-        <tbody id="printItems"></tbody>
-      </table>
-      <div class="print-firmas">
-        <div class="print-firma"><div class="print-firma-linea">Firma del Solicitante</div></div>
-        <div class="print-firma"><div class="print-firma-linea">Firma del Responsable de Bodega</div></div>
-      </div>
-      <div class="print-footer">HidroClear — Solicitud generada el <span id="printFechaFooter"></span></div>
-    </div>
   </div>
 </div>
 
@@ -4388,6 +4379,29 @@ function imprimirEtiquetaReceta() {
 })();
 
 </script>
+
+<!-- ÁREA DE IMPRESIÓN SOLICITUD (movida fuera de #appContent/#seccionPedidos: si se queda
+     adentro, al ocultar #appContent completo para imprimir esta también desaparece, porque
+     display:none en un ancestro no se puede "revivir" desde un descendiente) -->
+<div id="printArea">
+  <div class="print-header">
+    <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+    <div class="print-titulo">SOLICITUD DE MATERIALES<br><span id="printFecha" style="font-size:12px;font-weight:400"></span></div>
+  </div>
+  <div class="print-datos">
+    <div class="print-dato"><strong>Técnico / Solicitante</strong><span id="printTecnico"></span></div>
+    <div class="print-dato"><strong>Cliente</strong><span id="printCliente"></span></div>
+  </div>
+  <table class="print-tabla">
+    <thead><tr><th>#</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Cantidad</th></tr></thead>
+    <tbody id="printItems"></tbody>
+  </table>
+  <div class="print-firmas">
+    <div class="print-firma"><div class="print-firma-linea">Firma del Solicitante</div></div>
+    <div class="print-firma"><div class="print-firma-linea">Firma del Responsable de Bodega</div></div>
+  </div>
+  <div class="print-footer">HidroClear — Solicitud generada el <span id="printFechaFooter"></span></div>
+</div>
 
 <!-- ÁREA DE IMPRESIÓN DE ETIQUETAS (código de barras) -->
 <div id="printAreaEtiqueta"></div>
