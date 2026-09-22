@@ -405,6 +405,32 @@
   .rack50-flecha { font-size: 26px; font-weight: 900; }
   .rack50-caption { flex: 18 0 auto; font-size: 12px; }
 
+  /* Etiqueta de Componentes de Receta 100mm x 150mm — mismo tamaño y misma orientación que
+     la etiqueta de Rack (ver rack150-label/rack150-inner más arriba): el contenido se arma
+     derecho en un bloque de 150x100mm y se rota -90° como unidad para caber en la hoja
+     angosta de 100x150mm. La tabla de componentes ajusta su tamaño de letra según cuántas
+     filas tenga (ver tamanoFuenteTablaReceta), para que quepan todas sin cortarse. */
+  .receta150-label {
+    width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    page-break-after: always; break-after: page;
+  }
+  .receta150-label:last-child { page-break-after: auto; break-after: auto; }
+  .receta150-inner {
+    width: 150mm; height: 100mm; flex: 0 0 150mm; min-width: 0; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+    overflow: hidden; padding: 3mm 6mm; transform: rotate(90deg);
+    font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .receta150-header { text-align: center; flex: 0 0 auto; margin-bottom: 2mm; }
+  .receta150-hidro { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
+  .receta150-producto { font-size: 16px; font-weight: 700; margin-top: 1mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .receta150-fabricar { font-size: 12px; font-weight: 600; margin-top: 0.5mm; }
+  .receta150-tabla { width: 100%; border-collapse: collapse; flex: 1 1 auto; }
+  .receta150-tabla th { border-bottom: 1.5px solid #000; text-align: left; padding: 1mm 2mm; font-weight: 700; }
+  .receta150-tabla td { border-bottom: 0.5px solid #999; padding: 0.8mm 2mm; }
+  .receta150-tabla th:last-child, .receta150-tabla td:last-child { text-align: right; white-space: nowrap; }
+
 
   /* PEDIDOS PENDIENTES */
   .pendientes-wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
@@ -622,7 +648,7 @@
             <input type="text" id="movCodigoBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigo(this.value)" autocomplete="off">
             <div class="codigo-dropdown" id="codigoDropdown"></div>
           </div>
-          <button type="button" class="btn-link-nuevo-codigo" onclick="abrirModalNuevoCodigo('movCodigoBuscar')">+ ¿No aparece? Agregar código nuevo al catálogo</button>
+          <button type="button" class="btn-link-nuevo-codigo" id="btnNuevoCodigoMov" onclick="abrirModalNuevoCodigo('movCodigoBuscar')">+ ¿No aparece? Agregar código nuevo al catálogo</button>
         </div>
         <div class="form-field">
           <label>Código Seleccionado</label>
@@ -693,7 +719,7 @@
       <div class="form-row">
         <div class="form-field">
           <label>Responsable</label>
-          <input type="text" id="movResponsable" readonly tabindex="-1">
+          <select id="movResponsable"><option value="">Cargando...</option></select>
         </div>
         <div class="form-field">
           <label>Fecha</label>
@@ -714,7 +740,7 @@
     </div>
     <div class="mov-acciones-form">
       <button class="btn-registrar" onclick="agregarItemLista()" id="btnIngresarItem">Ingresar</button>
-      <button class="btn-cancelar-mov" type="button" onclick="cancelarFormularioMovimiento()">Cancelar</button>
+      <button class="btn-cancelar-mov" type="button" onclick="cerrarFormularioMovimiento()">Cerrar</button>
     </div>
     <div class="mov-listbox-wrap">
       <div class="mov-listbox-titulo">Movimientos por registrar (<span id="movListboxCount">0</span>)</div>
@@ -1066,6 +1092,7 @@
         <div class="rep-acciones">
           <button class="btn-limpiar" type="button" onclick="exportarReporteActual()">⬇️ Exportar CSV</button>
           <button class="btn-limpiar" type="button" onclick="imprimirReporte()">🖨️ Imprimir</button>
+          <button class="btn-limpiar" type="button" onclick="imprimirEtiquetaReceta()">🏷️ Imprimir Etiqueta (100x150mm)</button>
         </div>
         <div id="recetaTituloProducto" class="rep-header" style="font-size:14px;padding:8px 0;"></div>
         <div class="rep-tabla-wrap">
@@ -1187,7 +1214,7 @@
       </div>
       <div class="form-field" style="margin-bottom:14px">
         <label>Categoría</label>
-        <input type="text" id="nuevoCodigoCategoria" placeholder="(Opcional)" autocomplete="off">
+        <select id="nuevoCodigoCategoria"><option value="">Cargando...</option></select>
       </div>
       <div class="modal-nuevo-codigo-msg" id="nuevoCodigoMsg"></div>
       <button class="btn-registrar" type="button" id="btnGuardarNuevoCodigo" onclick="guardarNuevoCodigo()">Guardar Código</button>
@@ -1232,7 +1259,7 @@ let nombresPedidoCargados = false;
 let etiquetaSeleccionada = null;
 let etiqueta50Seleccionada = null;
 let tipoEtiquetaActual = '';
-let listasRack = { bodegas: [], pasillos: [], tramos: [], niveles: [] };
+let listasRack = { bodegas: [], pasillos: [], tramos: [], niveles: [], responsables: [], categorias: [] };
 let listasRackCargadas = false;
 let ultimaActualizacionDatos = null;
 let tipoReporteActual = '';
@@ -1602,15 +1629,17 @@ function seleccionarMovimiento(tipo) {
   document.getElementById('formMovimiento').classList.remove('hidden');
   document.getElementById('tituloFormMovimiento').textContent = 'Registro de ' + tipo;
   document.getElementById('movTipoDisplay').value = tipo;
-  document.getElementById('movCodigoBuscar').value = '';
-  document.getElementById('movCodigo').value = '';
-  document.getElementById('movDescripcion').value = '';
-  document.getElementById('movCantidad').value = '';
-  document.getElementById('movDocumento').value = '';
+  // Limpieza completa (incluye Proveedor/Despacho/N° Documento, que SÍ se mantienen entre
+  // líneas dentro de un mismo lote — ver limpiarCamposItemMovimiento): cambiar de tipo de
+  // movimiento siempre empieza un lote nuevo, así que aquí sí se borra todo.
+  limpiarCamposCompletoMovimiento();
   document.getElementById('successMsg').style.display = 'none';
   const hoy = new Date().toISOString().split('T')[0];
   document.getElementById('movFecha').value = hoy;
-  document.getElementById('movResponsable').value = usuarioActivo.nombre;
+  // El Responsable ahora es un select con los nombres de LISTAS_RACK columna F (+
+  // "COMERCIAL" para excepciones) en vez de quedar fijo al usuario que inició sesión: así se
+  // puede anotar a nombre de otra persona sin tener que cerrar sesión solo para cambiarlo.
+  if (!listasRackCargadas) cargarListasRack(); else llenarSelectsRack();
   document.getElementById('campoUbicacion').classList.add('hidden');
   document.getElementById('campoUbicacionOrigen').classList.add('hidden');
   document.getElementById('campoUbicacionDestino').classList.add('hidden');
@@ -1622,9 +1651,11 @@ function seleccionarMovimiento(tipo) {
   document.getElementById('campoDocumento').classList.add('hidden');
   document.getElementById('filaExtraDocumento').classList.remove('hidden');
   document.getElementById('filaReservaExtra').classList.add('hidden');
-  document.getElementById('movProveedor').value = '';
-  document.getElementById('movReservaCon').value = '';
-  document.getElementById('movNombreCliente').value = '';
+
+  // "Agregar código nuevo" solo tiene sentido en Ingresos: es la única operación donde hace
+  // falta dar de alta un producto que todavía no existe en el catálogo. En Salidas,
+  // Traslados y Reservas siempre se trabaja con códigos que ya existen.
+  document.getElementById('btnNuevoCodigoMov').classList.toggle('hidden', tipo !== 'INGRESO');
 
   // Cada tipo de movimiento tiene su propia lista de "por registrar" (como el macro, un cuadro por formulario)
   movimientosPendientes = [];
@@ -2027,8 +2058,10 @@ function validarCamposMovimiento() {
   const codigo = document.getElementById('movCodigo').value;
   const descripcion = document.getElementById('movDescripcion').value;
   const cantidad = document.getElementById('movCantidad').value;
+  const responsableSel = document.getElementById('movResponsable').value;
   if (!codigo) return { ok: false, mensaje: 'Debe seleccionar un código' };
   if (!cantidad || cantidad <= 0) return { ok: false, mensaje: 'Debe ingresar una cantidad válida' };
+  if (!responsableSel) return { ok: false, mensaje: 'Debe seleccionar un responsable' };
 
   let ubicacion = '', ubicacionDestino = '', proveedor = '', despacho = '', reservaCon = '', comercial = '', nombreCliente = '';
 
@@ -2061,32 +2094,55 @@ function validarCamposMovimiento() {
     cantidad: parseFloat(cantidad),
     ubicacion, ubicacionDestino, proveedor, despacho, reservaCon, comercial, nombreCliente,
     documento: String(document.getElementById('movDocumento').value).trim(),
-    responsable: document.getElementById('movResponsable').value,
+    responsable: responsableSel,
     fecha: document.getElementById('movFecha').value // "YYYY-MM-DD"
   };
   return { ok: true, item };
 }
 
-// ── Limpia solo los campos "por ítem" del formulario, sin tocar la lista ──
+// ── Limpia los campos "por ítem" del formulario, sin tocar la lista, después de registrar o
+// editar una línea. Proveedor, Despacho y N° Documento casi siempre se repiten en varias
+// líneas seguidas del mismo lote (misma factura/mismo proveedor), así que a propósito NO se
+// limpian aquí — se mantienen anotados para la siguiente línea y solo se borran del todo al
+// cerrar el formulario o cambiar de tipo de movimiento (ver limpiarCamposCompletoMovimiento).
 function limpiarCamposItemMovimiento() {
   document.getElementById('movCodigoBuscar').value = '';
   document.getElementById('movCodigo').value = '';
   document.getElementById('movDescripcion').value = '';
   document.getElementById('movCantidad').value = '';
-  document.getElementById('movDocumento').value = '';
-  document.getElementById('movProveedor').value = '';
-  document.getElementById('movReservaCon').value = '';
   document.getElementById('movNombreCliente').value = '';
   if (document.getElementById('movUbicacion')) document.getElementById('movUbicacion').value = '';
   if (document.getElementById('movUbicacionOrigen')) document.getElementById('movUbicacionOrigen').value = '';
   if (document.getElementById('movUbicacionDestino')) document.getElementById('movUbicacionDestino').value = '';
+}
+
+// ── Limpia TODO, incluyendo lo que limpiarCamposItemMovimiento mantiene entre líneas
+// (Proveedor, Despacho, Reserva Con, N° Documento) — se usa al cerrar el formulario por
+// completo o al cambiar de tipo de movimiento, para no arrastrar datos de un lote a otro.
+function limpiarCamposCompletoMovimiento() {
+  limpiarCamposItemMovimiento();
+  document.getElementById('movDocumento').value = '';
+  document.getElementById('movProveedor').value = '';
+  document.getElementById('movReservaCon').value = '';
   if (document.getElementById('movDespacho')) document.getElementById('movDespacho').value = '';
 }
 
-function cancelarFormularioMovimiento() {
-  limpiarCamposItemMovimiento();
+// ── "Cerrar": sale del formulario de registro y vuelve al panel de selección de
+// Movimientos. Si hay líneas en la lista que todavía no se enviaron a Sheets ("Registrar
+// Movimientos"/"Registrar Reservas"), avisa antes de perderlas.
+function cerrarFormularioMovimiento() {
+  if (movimientosPendientes.length > 0) {
+    const cerrarIgual = confirm('Hay ' + movimientosPendientes.length + ' movimiento(s) en la lista que todavía no se han registrado. Si cierra ahora, se van a perder. ¿Desea cerrar de todas formas?');
+    if (!cerrarIgual) return;
+  }
+  movimientosPendientes = [];
   indiceEdicionLista = null;
+  limpiarCamposCompletoMovimiento();
   renderListaMovimientos();
+  document.getElementById('formMovimiento').classList.add('hidden');
+  document.getElementById('movPlaceholder').classList.remove('hidden');
+  document.querySelectorAll('.sb-subitem').forEach(i => i.classList.remove('activo'));
+  tipoMovimientoActual = '';
 }
 
 // ── "Ingresar": agrega el ítem actual del formulario al cuadro de lista (aún no se envía a Sheets) ──
@@ -2097,6 +2153,9 @@ function agregarItemLista() {
   limpiarCamposItemMovimiento();
   indiceEdicionLista = null;
   renderListaMovimientos();
+  // Vuelve el cursor al buscador de código para seguir anotando la siguiente línea del
+  // mismo lote sin tener que hacer clic de nuevo — agiliza cargar varias líneas seguidas.
+  document.getElementById('movCodigoBuscar').focus();
 }
 
 function textoResumenItem(item) {
@@ -2108,6 +2167,7 @@ function textoResumenItem(item) {
   if (item.reservaCon) partes.push('Reserva con: ' + item.reservaCon);
   if (item.nombreCliente) partes.push('Cliente: ' + item.nombreCliente);
   if (item.documento) partes.push('Doc: ' + item.documento);
+  if (item.responsable) partes.push('Resp: ' + item.responsable);
   return partes.join(' · ');
 }
 
@@ -2133,6 +2193,9 @@ function cargarItemEnFormulario(idx) {
   document.getElementById('movDescripcion').value = item.descripcion;
   document.getElementById('movCantidad').value = item.cantidad;
   document.getElementById('movDocumento').value = item.documento;
+  // Al editar una línea ya ingresada, respeta el responsable con el que se anotó esa línea
+  // en particular (puede ser distinto al que esté seleccionado ahora mismo en el formulario).
+  if (item.responsable) document.getElementById('movResponsable').value = item.responsable;
   if (tipoMovimientoActual === 'INGRESO') {
     document.getElementById('movUbicacion').value = item.ubicacion;
     document.getElementById('movProveedor').value = item.proveedor;
@@ -2283,6 +2346,9 @@ function abrirModalNuevoCodigo(origenInputId) {
   // se lo pre-llena para que no tenga que volver a escribirlo.
   document.getElementById('nuevoCodigoCodigo').value = textoBuscado.split(' - ')[0].toUpperCase();
   document.getElementById('nuevoCodigoDescripcion').value = '';
+  // La lista de categorías (LISTAS_RACK columna J) se carga la primera vez que hace falta,
+  // igual que el resto de LISTAS_RACK; si ya estaba cargada, solo se rellena el select.
+  if (!listasRackCargadas) cargarListasRack(); else llenarSelectsRack();
   document.getElementById('nuevoCodigoCategoria').value = '';
   const msgEl = document.getElementById('nuevoCodigoMsg');
   msgEl.textContent = '';
@@ -3184,6 +3250,30 @@ function llenarSelectsRack() {
   ['rack150Pasillo', 'rack50Pasillo'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.pasillos); });
   ['rack150Tramo', 'rack50Tramo'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.tramos); });
   ['rack150NInicial', 'rack50NInicial', 'rack150NFinal', 'rack50NFinal'].forEach(id => { document.getElementById(id).innerHTML = opt(listasRack.niveles); });
+  llenarSelectResponsable();
+  const selCategoria = document.getElementById('nuevoCodigoCategoria');
+  if (selCategoria) selCategoria.innerHTML = opt(listasRack.categorias);
+}
+
+// El select de "Responsable" (Movimientos) se llena con LISTAS_RACK columna F + un
+// "COMERCIAL" fijo para excepciones (alguien que no sea ninguno de los responsables
+// habituales). Si el select ya tenía un valor elegido (por ejemplo al volver a cargar la
+// lista mientras el formulario está abierto), lo conserva; si no, intenta dejar
+// preseleccionado el nombre del usuario que inició sesión, comparando sin distinguir
+// mayúsculas/minúsculas por si en la hoja está escrito distinto (Ej: "Jimmy Jimenez" vs
+// "JIMMY JIMENEZ").
+function llenarSelectResponsable() {
+  const sel = document.getElementById('movResponsable');
+  if (!sel) return;
+  const nombres = (listasRack.responsables || []).slice();
+  if (!nombres.some(n => String(n).trim().toUpperCase() === 'COMERCIAL')) nombres.push('COMERCIAL');
+  const valorPrevio = sel.value;
+  sel.innerHTML = '<option value="">Seleccione...</option>' + nombres.map(n => `<option value="${n}">${n}</option>`).join('');
+  const buscarCoincidencia = (valor) => nombres.find(n => String(n).trim().toUpperCase() === String(valor || '').trim().toUpperCase());
+  const coincidePrevio = buscarCoincidencia(valorPrevio);
+  const coincideUsuario = usuarioActivo ? buscarCoincidencia(usuarioActivo.nombre) : null;
+  if (coincidePrevio) sel.value = coincidePrevio;
+  else if (coincideUsuario) sel.value = coincideUsuario;
 }
 
 // Mientras más larga la ubicación (bodega-pasillo-tramo-nivel), más chico el texto rotado
@@ -3750,6 +3840,64 @@ function imprimirReporte() {
   printArea.style.display = 'block';
   window.print();
   printArea.style.display = 'none';
+}
+
+// Mientras más componentes tenga la receta, más chica la letra de la tabla, para que quepan
+// todas las filas sin cortarse dentro de la etiqueta de 100x150mm (mismo criterio que
+// tamanoFuenteUbicacionRack usa para el texto de ubicación en la etiqueta de Rack).
+function tamanoFuenteTablaReceta(numFilas) {
+  if (numFilas <= 5) return 15;
+  if (numFilas <= 8) return 13;
+  if (numFilas <= 11) return 11;
+  if (numFilas <= 15) return 9.5;
+  if (numFilas <= 20) return 8;
+  return 7;
+}
+
+// Imprime los componentes de la receta actualmente en pantalla (ver generarReceta) como una
+// etiqueta física de 100mm x 150mm, con la misma orientación que la etiqueta de Rack: todo
+// el contenido se arma derecho y se rota como un solo bloque para caber en la hoja angosta
+// (ver .receta150-label/.receta150-inner). Es un "imprimir" aparte del botón "🖨️ Imprimir"
+// normal (que sigue mandando el reporte completo a una hoja tamaño carta/A4).
+function imprimirEtiquetaReceta() {
+  if (tipoReporteActual !== 'RECETA' || !reporteResultadosActuales.length) {
+    alert('Primero busque una receta con componentes para poder imprimir la etiqueta.');
+    return;
+  }
+  const codigoProd = document.getElementById('recetaCodigoBuscar').value.trim().toUpperCase();
+  const cantidadFabricar = Math.max(1, parseFloat(document.getElementById('recetaCantidadFabricar').value) || 1);
+  const filasProducto = datosRecetas.filter(r => r.codigoProducto.toUpperCase() === codigoProd);
+  const nombreProd = filasProducto.length ? filasProducto[0].nombreProducto : '';
+
+  const tamFuente = tamanoFuenteTablaReceta(reporteResultadosActuales.length);
+  const filasHtml = reporteResultadosActuales.map(f =>
+    `<tr><td>${f.codigoComponente}</td><td>${f.nombreComponente}</td><td>${f.cantidadNecesaria}</td></tr>`
+  ).join('');
+
+  const printArea = document.getElementById('printAreaEtiqueta');
+  printArea.innerHTML = `
+    <div class="receta150-label">
+      <div class="receta150-inner">
+        <div class="receta150-header">
+          <div class="receta150-hidro">HIDROCLEAR</div>
+          <div class="receta150-producto">${codigoProd}${nombreProd ? ' — ' + nombreProd : ''}</div>
+          <div class="receta150-fabricar">Fabricando ${cantidadFabricar} unidad(es) · ${reporteResultadosActuales.length} componente(s)</div>
+        </div>
+        <table class="receta150-tabla" style="font-size:${tamFuente}px">
+          <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th></tr></thead>
+          <tbody>${filasHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: 100mm 150mm; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
 }
 
 </script>
