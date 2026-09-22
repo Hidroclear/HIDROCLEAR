@@ -2105,6 +2105,27 @@ async function actualizarConsultaCodigos() {
 
 // Filtra el inventario según Código / Ubicación / Descripción (los tres filtros se combinan)
 // y arma la tabla de resultados, igual que la ventana "Consulta de Códigos" de la macro.
+// Salvaguarda: agrupa filas de inventario por CÓDIGO+UBICACIÓN normalizados (sin espacios al
+// inicio/final, sin importar mayúsculas/minúsculas). En condiciones normales EXISTENCIAS tiene
+// una sola fila por código+ubicación, pero si alguna vez llegara a haber dos (por ejemplo por un
+// espacio de más que Google Sheets sí distingue como "otro" valor), antes esto se mostraba como
+// dos filas duplicadas en la tabla Y duplicaba el "Stock Total" (se sumaba dos veces). Aquí se
+// combinan en una sola fila con el stock sumado, para que la consulta siempre refleje el stock
+// real aunque la hoja tenga esa inconsistencia. No modifica datosInventario, solo lo agrupa para
+// pintar/calcular.
+function agruparPorCodigoUbicacion(lista) {
+  const mapa = new Map();
+  lista.forEach(d => {
+    const clave = String(d.codigo).trim().toUpperCase() + '|' + String(d.bodega).trim().toUpperCase();
+    if (!mapa.has(clave)) {
+      mapa.set(clave, { codigo: d.codigo, descripcion: d.descripcion, bodega: d.bodega, categoria: d.categoria, stock: Number(d.stock) || 0 });
+    } else {
+      mapa.get(clave).stock += Number(d.stock) || 0;
+    }
+  });
+  return Array.from(mapa.values());
+}
+
 function filtrarConsultaModal() {
   const tabla = document.getElementById('consultaModalTabla');
   const tbody = document.getElementById('consultaModalTbody');
@@ -2121,7 +2142,9 @@ function filtrarConsultaModal() {
     return;
   }
 
-  const filas = datosInventario.filter(d => {
+  const inventarioAgrupado = agruparPorCodigoUbicacion(datosInventario);
+
+  const filas = inventarioAgrupado.filter(d => {
     const coincideCodigo = !codigoFiltro || String(d.codigo).toLowerCase().includes(codigoFiltro) || (d.descripcion || '').toLowerCase().includes(codigoFiltro);
     const coincideUbicacion = !ubicacionFiltro || d.bodega === ubicacionFiltro;
     const coincideDesc = !descFiltro || (d.descripcion || '').toLowerCase().includes(descFiltro);
@@ -2139,7 +2162,8 @@ function filtrarConsultaModal() {
   placeholder.classList.add('hidden');
   tabla.classList.remove('hidden');
   tbody.innerHTML = filas.map(d => {
-    const stockTotal = datosInventario.filter(x => x.codigo === d.codigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
+    const claveCodigo = String(d.codigo).trim().toUpperCase();
+    const stockTotal = inventarioAgrupado.filter(x => String(x.codigo).trim().toUpperCase() === claveCodigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
     const reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
     const disponible = stockTotal - reservado;
     return `<tr>
