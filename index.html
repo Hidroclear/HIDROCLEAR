@@ -63,8 +63,6 @@
   /* ===== MAIN AREA ===== */
   .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .topbar { background: #fff; border-bottom: 1px solid var(--gris); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  .topbar-marca { display: flex; align-items: center; gap: 14px; }
-  .topbar-logo { height: 34px; object-fit: contain; flex-shrink: 0; }
   .breadcrumb { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
   .titulo-pagina { font-size: 19px; font-weight: 700; color: var(--azul); }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
@@ -501,7 +499,6 @@
     .sb-subitem { padding: 10px 14px; font-size: 12px; }
     .sb-user { display: none; }
     .topbar { padding: 12px 16px; }
-    .topbar-logo { height: 24px; }
     .titulo-pagina { font-size: 16px; }
     .main, .pedidos-wrap, .pendientes-wrap { padding: 16px 12px; }
     .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -591,12 +588,9 @@
 
 <div class="main-area">
   <div class="topbar">
-    <div class="topbar-marca">
-      <img src="logo.png" alt="HidroClear" class="topbar-logo">
-      <div>
-        <div class="breadcrumb" id="crumb">HidroClear / Inventario</div>
-        <div class="titulo-pagina" id="tituloPag">Consulta de Inventario</div>
-      </div>
+    <div>
+      <div class="breadcrumb" id="crumb">HidroClear / Inventario</div>
+      <div class="titulo-pagina" id="tituloPag">Consulta de Inventario</div>
     </div>
     <div class="topbar-right">
       <div class="live-indicador" id="liveIndicador"><span class="live-dot"></span><span id="liveTexto">Actualizado ahora</span></div>
@@ -642,11 +636,11 @@
   </div>
   <div class="form-movimiento hidden" id="formMovimiento">
     <div class="form-movimiento-header">
+      <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
       <div class="form-movimiento-marca">
         <img src="logo.png" alt="HidroClear" class="form-movimiento-logo">
-        <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
+        <button class="btn-aplicar-reservas hidden" type="button" id="btnAplicarReservas" onclick="abrirModalAplicarReservas()">📦 Aplicar Reservas</button>
       </div>
-      <button class="btn-aplicar-reservas hidden" type="button" id="btnAplicarReservas" onclick="abrirModalAplicarReservas()">📦 Aplicar Reservas</button>
     </div>
     <div class="form-grid">
       <div class="form-field">
@@ -1130,11 +1124,11 @@
 <div class="modal-overlay" id="modalConsulta" onclick="if (event.target === this) cerrarModalConsulta()">
   <div class="modal-box modal-box-ancho">
     <div class="modal-header">
+      <div class="modal-header-titulo">🔍 Consulta de Códigos</div>
       <div class="modal-header-marca">
         <img src="logo.png" alt="HidroClear" class="modal-header-logo">
-        <div class="modal-header-titulo">🔍 Consulta de Códigos</div>
+        <button class="modal-close" type="button" onclick="cerrarModalConsulta()">✕</button>
       </div>
-      <button class="modal-close" type="button" onclick="cerrarModalConsulta()">✕</button>
     </div>
     <div class="modal-body">
       <div class="consulta-filtros">
@@ -1171,11 +1165,11 @@
 <div class="modal-overlay" id="modalAplicarReservas" onclick="if (event.target === this) cerrarModalAplicarReservas()">
   <div class="modal-box modal-box-ancho">
     <div class="modal-header">
+      <div class="modal-header-titulo">📦 Aplicar Reservas</div>
       <div class="modal-header-marca">
         <img src="logo.png" alt="HidroClear" class="modal-header-logo">
-        <div class="modal-header-titulo">📦 Aplicar Reservas</div>
+        <button class="modal-close" type="button" onclick="cerrarModalAplicarReservas()">✕</button>
       </div>
-      <button class="modal-close" type="button" onclick="cerrarModalAplicarReservas()">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-field">
@@ -1219,11 +1213,11 @@
 <div class="modal-overlay" id="modalNuevoCodigo" onclick="if (event.target === this) cerrarModalNuevoCodigo()">
   <div class="modal-box">
     <div class="modal-header">
+      <div class="modal-header-titulo">🆕 Agregar Código Nuevo</div>
       <div class="modal-header-marca">
         <img src="logo.png" alt="HidroClear" class="modal-header-logo">
-        <div class="modal-header-titulo">🆕 Agregar Código Nuevo</div>
+        <button class="modal-close" type="button" onclick="cerrarModalNuevoCodigo()">✕</button>
       </div>
-      <button class="modal-close" type="button" onclick="cerrarModalNuevoCodigo()">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-field" style="margin-bottom:14px">
