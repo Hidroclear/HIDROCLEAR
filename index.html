@@ -2767,6 +2767,14 @@ function ocultarTodasLasAreasDeImpresion() {
   document.getElementById('printAreaBodega').style.display = 'none';
   document.getElementById('printAreaEtiqueta').style.display = 'none';
   document.getElementById('printAreaReporte').style.display = 'none';
+  // OJO: esta función se llama DESPUÉS de crear/agregar el <style id="estiloPaginaEtiqueta">
+  // en las 5 funciones de imprimir etiquetas (imprimirEtiquetas, imprimirEtiquetaCodigo50,
+  // imprimirEtiquetaRuta, imprimirEtiquetaRack, imprimirEtiquetaReceta) — por eso NO se
+  // limpia ese <style> aquí (borraría el que se acaba de crear). Esas 5 funciones ya hacen
+  // su propia limpieza de estilos viejos ANTES de crear el suyo (ver el comentario junto a
+  // "estiloPagina.id ="). Las funciones que SÍ pueden limpiarlo aquí sin riesgo son las que
+  // no crean ningún <style> propio (Solicitud, Pedido a Bodega, Existencias, Reportes) —
+  // ver la limpieza de "#estiloPaginaEtiqueta" al inicio de cada una de esas.
 }
 
 // Imprime el área ya armada y solo LIMPIA (ocultar, borrar contenido, quitar el <style> de
@@ -2786,13 +2794,24 @@ function imprimirYLimpiarCuandoTermine(printArea, estiloPagina, limpiarContenido
       window.print();
     });
   });
-  window.onafterprint = () => {
+  let yaLimpiado = false;
+  const limpiar = () => {
+    if (yaLimpiado) return; // por si "afterprint" y el respaldo de abajo se disparan los dos
+    yaLimpiado = true;
     printArea.style.display = 'none';
     if (estiloPagina && estiloPagina.parentNode) estiloPagina.parentNode.removeChild(estiloPagina);
     if (limpiarContenido) printArea.innerHTML = '';
     window.onafterprint = null;
     if (alTerminar) alTerminar();
   };
+  window.onafterprint = limpiar;
+  // Respaldo: si el usuario le da "Cancelar" en el cuadro de impresión, algunos navegadores
+  // no llegan a disparar "afterprint" — sin este respaldo, el <style> con el tamaño de
+  // página (@page) se quedaba pegado para siempre, y la SIGUIENTE impresión (de cualquier
+  // etiqueta) terminaba con dos reglas @page distintas activas a la vez, lo que confundía
+  // al navegador sobre cuántas hojas hacían falta (el "salen 2 hojas idénticas" que no
+  // dependía del contenido). 60 segundos es tiempo de sobra para elegir e imprimir/cancelar.
+  setTimeout(limpiar, 60000);
 }
 
 function imprimirSolicitud() {
@@ -2813,6 +2832,11 @@ function imprimirSolicitud() {
     </tr>
   `).join('');
   ocultarTodasLasAreasDeImpresion();
+  // Por si quedó pegado el <style> de tamaño de página (@page) de una etiqueta impresa
+  // antes y cancelada (ver el comentario grande en imprimirEtiquetas): esta pantalla usa
+  // el tamaño de página normal (carta/A4), así que un @page chico que haya quedado de una
+  // etiqueta anterior podía hacer que esto también saliera partido en 2 hojas.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   document.getElementById('printArea').style.display = 'block';
   window.print();
   document.getElementById('printArea').style.display = 'none';
@@ -3062,6 +3086,9 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
   `).join('');
 
   ocultarTodasLasAreasDeImpresion();
+  // Ver el comentario en imprimirSolicitud: limpia cualquier @page chico que haya quedado
+  // pegado de una etiqueta impresa antes y cancelada.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   document.getElementById('printAreaBodega').style.display = 'block';
   window.print();
   document.getElementById('printAreaBodega').style.display = 'none';
@@ -3267,6 +3294,14 @@ function imprimirEtiquetas() {
 
   // Forzar el tamaño de página a 100x150mm solo durante esta impresión,
   // sin afectar la impresión de Solicitud de Materiales ni Pedidos Pendientes.
+  // Por si una impresión anterior se canceló (o el navegador no llegó a disparar
+  // "afterprint") y dejó pegado el <style> de tamaño de página de OTRA etiqueta: si no se
+  // quita antes de agregar el de ahora, quedan DOS reglas @page distintas activas al mismo
+  // tiempo (por ejemplo una de 100x50mm de una prueba anterior y esta de 100x150mm), y el
+  // navegador puede calcular mal cuántas hojas hacen falta — esto explica el "salen 2
+  // hojas idénticas" que no dependía ni del contenido ni de la impresora: era un tamaño de
+  // página viejo que nunca se había limpiado.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
   estiloPagina.textContent = '@page { size: 100mm 150mm; margin: 0; }';
@@ -3344,6 +3379,14 @@ function imprimirEtiquetaCodigo50() {
     ajustarBarcodeSVG(svg, 92, 50 * 33.75 / 159, false);
   });
 
+  // Por si una impresión anterior se canceló (o el navegador no llegó a disparar
+  // "afterprint") y dejó pegado el <style> de tamaño de página de OTRA etiqueta: si no se
+  // quita antes de agregar el de ahora, quedan DOS reglas @page distintas activas al mismo
+  // tiempo (por ejemplo una de 100x50mm de una prueba anterior y esta de 100x150mm), y el
+  // navegador puede calcular mal cuántas hojas hacen falta — esto explica el "salen 2
+  // hojas idénticas" que no dependía ni del contenido ni de la impresora: era un tamaño de
+  // página viejo que nunca se había limpiado.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
   estiloPagina.textContent = '@page { size: 100mm 50mm; margin: 0; }';
@@ -3400,6 +3443,14 @@ function imprimirEtiquetaRuta() {
   }
   printArea.innerHTML = html;
 
+  // Por si una impresión anterior se canceló (o el navegador no llegó a disparar
+  // "afterprint") y dejó pegado el <style> de tamaño de página de OTRA etiqueta: si no se
+  // quita antes de agregar el de ahora, quedan DOS reglas @page distintas activas al mismo
+  // tiempo (por ejemplo una de 100x50mm de una prueba anterior y esta de 100x150mm), y el
+  // navegador puede calcular mal cuántas hojas hacen falta — esto explica el "salen 2
+  // hojas idénticas" que no dependía ni del contenido ni de la impresora: era un tamaño de
+  // página viejo que nunca se había limpiado.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
   estiloPagina.textContent = '@page { size: 100mm 100mm; margin: 0; }';
@@ -3577,6 +3628,14 @@ function imprimirEtiquetaRack(tam) {
   });
 
   const tamañoPagina = tam === '150' ? '100mm 150mm' : '100mm 50mm';
+  // Por si una impresión anterior se canceló (o el navegador no llegó a disparar
+  // "afterprint") y dejó pegado el <style> de tamaño de página de OTRA etiqueta: si no se
+  // quita antes de agregar el de ahora, quedan DOS reglas @page distintas activas al mismo
+  // tiempo (por ejemplo una de 100x50mm de una prueba anterior y esta de 100x150mm), y el
+  // navegador puede calcular mal cuántas hojas hacen falta — esto explica el "salen 2
+  // hojas idénticas" que no dependía ni del contenido ni de la impresora: era un tamaño de
+  // página viejo que nunca se había limpiado.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
   estiloPagina.textContent = '@page { size: ' + tamañoPagina + '; margin: 0; }';
@@ -3812,6 +3871,9 @@ function imprimirExistencias() {
     <table class="print-tabla"><thead><tr><th>Código</th><th>Descripción</th><th>Stock</th><th>Bodega</th><th>Categoría</th></tr></thead><tbody>${filasHtml}</tbody></table>
   `;
   ocultarTodasLasAreasDeImpresion();
+  // Ver el comentario en imprimirSolicitud: limpia cualquier @page chico que haya quedado
+  // pegado de una etiqueta impresa antes y cancelada.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   printArea.style.display = 'block';
   window.print();
   printArea.style.display = 'none';
@@ -4199,6 +4261,9 @@ function imprimirReporte() {
   `;
 
   ocultarTodasLasAreasDeImpresion();
+  // Ver el comentario en imprimirSolicitud: limpia cualquier @page chico que haya quedado
+  // pegado de una etiqueta impresa antes y cancelada.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   printArea.style.display = 'block';
   window.print();
   printArea.style.display = 'none';
@@ -4252,6 +4317,14 @@ function imprimirEtiquetaReceta() {
       </div>
     </div>`;
 
+  // Por si una impresión anterior se canceló (o el navegador no llegó a disparar
+  // "afterprint") y dejó pegado el <style> de tamaño de página de OTRA etiqueta: si no se
+  // quita antes de agregar el de ahora, quedan DOS reglas @page distintas activas al mismo
+  // tiempo (por ejemplo una de 100x50mm de una prueba anterior y esta de 100x150mm), y el
+  // navegador puede calcular mal cuántas hojas hacen falta — esto explica el "salen 2
+  // hojas idénticas" que no dependía ni del contenido ni de la impresora: era un tamaño de
+  // página viejo que nunca se había limpiado.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
   const estiloPagina = document.createElement('style');
   estiloPagina.id = 'estiloPaginaEtiqueta';
   estiloPagina.textContent = '@page { size: 100mm 150mm; margin: 0; }';
