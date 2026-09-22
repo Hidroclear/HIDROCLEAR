@@ -626,7 +626,7 @@
   <div class="dash-header">
     <div>
       <h2 class="dash-titulo">Panel de Control</h2>
-      <div class="dash-subtitulo">Unidades movidas en el período seleccionado</div>
+      <div class="dash-subtitulo">Movimientos registrados en el período seleccionado</div>
     </div>
     <div class="dash-mes-wrap">
       <label for="dashboardMes">Mes</label>
@@ -3613,64 +3613,43 @@ function cambiarMesDashboard() {
 }
 
 // Pinta un anillo tipo "donut" en CSS puro (conic-gradient) según qué proporción del total
-// de unidades movidas en el mes le corresponde a este tipo — no hay una "meta" definida para
+// de movimientos del mes le corresponde a este tipo — no hay una "meta" definida para
 // Ingresos/Salidas/Traslados, así que el anillo representa su peso dentro del total, y el
-// número grande en el centro es la cantidad real (unidades) de ese tipo.
-function pintarAnilloDashboard(idAnillo, pctDecimal, colorVar) {
+// número grande en el centro es la cantidad real de movimientos.
+function pintarAnilloDashboard(idAnillo, cantidad, pctDecimal, colorVar) {
   const anillo = document.getElementById(idAnillo);
   const grados = Math.max(0, Math.min(1, pctDecimal)) * 360;
   anillo.style.background = `conic-gradient(var(${colorVar}) ${grados}deg, var(--gris) ${grados}deg)`;
 }
 
-// TRAZABILIDAD TOTAL normalmente trae la fecha ya formateada como 'yyyy-MM-dd' (ver
-// leerMovimientosHistorial), pero si alguna fila llegó como texto plano en vez de fecha real
-// (por ejemplo de una carga masiva pegada directo en la hoja, en vez de registrada desde la
-// app) puede venir en otro formato como 'dd/mm/yyyy' o sin ceros a la izquierda. Esta función
-// reconoce los formatos más comunes y siempre devuelve 'YYYY-MM' (o null si no pudo), para que
-// el dashboard no muestre todo en cero solo porque una fecha no vino en el formato esperado.
-function mesDeFechaHistorial(fechaStr) {
-  const s = String(fechaStr || '').trim();
-  if (!s) return null;
-  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // yyyy-MM-dd / yyyy-M-d
-  if (m) return m[1] + '-' + m[2].padStart(2, '0');
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // dd/mm/yyyy
-  if (m) return m[3] + '-' + m[2].padStart(2, '0');
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  return null;
-}
-
-// De momento (a pedido del usuario) cada anillo muestra la CANTIDAD (suma de unidades) de
-// ese tipo de movimiento en el mes elegido, no la cantidad de líneas/movimientos registrados
-// — ej. si en el mes hubo 3 salidas de 10, 5 y 2 unidades, el anillo de Salidas muestra 17.
 function renderDashboard() {
   if (!dashboardMesSeleccionado) return;
-  const delMes = (movimientosHistorial || []).filter(m => mesDeFechaHistorial(m.fecha) === dashboardMesSeleccionado);
-  const unidades = { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
-  delMes.forEach(m => { if (unidades.hasOwnProperty(m.tipo)) unidades[m.tipo] += Number(m.cantidad) || 0; });
-  const total = unidades.INGRESO + unidades.SALIDA + unidades.TRASLADO;
+  const delMes = (movimientosHistorial || []).filter(m => String(m.fecha || '').startsWith(dashboardMesSeleccionado));
+  const conteo = { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
+  delMes.forEach(m => { if (conteo.hasOwnProperty(m.tipo)) conteo[m.tipo]++; });
+  const total = conteo.INGRESO + conteo.SALIDA + conteo.TRASLADO;
 
-  document.getElementById('dashValIngreso').textContent = unidades.INGRESO;
-  document.getElementById('dashValSalida').textContent = unidades.SALIDA;
-  document.getElementById('dashValTraslado').textContent = unidades.TRASLADO;
+  document.getElementById('dashValIngreso').textContent = conteo.INGRESO;
+  document.getElementById('dashValSalida').textContent = conteo.SALIDA;
+  document.getElementById('dashValTraslado').textContent = conteo.TRASLADO;
 
   if (total === 0) {
     ['Ingreso', 'Salida', 'Traslado'].forEach(t => { document.getElementById('dashPct' + t).textContent = datosReportesCargados ? 'Sin movimientos este mes' : 'Cargando…'; });
-    pintarAnilloDashboard('ringIngreso', 0, '--verde');
-    pintarAnilloDashboard('ringSalida', 0, '--rojo');
-    pintarAnilloDashboard('ringTraslado', 0, '--celeste');
+    pintarAnilloDashboard('ringIngreso', 0, 0, '--verde');
+    pintarAnilloDashboard('ringSalida', 0, 0, '--rojo');
+    pintarAnilloDashboard('ringTraslado', 0, 0, '--celeste');
     return;
   }
 
-  const pctIngreso = unidades.INGRESO / total;
-  const pctSalida = unidades.SALIDA / total;
-  const pctTraslado = unidades.TRASLADO / total;
-  document.getElementById('dashPctIngreso').textContent = Math.round(pctIngreso * 100) + '% de las unidades movidas';
-  document.getElementById('dashPctSalida').textContent = Math.round(pctSalida * 100) + '% de las unidades movidas';
-  document.getElementById('dashPctTraslado').textContent = Math.round(pctTraslado * 100) + '% de las unidades movidas';
-  pintarAnilloDashboard('ringIngreso', pctIngreso, '--verde');
-  pintarAnilloDashboard('ringSalida', pctSalida, '--rojo');
-  pintarAnilloDashboard('ringTraslado', pctTraslado, '--celeste');
+  const pctIngreso = conteo.INGRESO / total;
+  const pctSalida = conteo.SALIDA / total;
+  const pctTraslado = conteo.TRASLADO / total;
+  document.getElementById('dashPctIngreso').textContent = Math.round(pctIngreso * 100) + '% del total del mes';
+  document.getElementById('dashPctSalida').textContent = Math.round(pctSalida * 100) + '% del total del mes';
+  document.getElementById('dashPctTraslado').textContent = Math.round(pctTraslado * 100) + '% del total del mes';
+  pintarAnilloDashboard('ringIngreso', conteo.INGRESO, pctIngreso, '--verde');
+  pintarAnilloDashboard('ringSalida', conteo.SALIDA, pctSalida, '--rojo');
+  pintarAnilloDashboard('ringTraslado', conteo.TRASLADO, pctTraslado, '--celeste');
 }
 
 function irAExistenciasDesdeDashboard() {
