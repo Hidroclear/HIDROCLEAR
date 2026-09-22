@@ -3912,10 +3912,23 @@ function agruparReservasPorCodigoUbicacion() {
 
 function buscarCodigoGenerico(texto, dropdownId, inputId) {
   const dropdown = document.getElementById(dropdownId);
-  if (!texto || texto.length < 2) {
+  if (!texto) {
+    // Campo vacío de verdad: aquí sí tiene sentido volver a mostrar el mensaje de
+    // "escriba un código..." (limpia el resultado de la búsqueda anterior).
     dropdown.classList.remove('visible');
     if (inputId === 'conteoCodigoBuscar') generarConteo();
     if (inputId === 'recetaCodigoBuscar') generarReceta();
+    return;
+  }
+  if (texto.length < 2) {
+    // Con 1 solo carácter todavía no alcanza para buscar nada. ANTES esto igual disparaba
+    // la búsqueda completa (generarReceta/generarConteo) con esa única letra, mostrando de
+    // inmediato un "no existe" — y como ese mensaje no se vuelve a actualizar solo mientras
+    // el usuario sigue escribiendo el resto del código (el dropdown de abajo solo sugiere,
+    // no vuelve a buscar), se quedaba pegado ahí aunque el código completo sí existiera.
+    // Eso es lo que parecía "a veces no carga el código". Ahora, con 1 solo carácter,
+    // simplemente se espera sin tocar lo que ya hubiera en pantalla.
+    dropdown.classList.remove('visible');
     return;
   }
   const busq = texto.toLowerCase();
