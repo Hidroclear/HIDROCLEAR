@@ -641,6 +641,7 @@
       <input type="text" id="consultaModalDescripcion" placeholder="Filtrar por descripción..." oninput="filtrarConsultaModal()" autocomplete="off">
     </div>
     <button class="btn-limpiar" type="button" onclick="limpiarFiltrosConsultaModal()">✕ Limpiar</button>
+    <button class="btn-refresh" type="button" onclick="actualizarConsultaCodigos()" id="btnConsultaRefresh" title="Trae de nuevo el stock desde la hoja (por si otra terminal registró un movimiento)">↻ Actualizar</button>
   </div>
   <div class="tabla-wrap">
     <div class="consulta-tabla-wrap">
@@ -1385,6 +1386,12 @@ function mostrarApp() {
   if (usuarioActivo.rol === 'admin') {
     document.getElementById('btnMovimientos').classList.remove('hidden');
     document.getElementById('btnReportes').classList.remove('hidden');
+    // Antes esto solo se pedía hasta que el usuario entraba a Movimientos, así que la
+    // primera vez que abría Ingreso/Salida se quedaba esperando esta carga (Responsable,
+    // categorías, listas de Rack) además de todo lo demás — se sentía lento para empezar a
+    // operar. Ahora se dispara aquí, en segundo plano, desde el momento del login, para que
+    // ya esté lista (o casi) cuando el usuario realmente entre a Movimientos.
+    if (!listasRackCargadas) cargarListasRack();
   }
   if (usuarioActivo.rol === 'admin' || usuarioActivo.rol === 'tecnico' || usuarioActivo.rol === 'comercial') {
     document.getElementById('btnPedidos').classList.remove('hidden');
@@ -1657,21 +1664,31 @@ function renderTabla() {
   cont.innerHTML = html;
 }
 
-async function cargarListasMovimientos() {
+// Devuelve siempre la MISMA promesa mientras la carga esté en curso (igual que
+// cargarDatosRecetas/cargarDatosReportes): ahora esto se dispara en segundo plano desde
+// mostrarApp() apenas se inicia sesión, Y también (por si acaso) al entrar a Movimientos o a
+// Conteo — sin este resguardo, si el usuario hace clic en Movimientos antes de que termine la
+// carga de fondo, se disparaban dos peticiones a UBICACIONES en vez de una.
+let listasMovimientosCargaPromise = null;
+function cargarListasMovimientos() {
+  if (listasMovimientosCargaPromise) return listasMovimientosCargaPromise;
   // Los códigos ya no se piden aparte al Apps Script: se derivan del inventario (ver
   // obtenerCodigosUnicos). Solo Ubicaciones necesita su propia llamada, porque incluye
   // bodegas/posiciones vacías que no aparecen en el inventario actual.
-  try {
-    const respUbic = await fetch(GS_URL + '?tipo=UBICACIONES');
-    const jsonUbic = await respUbic.json();
-    todosCodigos = obtenerCodigosUnicos();
-    todasUbicaciones = jsonUbic.status === 'ok' ? jsonUbic.datos : [];
-    llenarSelectUbicaciones();
-    listasMovimientosCargadas = true;
-  } catch (err) {
-    console.error('Error cargando listas:', err);
-    listasMovimientosCargadas = false;
-  }
+  listasMovimientosCargaPromise = fetch(GS_URL + '?tipo=UBICACIONES')
+    .then(resp => resp.json())
+    .then(jsonUbic => {
+      todosCodigos = obtenerCodigosUnicos();
+      todasUbicaciones = jsonUbic.status === 'ok' ? jsonUbic.datos : [];
+      llenarSelectUbicaciones();
+      listasMovimientosCargadas = true;
+    })
+    .catch(err => {
+      console.error('Error cargando listas:', err);
+      listasMovimientosCargadas = false;
+      listasMovimientosCargaPromise = null; // permite reintentar si falló
+    });
+  return listasMovimientosCargaPromise;
 }
 
 function llenarSelectUbicaciones() {
@@ -2068,6 +2085,22 @@ function limpiarFiltrosConsultaModal() {
   document.getElementById('consultaModalDropdown').classList.remove('visible');
   filtrarConsultaModal();
   document.getElementById('consultaModalBuscar').focus();
+}
+
+// Consulta de Códigos (Inicio) pinta desde el snapshot en memoria (datosInventario), que solo
+// se refresca cuando se llama a cargarDatos() (login, o el botón de la Existencias). Si otra
+// terminal (celular, otra sesión) registra un movimiento mientras esta pantalla ya estaba
+// abierta, ese snapshot queda desactualizado hasta que alguien lo vuelva a pedir — por eso este
+// botón, para poder forzar el refresco sin salir de la pantalla ni tener que reingresar.
+async function actualizarConsultaCodigos() {
+  const btn = document.getElementById('btnConsultaRefresh');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Actualizando...'; }
+  try {
+    await cargarDatos();
+    filtrarConsultaModal();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Actualizar'; }
+  }
 }
 
 // Filtra el inventario según Código / Ubicación / Descripción (los tres filtros se combinan)
@@ -3330,19 +3363,28 @@ function imprimirEtiquetaRuta() {
 /* ---------- RACK 100mm x 150mm y 100mm x 50mm (ubicación física del rack) ---------- */
 /* Bodega/Pasillo/Tramo/Nivel salen de la hoja "LISTAS" (columnas J,K,L,M), igual que la macro. */
 
-async function cargarListasRack() {
+// Mismo resguardo de "una sola promesa mientras dure la carga" que cargarListasMovimientos —
+// ahora que esto también se dispara desde mostrarApp() al iniciar sesión (además de al entrar
+// a Movimientos, Etiquetas de Rack, o el modal de Nuevo Código), evita pedir LISTAS_RACK dos
+// veces si el usuario navega rápido antes de que termine la primera carga.
+let listasRackCargaPromise = null;
+function cargarListasRack() {
+  if (listasRackCargaPromise) return listasRackCargaPromise;
   document.querySelectorAll('.rack-select').forEach(s => { s.innerHTML = '<option value="">Cargando...</option>'; });
-  try {
-    const resp = await fetch(GS_URL + '?tipo=LISTAS_RACK');
-    const json = await resp.json();
-    if (json.status === 'ok') {
-      listasRack = json.datos;
-      listasRackCargadas = true;
-      llenarSelectsRack();
-    }
-  } catch (err) {
-    console.error('Error cargando listas de rack:', err);
-  }
+  listasRackCargaPromise = fetch(GS_URL + '?tipo=LISTAS_RACK')
+    .then(resp => resp.json())
+    .then(json => {
+      if (json.status === 'ok') {
+        listasRack = json.datos;
+        listasRackCargadas = true;
+        llenarSelectsRack();
+      }
+    })
+    .catch(err => {
+      console.error('Error cargando listas de rack:', err);
+      listasRackCargaPromise = null; // permite reintentar si falló
+    });
+  return listasRackCargaPromise;
 }
 
 function llenarSelectsRack() {
