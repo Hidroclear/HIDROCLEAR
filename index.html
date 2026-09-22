@@ -300,6 +300,29 @@
   .rep-tabla-wrap tbody tr:nth-child(even) td { background: #f5f9ff; }
   .rep-placeholder { text-align: center; color: #aaa; padding: 60px 20px; font-size: 14px; max-width: 500px; margin: 0 auto; }
   .rep-vacio { text-align: center; color: #aaa; padding: 30px; font-size: 13px; }
+
+  /* ===== DASHBOARD (pantalla de Inicio) ===== */
+  .dash-header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin-bottom: 24px; }
+  .dash-titulo { font-size: 21px; font-weight: 700; color: var(--azul); margin-bottom: 4px; }
+  .dash-subtitulo { font-size: 13px; color: var(--texto-suave); }
+  .dash-mes-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .dash-mes-wrap label { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; }
+  .dash-mes-wrap select { border: 1.5px solid #c5d5ea; border-radius: 8px; padding: 9px 14px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--texto); outline: none; min-width: 190px; }
+  .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 24px; }
+  .dash-card { background: #fff; border-radius: 14px; padding: 22px 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+  .dash-card-disabled { opacity: 0.55; }
+  .dash-ring-wrap { width: 128px; height: 128px; }
+  .dash-ring { width: 128px; height: 128px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--gris) 0turn, var(--gris) 1turn); transition: background 0.4s ease; }
+  .dash-ring-vacio { background: repeating-conic-gradient(var(--gris) 0deg 10deg, #f5f8ff 10deg 20deg); }
+  .dash-ring-hueco { width: 92px; height: 92px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03); }
+  .dash-ring-hueco span { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--azul); }
+  .dash-card-label { font-size: 13.5px; font-weight: 700; color: var(--azul); }
+  .dash-card-sub { font-size: 12px; color: var(--texto-suave); }
+  .dash-footer { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  .dash-footer-nota { font-size: 12.5px; color: var(--texto-suave); max-width: 640px; line-height: 1.5; }
+  .dash-footer .btn-registrar { margin-top: 0; white-space: nowrap; }
+  @media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .dash-grid { grid-template-columns: 1fr; } }
   tr.rep-urgente td { background: rgb(255,199,206) !important; }
   tr.rep-reabastecer td { background: rgb(255,235,156) !important; }
   tr.rep-comprar td { background: rgb(255,165,0) !important; }
@@ -548,7 +571,7 @@
   </div>
   <div class="sb-nav">
     <div class="sb-section-label">Operación</div>
-    <button class="sb-item activo" id="sbConsulta" onclick="mostrarSeccion('consulta', this)"><span class="ic">📦</span> Consulta de Inventario</button>
+    <button class="sb-item activo" id="sbConsulta" onclick="mostrarSeccion('consulta', this)"><span class="ic">🏠</span> Inicio</button>
     <button class="sb-item hidden" id="btnMovimientos" onclick="toggleSubmenuMovimientos()"><span class="ic">📋</span> Movimientos <span class="sb-caret" id="movCaret">▸</span></button>
     <div class="sb-submenu" id="submenuMovimientos">
       <button class="sb-subitem" onclick="irAMovimiento('INGRESO', this)">📥 Ingreso</button>
@@ -567,6 +590,7 @@
     </div>
     <button class="sb-item hidden" id="btnReportes" onclick="toggleSubmenuReportes()"><span class="ic">📊</span> Reportes <span class="sb-caret" id="repCaret">▸</span></button>
     <div class="sb-submenu" id="submenuReportes">
+      <button class="sb-subitem" onclick="irAReporte('EXISTENCIAS', this)">📦 Existencias</button>
       <button class="sb-subitem" onclick="irAReporte('CONTEO', this)">🧮 Conteo de Inventario</button>
       <button class="sb-subitem" onclick="irAReporte('REABASTOS', this)">🔁 Reabastos</button>
       <button class="sb-subitem" onclick="irAReporte('SUGERIDO', this)">🛍️ Sugerido de Compras</button>
@@ -599,33 +623,41 @@
   <div class="content-scroll">
 
 <div id="seccionConsulta" class="main">
-  <div class="stats">
-    <div class="stat-card">
-      <div class="label" id="labelCodigos">Códigos con Stock</div>
-      <div class="valor" id="statCodigos">—</div>
+  <div class="dash-header">
+    <div>
+      <h2 class="dash-titulo">Panel de Control</h2>
+      <div class="dash-subtitulo">Movimientos registrados en el período seleccionado</div>
     </div>
-    <div class="stat-card" style="border-left-color: var(--verde)">
-      <div class="label">Total Unidades</div>
-      <div class="valor" id="statConStock" style="color: var(--verde)">—</div>
-    </div>
-    <div class="stat-card" style="border-left-color: var(--amarillo)">
-      <div class="label">Reservados</div>
-      <div class="valor" id="statReservados" style="color: var(--amarillo)">—</div>
+    <div class="dash-mes-wrap">
+      <label for="dashboardMes">Mes</label>
+      <select id="dashboardMes" onchange="cambiarMesDashboard()"></select>
     </div>
   </div>
-  <div class="buscador-wrap">
-    <input type="text" id="busqueda" placeholder="🔍 Buscar por código o descripción..." oninput="filtrar()">
-    <select id="filtroBodega" onchange="filtrar()"><option value="">Todas las bodegas</option></select>
-    <select id="filtroCategoria" onchange="filtrar()"><option value="">Todas las categorías</option></select>
-    <button class="btn-limpiar" onclick="limpiarFiltros()">✕ Limpiar</button>
-    <button class="btn-refresh" onclick="cargarDatos()" id="btnRefresh">↻ Actualizar</button>
-  </div>
-  <div class="tabla-wrap">
-    <div class="tabla-header">
-      <h3>Inventario</h3>
-      <span id="contadorResultados">—</span>
+  <div class="dash-grid">
+    <div class="dash-card">
+      <div class="dash-ring-wrap"><div class="dash-ring" id="ringIngreso"><div class="dash-ring-hueco"><span id="dashValIngreso">—</span></div></div></div>
+      <div class="dash-card-label">📥 Ingresos</div>
+      <div class="dash-card-sub" id="dashPctIngreso">Cargando…</div>
     </div>
-    <div id="contenidoTabla"><div class="loading">Cargando datos...</div></div>
+    <div class="dash-card">
+      <div class="dash-ring-wrap"><div class="dash-ring" id="ringSalida"><div class="dash-ring-hueco"><span id="dashValSalida">—</span></div></div></div>
+      <div class="dash-card-label">📤 Salidas</div>
+      <div class="dash-card-sub" id="dashPctSalida">Cargando…</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-ring-wrap"><div class="dash-ring" id="ringTraslado"><div class="dash-ring-hueco"><span id="dashValTraslado">—</span></div></div></div>
+      <div class="dash-card-label">🔄 Traslados</div>
+      <div class="dash-card-sub" id="dashPctTraslado">Cargando…</div>
+    </div>
+    <div class="dash-card dash-card-disabled">
+      <div class="dash-ring-wrap"><div class="dash-ring dash-ring-vacio"><div class="dash-ring-hueco"><span>—</span></div></div></div>
+      <div class="dash-card-label">⚖️ Ajustes +/-</div>
+      <div class="dash-card-sub">Próximamente</div>
+    </div>
+  </div>
+  <div class="dash-footer">
+    <div class="dash-footer-nota">El detalle completo del inventario (existencias por código, bodega y categoría) ahora vive en <strong>Reportes → Existencias</strong>, para consultarlo o exportarlo cuando lo necesite.</div>
+    <button class="btn-registrar" type="button" onclick="irAExistenciasDesdeDashboard()">📦 Ver Existencias de Inventario</button>
   </div>
 </div>
 
@@ -985,6 +1017,42 @@
     <div id="repContenido" class="hidden">
       <div class="rep-header" id="repTituloActual"></div>
 
+      <!-- EXISTENCIAS (antes vivía como pantalla de inicio "Consulta de Inventario") -->
+      <div class="rep-panel hidden" id="repExistencias">
+        <div class="rep-acciones">
+          <button class="btn-limpiar" type="button" onclick="exportarExistencias()">⬇️ Exportar CSV</button>
+          <button class="btn-limpiar" type="button" onclick="imprimirExistencias()">🖨️ Imprimir</button>
+        </div>
+        <div class="stats">
+          <div class="stat-card">
+            <div class="label" id="labelCodigos">Códigos con Stock</div>
+            <div class="valor" id="statCodigos">—</div>
+          </div>
+          <div class="stat-card" style="border-left-color: var(--verde)">
+            <div class="label">Total Unidades</div>
+            <div class="valor" id="statConStock" style="color: var(--verde)">—</div>
+          </div>
+          <div class="stat-card" style="border-left-color: var(--amarillo)">
+            <div class="label">Reservados</div>
+            <div class="valor" id="statReservados" style="color: var(--amarillo)">—</div>
+          </div>
+        </div>
+        <div class="buscador-wrap">
+          <input type="text" id="busqueda" placeholder="🔍 Buscar por código o descripción..." oninput="filtrar()">
+          <select id="filtroBodega" onchange="filtrar()"><option value="">Todas las bodegas</option></select>
+          <select id="filtroCategoria" onchange="filtrar()"><option value="">Todas las categorías</option></select>
+          <button class="btn-limpiar" onclick="limpiarFiltros()">✕ Limpiar</button>
+          <button class="btn-refresh" onclick="cargarDatos()" id="btnRefresh">↻ Actualizar</button>
+        </div>
+        <div class="tabla-wrap">
+          <div class="tabla-header">
+            <h3>Inventario</h3>
+            <span id="contadorResultados">—</span>
+          </div>
+          <div id="contenidoTabla"><div class="loading">Cargando datos...</div></div>
+        </div>
+      </div>
+
       <!-- CONTEO DE INVENTARIO -->
       <div class="rep-panel hidden" id="repConteo">
         <div class="rep-filtros">
@@ -1283,13 +1351,15 @@ let datosReportesCargados = false;
 let movimientosHistorial = [];
 let reservasDetalleReportes = [];
 let reporteResultadosActuales = [];
-let filtrosReporteListos = { CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
-const PANEL_REPORTE = { CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
-const TITULO_REPORTE = { CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
+let filtrosReporteListos = { EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
+const PANEL_REPORTE = { EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
+const TITULO_REPORTE = { EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
 let datosRecetas = [];
 let datosRecetasCargados = false;
 let datosRecetasError = false;
 let recetasCargaPromise = null;
+let reportesCargaPromise = null;
+let dashboardMesSeleccionado = null; // 'YYYY-MM'; null = mes en curso
 
 function actualizarLiveIndicador() {
   const ind = document.getElementById('liveIndicador');
@@ -1335,7 +1405,14 @@ function mostrarApp() {
     document.getElementById('btnPendientes').classList.remove('hidden');
     document.getElementById('btnEtiquetas').classList.remove('hidden');
   }
+  // El panel de Inicio (dashboard) se muestra de inmediato, sin esperar ninguna carga: solo
+  // cuando el usuario pida el detalle en Reportes → Existencias hace falta el inventario
+  // completo. INVENTARIO/CODIGOS/RESERVAS y el historial de movimientos se piden en segundo
+  // plano (cargarDatos/cargarDatosReportes) porque Movimientos, Pedidos, Etiquetas y el
+  // propio dashboard los necesitan, pero ya no bloquean la pantalla con la que arranca la sesión.
+  inicializarDashboard();
   cargarDatos();
+  cargarDatosReportes().then(renderDashboard);
 }
 
 function cerrarSesion() {
@@ -1354,7 +1431,7 @@ if (sesionGuardada) {
 }
 
 const TITULOS_SECCION = {
-  consulta:    ['HidroClear / Inventario',   'Consulta de Inventario'],
+  consulta:    ['HidroClear / Inicio',       'Panel de Control'],
   movimientos: ['HidroClear / Operación',    'Movimientos'],
   etiquetas:   ['HidroClear / Operación',    'Imprimir Etiquetas'],
   reportes:    ['HidroClear / Reportes',     'Reportes'],
@@ -2291,6 +2368,17 @@ async function registrarListaMovimientos() {
     });
     const result = await resp.json();
     if (result.status === 'ok') {
+      // Actualiza el dashboard de Inicio de forma optimista con lo que se acaba de registrar,
+      // sin esperar a un refresh completo — igual que pide el usuario ("dinámicos... según se
+      // van procesando"). OJO: las líneas de RESERVA no cuentan aquí (nunca tocan TRAZABILIDAD
+      // TOTAL hasta que se aplican), y las SALIDAs que la receta genera automáticamente en el
+      // servidor (expandirRecetas) tampoco se ven reflejadas hasta el próximo refresh/login,
+      // porque el cliente nunca recibe esas filas calculadas del lado del servidor.
+      movimientosPendientes.forEach(item => {
+        if (item.tipo === 'RESERVA') return;
+        movimientosHistorial.push({ fecha: item.fecha, tipo: item.tipo, codigo: item.codigo, cantidad: item.cantidad });
+      });
+      renderDashboard();
       movimientosPendientes = [];
       indiceEdicionLista = null;
       renderListaMovimientos();
@@ -3458,22 +3546,151 @@ function prepararFiltrosReporte(tipo) {
 
 // El inventario, las ubicaciones y las reservas ya se usan en otras partes de la app;
 // lo único nuevo que necesitan los reportes es el historial completo de movimientos
-// (para calcular salidas) y el detalle de reservas por ubicación (para "Reservado").
-// Se piden una sola vez y quedan en memoria mientras dure la sesión.
-async function cargarDatosReportes() {
-  try {
-    const [respHist, respRes] = await Promise.all([
-      fetch(GS_URL + '?tipo=MOVIMIENTOS_HISTORIAL'),
-      fetch(GS_URL + '?tipo=RESERVAS_DETALLE')
-    ]);
+// (para calcular salidas, y ahora también para los indicadores del dashboard de Inicio)
+// y el detalle de reservas por ubicación (para "Reservado"). Se piden una sola vez y quedan
+// en memoria mientras dure la sesión — devuelve siempre la MISMA promesa mientras la carga
+// esté en curso (mismo patrón que cargarDatosRecetas), así tanto el dashboard de Inicio como
+// la pestaña de Reportes pueden "esperarla" sin disparar la petición dos veces.
+function cargarDatosReportes() {
+  if (reportesCargaPromise) return reportesCargaPromise;
+  reportesCargaPromise = Promise.all([
+    fetch(GS_URL + '?tipo=MOVIMIENTOS_HISTORIAL'),
+    fetch(GS_URL + '?tipo=RESERVAS_DETALLE')
+  ]).then(async ([respHist, respRes]) => {
     const jsonHist = await respHist.json();
     const jsonRes = await respRes.json();
     movimientosHistorial = jsonHist.status === 'ok' ? jsonHist.datos : [];
     reservasDetalleReportes = jsonRes.status === 'ok' ? jsonRes.datos : [];
     datosReportesCargados = true;
-  } catch (err) {
+  }).catch(err => {
     console.error('Error cargando datos de reportes:', err);
+    reportesCargaPromise = null; // permite reintentar en el próximo llamado si falló
+  });
+  return reportesCargaPromise;
+}
+
+/* =========================================================
+   DASHBOARD (pantalla de Inicio): indicadores de Ingresos, Salidas y
+   Traslados del mes, en vez del inventario completo (que ahora vive en
+   Reportes → Existencias). Se basa en movimientosHistorial, que ya se
+   traía para los reportes de Reabastos/Sugerido — no hace falta ningún
+   endpoint nuevo en el backend.
+   ========================================================= */
+
+// "Ajustes +/-" queda pendiente a propósito (el usuario decidió no definirlo todavía):
+// la tarjeta se muestra deshabilitada y sin datos hasta que se defina qué debe contar.
+
+function nombreMesCorto(aaaaMM) {
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const [aaaa, mm] = aaaaMM.split('-');
+  return meses[parseInt(mm, 10) - 1] + ' ' + aaaa;
+}
+
+// Arma la lista de los últimos 12 meses (incluyendo el actual) para el selector del dashboard.
+function obtenerUltimosMeses() {
+  const out = [];
+  const hoy = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    const valor = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    out.push({ valor, texto: nombreMesCorto(valor) });
   }
+  return out;
+}
+
+function inicializarDashboard() {
+  const sel = document.getElementById('dashboardMes');
+  const meses = obtenerUltimosMeses();
+  dashboardMesSeleccionado = meses[0].valor; // mes en curso, por defecto
+  sel.innerHTML = meses.map(m => `<option value="${m.valor}">${m.texto}${m.valor === meses[0].valor ? ' (actual)' : ''}</option>`).join('');
+  sel.value = dashboardMesSeleccionado;
+  renderDashboard(); // pinta de inmediato con lo que haya en memoria (puede estar vacío hasta que cargue)
+}
+
+function cambiarMesDashboard() {
+  dashboardMesSeleccionado = document.getElementById('dashboardMes').value;
+  renderDashboard();
+}
+
+// Pinta un anillo tipo "donut" en CSS puro (conic-gradient) según qué proporción del total
+// de movimientos del mes le corresponde a este tipo — no hay una "meta" definida para
+// Ingresos/Salidas/Traslados, así que el anillo representa su peso dentro del total, y el
+// número grande en el centro es la cantidad real de movimientos.
+function pintarAnilloDashboard(idAnillo, cantidad, pctDecimal, colorVar) {
+  const anillo = document.getElementById(idAnillo);
+  const grados = Math.max(0, Math.min(1, pctDecimal)) * 360;
+  anillo.style.background = `conic-gradient(var(${colorVar}) ${grados}deg, var(--gris) ${grados}deg)`;
+}
+
+function renderDashboard() {
+  if (!dashboardMesSeleccionado) return;
+  const delMes = (movimientosHistorial || []).filter(m => String(m.fecha || '').startsWith(dashboardMesSeleccionado));
+  const conteo = { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
+  delMes.forEach(m => { if (conteo.hasOwnProperty(m.tipo)) conteo[m.tipo]++; });
+  const total = conteo.INGRESO + conteo.SALIDA + conteo.TRASLADO;
+
+  document.getElementById('dashValIngreso').textContent = conteo.INGRESO;
+  document.getElementById('dashValSalida').textContent = conteo.SALIDA;
+  document.getElementById('dashValTraslado').textContent = conteo.TRASLADO;
+
+  if (total === 0) {
+    ['Ingreso', 'Salida', 'Traslado'].forEach(t => { document.getElementById('dashPct' + t).textContent = datosReportesCargados ? 'Sin movimientos este mes' : 'Cargando…'; });
+    pintarAnilloDashboard('ringIngreso', 0, 0, '--verde');
+    pintarAnilloDashboard('ringSalida', 0, 0, '--rojo');
+    pintarAnilloDashboard('ringTraslado', 0, 0, '--celeste');
+    return;
+  }
+
+  const pctIngreso = conteo.INGRESO / total;
+  const pctSalida = conteo.SALIDA / total;
+  const pctTraslado = conteo.TRASLADO / total;
+  document.getElementById('dashPctIngreso').textContent = Math.round(pctIngreso * 100) + '% del total del mes';
+  document.getElementById('dashPctSalida').textContent = Math.round(pctSalida * 100) + '% del total del mes';
+  document.getElementById('dashPctTraslado').textContent = Math.round(pctTraslado * 100) + '% del total del mes';
+  pintarAnilloDashboard('ringIngreso', conteo.INGRESO, pctIngreso, '--verde');
+  pintarAnilloDashboard('ringSalida', conteo.SALIDA, pctSalida, '--rojo');
+  pintarAnilloDashboard('ringTraslado', conteo.TRASLADO, pctTraslado, '--celeste');
+}
+
+function irAExistenciasDesdeDashboard() {
+  document.getElementById('submenuReportes').classList.add('expandido');
+  document.getElementById('repCaret').classList.add('rotado');
+  mostrarSeccion('reportes', document.getElementById('btnReportes'));
+  document.querySelectorAll('.sb-subitem').forEach(i => i.classList.remove('activo'));
+  const btnExistencias = document.querySelector('#submenuReportes .sb-subitem');
+  if (btnExistencias) btnExistencias.classList.add('activo');
+  seleccionarReporte('EXISTENCIAS');
+}
+
+// Exportar/Imprimir de Existencias trabajan sobre datosFiltrados (la vista actual de la
+// tabla, ya filtrada por el buscador/bodega/categoría), a diferencia de los demás reportes
+// que usan reporteResultadosActuales (que solo se llena al presionar "Generar").
+function exportarExistencias() {
+  if (!datosFiltrados.length) { alert('No hay datos de inventario para exportar.'); return; }
+  const hoy = new Date().toISOString().split('T')[0];
+  exportarCSV(
+    ['CODIGO', 'DESCRIPCION', 'STOCK', 'BODEGA', 'CATEGORIA'],
+    datosFiltrados.map(d => [d.codigo, d.descripcion, d.stock, d.bodega, d.categoria]),
+    'existencias_' + hoy + '.csv'
+  );
+}
+
+function imprimirExistencias() {
+  if (!datosFiltrados.length) { alert('No hay datos de inventario para imprimir.'); return; }
+  const hoy = new Date().toLocaleDateString('es-CR');
+  const filasHtml = datosFiltrados.map(d => `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td>${d.stock}</td><td>${d.bodega}</td><td>${d.categoria}</td></tr>`).join('');
+  const printArea = document.getElementById('printAreaReporte');
+  printArea.innerHTML = `
+    <div class="print-header">
+      <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+      <div class="print-titulo">Existencias de Inventario<br><span style="font-size:12px;font-weight:400">${hoy}</span></div>
+    </div>
+    <table class="print-tabla"><thead><tr><th>Código</th><th>Descripción</th><th>Stock</th><th>Bodega</th><th>Categoría</th></tr></thead><tbody>${filasHtml}</tbody></table>
+  `;
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
 }
 
 // La hoja RECETAS (~2700 filas) se pide una sola vez y queda en memoria, igual que el resto
