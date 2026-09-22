@@ -340,7 +340,7 @@
   .etq-hidroclear-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 1px; color: #000; }
   .etq-cat-label { font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 13px; color: #000; }
   .etq-cat-valor { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #000; }
-  .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 140mm; overflow: hidden; text-overflow: ellipsis; }
+  .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 140mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .etq-codigo-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 40px; color: #000; }
   .etq-barcode-svg { transform: rotate(-90deg); }
 
@@ -388,16 +388,29 @@
      caber en la hoja angosta de 100x150mm — igual que en la macro de Excel. Por eso ya no hay
      columnas separadas: se arma todo apilado y derecho (HIDROCLEAR arriba, código, flechas +
      barcode, leyenda abajo) dentro de un bloque de 150x100mm, y ese bloque completo se rota. */
+  /* IMPORTANTE (bug de "doble impresión"/2 hojas idénticas): .rack150-inner mide 150mm de
+     ancho por dentro de un .rack150-label que solo mide 100mm de ancho — antes de rotarse,
+     ese bloque es más ANCHO que la página que lo contiene. Mientras estuvo colocado como
+     hijo normal de un contenedor flex (display:flex + align-items/justify-content para
+     centrarlo), algunos navegadores calculan la paginación de impresión ANTES de aplicar
+     la rotación visual, ven ese bloque "más ancho que la página" y agregan una segunda
+     hoja para el supuesto sobrante — que al estar todo dentro de overflow:hidden, termina
+     viéndose como una copia idéntica de la primera en vez de un recorte real. La solución
+     es sacar el bloque del flujo normal con position:absolute (así el navegador ya no lo
+     cuenta como parte del contenido que hay que paginar) y centrarlo a mano con
+     top/left 50% + márgenes negativos (la mitad de su propio ancho/alto), en vez de con
+     flexbox. El resultado visual es idéntico; solo cambia cómo se calcula el layout. */
   .rack150-label {
     width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    position: relative; overflow: hidden;
     page-break-after: always; break-after: page;
   }
   .rack150-label:last-child { page-break-after: auto; break-after: auto; }
   /* min-width:0 evita que si algún texto no cabe en 150mm, en vez de recortarse empuje y
      agrande el bloque completo (el mismo tipo de bug que ya se corrigió antes). */
   .rack150-inner {
-    width: 150mm; height: 100mm; flex: 0 0 150mm; min-width: 0; box-sizing: border-box;
+    position: absolute; top: 50%; left: 50%; margin-top: -50mm; margin-left: -75mm;
+    width: 150mm; height: 100mm; min-width: 0; box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     overflow: hidden; padding: 2mm 5mm; transform: rotate(90deg);
     font-family: 'DM Sans', sans-serif; color: #000;
@@ -432,15 +445,21 @@
      la etiqueta de Rack (ver rack150-label/rack150-inner más arriba): el contenido se arma
      derecho en un bloque de 150x100mm y se rota -90° como unidad para caber en la hoja
      angosta de 100x150mm. La tabla de componentes ajusta su tamaño de letra según cuántas
-     filas tenga (ver tamanoFuenteTablaReceta), para que quepan todas sin cortarse. */
+     filas tenga (ver tamanoFuenteTablaReceta), para que quepan todas sin cortarse.
+     IMPORTANTE (mismo bug de "2 hojas idénticas" que se corrigió en rack150-inner, ver el
+     comentario ahí arriba): .receta150-inner también es más ANCHO (150mm) que su página
+     (100mm) antes de rotarse. Se saca del flujo normal con position:absolute + centrado por
+     margen negativo, en vez de flexbox, para que el navegador no lo cuente como contenido
+     que necesita una segunda página al calcular la paginación de impresión. */
   .receta150-label {
     width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    position: relative; overflow: hidden;
     page-break-after: always; break-after: page;
   }
   .receta150-label:last-child { page-break-after: auto; break-after: auto; }
   .receta150-inner {
-    width: 150mm; height: 100mm; flex: 0 0 150mm; min-width: 0; box-sizing: border-box;
+    position: absolute; top: 50%; left: 50%; margin-top: -50mm; margin-left: -75mm;
+    width: 150mm; height: 100mm; min-width: 0; box-sizing: border-box;
     display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
     overflow: hidden; padding: 3mm 6mm; transform: rotate(90deg);
     font-family: 'DM Sans', sans-serif; color: #000;
@@ -449,10 +468,28 @@
   .receta150-hidro { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
   .receta150-producto { font-size: 16px; font-weight: 700; margin-top: 1mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .receta150-fabricar { font-size: 12px; font-weight: 600; margin-top: 0.5mm; }
-  .receta150-tabla { width: 100%; border-collapse: collapse; flex: 1 1 auto; }
+  /* IMPORTANTE (bug de "doble impresión" con recetas de muchos componentes): la columna
+     Descripción no tenía ancho fijo ni white-space:nowrap, así que una descripción larga
+     (muy común en los componentes) se partía en 2-3 líneas dentro de la celda. Eso hacía
+     que la tabla completa creciera más alto que los 100mm disponibles en la etiqueta — y
+     aunque el contenedor tiene overflow:hidden (así que en pantalla no se nota), al
+     imprimir con el bloque rotado (transform: rotate(90deg)) Chrome igual generaba una
+     SEGUNDA hoja para ese sobrante, y como el sobrante quedaba oculto por el mismo
+     overflow:hidden, esa segunda hoja terminaba pintando otra vez el mismo contenido
+     visible de la primera — pareciendo una copia duplicada en vez de un error de tamaño.
+     Con table-layout:fixed + anchos fijos + white-space:nowrap/ellipsis en cada celda, cada
+     fila queda garantizada a UNA sola línea de alto sin importar qué tan larga sea la
+     descripción, así el alto total de la tabla ya no puede pasarse de los 100mm. El precio
+     es que una descripción muy larga se corta con "…" en vez de partirse en varias líneas;
+     si eso hace falta legible completo, se puede achicar más la letra o angostar Código. */
+  .receta150-tabla { width: 100%; border-collapse: collapse; flex: 1 1 auto; table-layout: fixed; }
+  .receta150-tabla th, .receta150-tabla td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .receta150-tabla th:nth-child(1), .receta150-tabla td:nth-child(1) { width: 26%; }
+  .receta150-tabla th:nth-child(2), .receta150-tabla td:nth-child(2) { width: 58%; }
+  .receta150-tabla th:nth-child(3), .receta150-tabla td:nth-child(3) { width: 16%; }
   .receta150-tabla th { border-bottom: 1.5px solid #000; text-align: left; padding: 1mm 2mm; font-weight: 700; }
   .receta150-tabla td { border-bottom: 0.5px solid #999; padding: 0.8mm 2mm; }
-  .receta150-tabla th:last-child, .receta150-tabla td:last-child { text-align: right; white-space: nowrap; }
+  .receta150-tabla th:last-child, .receta150-tabla td:last-child { text-align: right; }
 
 
   /* PEDIDOS PENDIENTES */
