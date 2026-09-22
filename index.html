@@ -63,6 +63,8 @@
   /* ===== MAIN AREA ===== */
   .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .topbar { background: #fff; border-bottom: 1px solid var(--gris); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .topbar-marca { display: flex; align-items: center; gap: 14px; }
+  .topbar-logo { height: 34px; object-fit: contain; flex-shrink: 0; }
   .breadcrumb { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
   .titulo-pagina { font-size: 19px; font-weight: 700; color: var(--azul); }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
@@ -495,6 +497,7 @@
     .sb-subitem { padding: 10px 14px; font-size: 12px; }
     .sb-user { display: none; }
     .topbar { padding: 12px 16px; }
+    .topbar-logo { height: 24px; }
     .titulo-pagina { font-size: 16px; }
     .main, .pedidos-wrap, .pendientes-wrap { padding: 16px 12px; }
     .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -584,9 +587,12 @@
 
 <div class="main-area">
   <div class="topbar">
-    <div>
-      <div class="breadcrumb" id="crumb">HidroClear / Inventario</div>
-      <div class="titulo-pagina" id="tituloPag">Consulta de Inventario</div>
+    <div class="topbar-marca">
+      <img src="logo.png" alt="HidroClear" class="topbar-logo">
+      <div>
+        <div class="breadcrumb" id="crumb">HidroClear / Inventario</div>
+        <div class="titulo-pagina" id="tituloPag">Consulta de Inventario</div>
+      </div>
     </div>
     <div class="topbar-right">
       <div class="live-indicador" id="liveIndicador"><span class="live-dot"></span><span id="liveTexto">Actualizado ahora</span></div>
