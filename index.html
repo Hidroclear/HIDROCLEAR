@@ -1311,6 +1311,51 @@
   </div>
 </div>
 
+<!-- MODAL: Confirmar Documento al Aplicar Reserva — paso intermedio antes de aplicar de
+     verdad: por defecto se aplica con el mismo N° de documento con el que se reservó, pero
+     a veces se reserva con COTIZACIÓN y se termina despachando con FACTURA (u otro N°), así
+     que aquí se puede indicar el documento nuevo antes de confirmar. -->
+<div class="modal-overlay" id="modalConfirmarDocumentoReserva" onclick="if (event.target === this) cerrarModalConfirmarDocumentoReserva()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo">📄 Confirmar Documento</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalConfirmarDocumentoReserva()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p id="confirmarDocumentoResumen" style="margin:0 0 16px;font-size:13.5px;color:var(--azul)"></p>
+      <div class="form-field" style="margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600">
+          <input type="checkbox" id="confirmarDocumentoCambiar" onchange="toggleCamposConfirmarDocumento()" style="width:auto">
+          Aplicar con un documento diferente al de la reserva
+        </label>
+      </div>
+      <div id="confirmarDocumentoCampos" class="hidden">
+        <div class="form-field" style="margin-bottom:14px">
+          <label>Nuevo tipo de documento</label>
+          <select id="confirmarDocumentoTipo">
+            <option value="">Seleccione...</option>
+            <option value="FACTURA">FACTURA</option>
+            <option value="BOLETA SALIDA">BOLETA SALIDA</option>
+            <option value="COTIZACION">COTIZACION</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin-bottom:14px">
+          <label>Nuevo N° de documento</label>
+          <input type="text" id="confirmarDocumentoNumero" placeholder="Ej: FAC-4521" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-nuevo-codigo-msg" id="confirmarDocumentoMsg"></div>
+      <div class="reserva-modal-footer">
+        <button class="btn-registrar" type="button" id="btnConfirmarAplicarReservas" onclick="confirmarAplicarReservas()">Confirmar y Aplicar</button>
+        <button class="btn-cancelar-mov" type="button" onclick="cerrarModalConfirmarDocumentoReserva()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Consulta Rápida de Stock — la MISMA Consulta de Códigos de "Inicio" (comparten el
      motor de cálculo, ver renderConsultaStock), pero como ventana emergente para poder
      abrirla desde Ingresos/Salidas/Traslados/Reservas sin salir de ese formulario. Usa sus
@@ -2043,7 +2088,13 @@ function marcarTodosReservaItems() {
   document.getElementById('reservaCantidadAplicar').value = '';
 }
 
-async function aplicarReservasSeleccionadas() {
+// Ítems ya validados (marcados + cantidad) de la aplicación en curso, a la espera de que se
+// confirme en el cuadro de "Confirmar Documento" (ver modalConfirmarDocumentoReserva) si se
+// aplican con el mismo N° de documento de la reserva o con uno nuevo (p. ej. la reserva se
+// hizo con COTIZACION pero se despacha con FACTURA).
+let itemsAplicarPendientes = [];
+
+function aplicarReservasSeleccionadas() {
   const marcados = checksReservaMarcados();
   if (marcados.length === 0) { alert('Debe marcar al menos un ítem para aplicar.'); return; }
   const cantidadCampo = document.getElementById('reservaCantidadAplicar').value.trim();
@@ -2065,18 +2116,70 @@ async function aplicarReservasSeleccionadas() {
       documento: item.documento, responsable: item.responsable, fecha: item.fecha
     });
   }
-  const btn = document.getElementById('btnAplicarReservaSeleccion');
-  btn.disabled = true;
-  btn.textContent = 'Aplicando...';
+  itemsAplicarPendientes = items;
+  abrirModalConfirmarDocumentoReserva(items);
+}
+
+// Muestra con qué documento quedó guardada la reserva (tal como está en la fila C/A del
+// primer ítem marcado — todos comparten el mismo documento, ya que se eligen desde la misma
+// fila de "Reservas Pendientes") y deja elegir si se aplica igual o con uno nuevo.
+function abrirModalConfirmarDocumentoReserva(items) {
+  const primero = items[0];
+  const resumen = document.getElementById('confirmarDocumentoResumen');
+  resumen.textContent = `Esta reserva quedó guardada como ${primero.reserva_con || '(sin tipo)'} N° ${primero.documento || '(sin número)'}. ¿Aplicar con el mismo documento, o indicar uno nuevo?`;
+  document.getElementById('confirmarDocumentoCambiar').checked = false;
+  document.getElementById('confirmarDocumentoTipo').value = '';
+  document.getElementById('confirmarDocumentoNumero').value = '';
+  document.getElementById('confirmarDocumentoMsg').textContent = '';
+  toggleCamposConfirmarDocumento();
+  document.getElementById('modalConfirmarDocumentoReserva').classList.add('visible');
+}
+
+function cerrarModalConfirmarDocumentoReserva() {
+  document.getElementById('modalConfirmarDocumentoReserva').classList.remove('visible');
+}
+
+function toggleCamposConfirmarDocumento() {
+  const marcado = document.getElementById('confirmarDocumentoCambiar').checked;
+  document.getElementById('confirmarDocumentoCampos').classList.toggle('hidden', !marcado);
+}
+
+async function confirmarAplicarReservas() {
+  const items = itemsAplicarPendientes;
+  if (!items || items.length === 0) { cerrarModalConfirmarDocumentoReserva(); return; }
+  const msgEl = document.getElementById('confirmarDocumentoMsg');
+  msgEl.style.color = 'var(--rojo)';
+  msgEl.textContent = '';
+  const cambiarDocumento = document.getElementById('confirmarDocumentoCambiar').checked;
+  let nuevoTipo = '', nuevoNumero = '';
+  if (cambiarDocumento) {
+    nuevoTipo = document.getElementById('confirmarDocumentoTipo').value;
+    nuevoNumero = document.getElementById('confirmarDocumentoNumero').value.trim();
+    if (!nuevoTipo || !nuevoNumero) {
+      msgEl.textContent = 'Elija el nuevo tipo de documento y escriba el número.';
+      return;
+    }
+  }
+  // Si se pidió un documento nuevo, se sobreescribe en los ítems ANTES de enviarlos: así la
+  // salida que queda registrada en TRAZABILIDAD TOTAL lleva el documento real con el que se
+  // despachó (p. ej. la FACTURA), no el de la COTIZACION con la que se había reservado.
+  const itemsAEnviar = items.map(it => cambiarDocumento ? Object.assign({}, it, { reserva_con: nuevoTipo, documento: nuevoNumero }) : it);
+
+  const btnConfirmar = document.getElementById('btnConfirmarAplicarReservas');
+  const btnAplicar = document.getElementById('btnAplicarReservaSeleccion');
+  btnConfirmar.disabled = true;
+  btnConfirmar.textContent = 'Aplicando...';
+  btnAplicar.disabled = true;
   try {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ tipo_peticion: 'APLICAR_RESERVAS', items })
+      body: JSON.stringify({ tipo_peticion: 'APLICAR_RESERVAS', items: itemsAEnviar })
     });
     const result = await resp.json();
     if (result.status === 'ok') {
-      alert(`${items.length} ítem(s) aplicado(s) y registrado(s) como salida.`);
+      cerrarModalConfirmarDocumentoReserva();
+      alert(`${itemsAEnviar.length} ítem(s) aplicado(s) y registrado(s) como salida.`);
       // NUEVO: quita de inmediato, en memoria, los ítems recién aplicados y vuelve a dibujar
       // el modal ANTES de esperar la respuesta del servidor. Antes, la fila del documento
       // (comercial + cantidad de ítems) dependía por completo de que cargarReservasDetalle()
@@ -2099,13 +2202,14 @@ async function aplicarReservasSeleccionadas() {
       // a dibujarla cuando esa carga termine (por si el stock/disponible también cambió).
       cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
     } else {
-      alert('No se pudo aplicar la reserva:\n' + (result.mensaje || 'Error desconocido'));
+      msgEl.textContent = 'No se pudo aplicar la reserva: ' + (result.mensaje || 'Error desconocido');
     }
   } catch (err) {
-    alert('Error de conexión al aplicar la reserva.\n' + err.message);
+    msgEl.textContent = 'Error de conexión al aplicar la reserva: ' + err.message;
   }
-  btn.disabled = false;
-  btn.textContent = 'Aplicar Seleccionados';
+  btnConfirmar.disabled = false;
+  btnConfirmar.textContent = 'Confirmar y Aplicar';
+  btnAplicar.disabled = false;
 }
 
 async function cancelarReservaSeleccionada() {
@@ -2163,6 +2267,7 @@ async function refrescarReservasPorCodigo() {
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   cerrarModalAplicarReservas();
+  cerrarModalConfirmarDocumentoReserva();
   cerrarModalDetalleReserva();
   cerrarModalConsultaRapida();
 });
