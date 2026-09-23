@@ -160,6 +160,18 @@
   .form-movimiento-logo { height: 24px; object-fit: contain; flex-shrink: 0; }
   .btn-aplicar-reservas { background: var(--azul); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .btn-aplicar-reservas:hover { background: var(--azul-medio); }
+  /* Botón para abrir la Consulta de Stock como ventana emergente desde Ingresos/Salidas/
+     Traslados/Reservas, sin salir del formulario ni perder lo que ya se llevaba escrito. */
+  .btn-consultar-stock { background: var(--celeste); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-consultar-stock:hover { background: #0088cc; }
+
+  /* Fila de la Consulta de Stock cuyo código tiene algo reservado: se puede hacer doble
+     clic para ver quién lo reservó (cliente, comercial, tipo y N° de documento). */
+  .fila-reservada { cursor: pointer; }
+  .fila-reservada:hover td { background: #fff7e0; }
+  .reservado-clickeable { text-decoration: underline dotted; text-underline-offset: 3px; }
+  .detalle-reserva-item { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; padding: 4px 0; }
+  .detalle-reserva-separador { border: none; border-top: 1px solid var(--gris); margin: 12px 0; }
 
   /* MODAL: Aplicar Reservas — agrupa reservas por comercial/documento y permite aplicar
      (dar salida) o cancelar, igual que la ventana "APLICAR RESERVAS" de la macro. */
@@ -713,6 +725,7 @@
       <h3 id="tituloFormMovimiento">Registro de Movimiento</h3>
       <div class="form-movimiento-marca">
         <img src="logo.png" alt="HidroClear" class="form-movimiento-logo">
+        <button class="btn-consultar-stock" type="button" onclick="abrirModalConsultaRapida()">🔍 Consultar Stock</button>
         <button class="btn-aplicar-reservas hidden" type="button" id="btnAplicarReservas" onclick="abrirModalAplicarReservas()">📦 Aplicar Reservas</button>
       </div>
     </div>
@@ -1298,6 +1311,71 @@
   </div>
 </div>
 
+<!-- MODAL: Consulta Rápida de Stock — la MISMA Consulta de Códigos de "Inicio" (comparten el
+     motor de cálculo, ver renderConsultaStock), pero como ventana emergente para poder
+     abrirla desde Ingresos/Salidas/Traslados/Reservas sin salir de ese formulario. Usa sus
+     propios ids (consultaRapida...), completamente aparte de los de "Inicio"
+     (consultaModal...), así que abrirla o cerrarla nunca toca el formulario de movimiento ni
+     lo que ya se llevaba escrito ahí. -->
+<div class="modal-overlay" id="modalConsultaRapida" onclick="if (event.target === this) cerrarModalConsultaRapida()">
+  <div class="modal-box modal-box-ancho">
+    <div class="modal-header">
+      <div class="modal-header-titulo">🔍 Consultar Stock</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalConsultaRapida()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="buscador-wrap consulta-filtros">
+        <div class="form-field">
+          <label>Código</label>
+          <div class="codigo-search-wrap">
+            <input type="text" id="consultaRapidaBuscar" placeholder="Escriba código o descripción..." oninput="buscarCodigoConsultaRapida(this.value)" autocomplete="off">
+            <div class="codigo-dropdown" id="consultaRapidaDropdown"></div>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Ubicación</label>
+          <select id="consultaRapidaUbicacion" onchange="filtrarConsultaRapida()"><option value="">Todas</option></select>
+        </div>
+        <div class="form-field">
+          <label>Descripción</label>
+          <input type="text" id="consultaRapidaDescripcion" placeholder="Filtrar por descripción..." oninput="filtrarConsultaRapida()" autocomplete="off">
+        </div>
+        <button class="btn-limpiar" type="button" onclick="limpiarFiltrosConsultaRapida()">✕ Limpiar</button>
+      </div>
+      <div class="tabla-wrap">
+        <div class="consulta-tabla-wrap">
+          <table class="hidden" id="consultaRapidaTabla">
+            <thead><tr><th>Código</th><th>Descripción</th><th>Ubicación</th><th>Stock Ubic.</th><th>Stock Total</th><th>Reservado</th><th>Disponible</th></tr></thead>
+            <tbody id="consultaRapidaTbody"></tbody>
+          </table>
+          <div class="mov-consulta-placeholder" id="consultaRapidaPlaceholder">Escriba un código, elija una ubicación o filtre por descripción para consultar el stock.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Detalle de Reserva — se abre con doble clic sobre el "Reservado" de un código en
+     cualquiera de las dos Consultas de Stock (Inicio o la ventana rápida de arriba), y
+     muestra quién tiene reservado ese material. -->
+<div class="modal-overlay" id="modalDetalleReserva" onclick="if (event.target === this) cerrarModalDetalleReserva()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo">📌 Detalle de la Reserva</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalDetalleReserva()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="detalleReservaCuerpo"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalNuevoCodigo" onclick="if (event.target === this) cerrarModalNuevoCodigo()">
   <div class="modal-box">
     <div class="modal-header">
@@ -1725,13 +1803,14 @@ function llenarSelectUbicaciones() {
     sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
     todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
   });
-  const selConsulta = document.getElementById('consultaModalUbicacion');
-  if (selConsulta) {
+  ['consultaModalUbicacion', 'consultaRapidaUbicacion'].forEach(id => {
+    const selConsulta = document.getElementById(id);
+    if (!selConsulta) return;
     const valorActual = selConsulta.value;
     selConsulta.innerHTML = '<option value="">Todas</option>';
     todasUbicaciones.forEach(u => { selConsulta.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
     selConsulta.value = valorActual;
-  }
+  });
 }
 
 function toggleSubmenuMovimientos() {
@@ -2078,7 +2157,10 @@ async function refrescarReservasPorCodigo() {
 }
 
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') { cerrarModalAplicarReservas(); }
+  if (e.key !== 'Escape') return;
+  cerrarModalAplicarReservas();
+  cerrarModalDetalleReserva();
+  cerrarModalConsultaRapida();
 });
 
 // ── Navegación con Enter en el formulario de movimientos ──
@@ -2181,18 +2263,23 @@ function agruparPorCodigoUbicacion(lista) {
   return Array.from(mapa.values());
 }
 
-function filtrarConsultaModal() {
-  const tabla = document.getElementById('consultaModalTabla');
-  const tbody = document.getElementById('consultaModalTbody');
-  const placeholder = document.getElementById('consultaModalPlaceholder');
-  const codigoFiltro = document.getElementById('consultaModalBuscar').value.trim().toLowerCase();
-  const ubicacionFiltro = document.getElementById('consultaModalUbicacion').value;
-  const descFiltro = document.getElementById('consultaModalDescripcion').value.trim().toLowerCase();
+// Motor único de la Consulta de Stock, compartido por las DOS pantallas que la usan: la de
+// "Inicio" (ids consultaModal...) y la ventana rápida que se puede abrir desde Ingresos/
+// Salidas/Traslados/Reservas (ids consultaRapida...). "ids" trae los ids de campos/tabla de
+// la pantalla que llama, para no duplicar esta lógica (y el riesgo de que las dos versiones
+// se desincronicen) en dos partes distintas.
+function renderConsultaStock(ids) {
+  const tabla = document.getElementById(ids.tabla);
+  const tbody = document.getElementById(ids.tbody);
+  const placeholder = document.getElementById(ids.placeholder);
+  const codigoFiltro = document.getElementById(ids.buscar).value.trim().toLowerCase();
+  const ubicacionFiltro = document.getElementById(ids.ubicacion).value;
+  const descFiltro = document.getElementById(ids.descripcion).value.trim().toLowerCase();
 
   if (!codigoFiltro && !ubicacionFiltro && !descFiltro) {
     tabla.classList.add('hidden');
     placeholder.classList.remove('hidden');
-    placeholder.textContent = 'Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Puede dejar esta ventana abierta o cerrarla en cualquier momento — no afecta el movimiento que esté llenando.';
+    placeholder.textContent = ids.placeholderVacio;
     tbody.innerHTML = '';
     return;
   }
@@ -2206,11 +2293,11 @@ function filtrarConsultaModal() {
     return coincideCodigo && coincideUbicacion && coincideDesc;
   });
 
-  // NUEVO: cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila
-  // sigue existiendo en "EXISTENCIAS" para no perder el historial de esa ubicación, pero
-  // mostrarla aquí como si todavía tuviera algo solo confunde — se oculta. Si un código
-  // termina sin NINGUNA ubicación con stock, se avisa aparte más abajo en vez de decir
-  // "sin resultados" (que daría a entender que el código no existe).
+  // Cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila sigue
+  // existiendo en "EXISTENCIAS" para no perder el historial de esa ubicación, pero mostrarla
+  // aquí como si todavía tuviera algo solo confunde — se oculta. Si un código termina sin
+  // NINGUNA ubicación con stock, se avisa aparte más abajo en vez de decir "sin resultados"
+  // (que daría a entender que el código no existe).
   const filas = coincidencias.filter(d => d.stock > 0)
     .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
 
@@ -2228,23 +2315,32 @@ function filtrarConsultaModal() {
 
   placeholder.classList.add('hidden');
   tabla.classList.remove('hidden');
-  // NUEVO: "Stock Total", "Reservado" y "Disponible" son del CÓDIGO completo, no de cada
-  // ubicación — antes se repetía el mismo número en cada línea. Ahora se calculan una sola
-  // vez por código y solo se escriben en su primera línea; en las demás ubicaciones del
-  // mismo código esas tres celdas quedan en blanco.
+  // "Stock Total", "Reservado" y "Disponible" son del CÓDIGO completo, no de cada ubicación —
+  // se calculan una sola vez por código y solo se escriben en su primera línea; en las demás
+  // ubicaciones del mismo código esas tres celdas quedan en blanco. Cuando hay algo reservado,
+  // esa primera línea queda marcada como "fila-reservada" (doble clic abre el detalle: quién
+  // la reservó, con qué documento).
   let codigoAnterior = null;
   tbody.innerHTML = filas.map(d => {
     const claveCodigo = String(d.codigo).trim().toUpperCase();
     const esPrimeraLineaDelCodigo = claveCodigo !== codigoAnterior;
     codigoAnterior = claveCodigo;
     let celdasCodigo = '<td></td><td></td><td></td>';
+    let reservado = 0;
     if (esPrimeraLineaDelCodigo) {
       const stockTotal = inventarioAgrupado.filter(x => String(x.codigo).trim().toUpperCase() === claveCodigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
-      const reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
+      reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
       const disponible = stockTotal - reservado;
-      celdasCodigo = `<td>${stockTotal}</td><td>${reservado}</td><td>${disponible}</td>`;
+      const celdaReservado = reservado > 0
+        ? `<td><span class="reservado-clickeable" title="Doble clic para ver quién reservó este código">${reservado}</span></td>`
+        : `<td>${reservado}</td>`;
+      celdasCodigo = `<td>${stockTotal}</td>${celdaReservado}<td>${disponible}</td>`;
     }
-    return `<tr>
+    const filaReservada = esPrimeraLineaDelCodigo && reservado > 0;
+    const atributosFila = filaReservada
+      ? ` class="fila-reservada" ondblclick="mostrarDetalleReservaCodigo('${claveCodigo.replace(/'/g, "\\'")}')"`
+      : '';
+    return `<tr${atributosFila}>
       <td><span class="codigo-cell">${d.codigo}</span></td>
       <td>${d.descripcion}</td>
       <td>${d.bodega}</td>
@@ -2252,6 +2348,104 @@ function filtrarConsultaModal() {
       ${celdasCodigo}
     </tr>`;
   }).join('');
+}
+
+function filtrarConsultaModal() {
+  renderConsultaStock({
+    buscar: 'consultaModalBuscar', ubicacion: 'consultaModalUbicacion', descripcion: 'consultaModalDescripcion',
+    tabla: 'consultaModalTabla', tbody: 'consultaModalTbody', placeholder: 'consultaModalPlaceholder',
+    placeholderVacio: 'Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Puede dejar esta ventana abierta o cerrarla en cualquier momento — no afecta el movimiento que esté llenando.'
+  });
+}
+
+// ── Consulta Rápida de Stock: la misma tabla de arriba, pero como ventana emergente que se
+// puede abrir desde Ingresos/Salidas/Traslados/Reservas sin perder lo que ya se llevaba
+// escrito en ese formulario (usa sus propios ids, aparte de los de "Inicio"). ──
+function abrirModalConsultaRapida() {
+  document.getElementById('modalConsultaRapida').classList.add('visible');
+  document.getElementById('consultaRapidaBuscar').focus();
+}
+
+function cerrarModalConsultaRapida() {
+  document.getElementById('modalConsultaRapida').classList.remove('visible');
+}
+
+function filtrarConsultaRapida() {
+  renderConsultaStock({
+    buscar: 'consultaRapidaBuscar', ubicacion: 'consultaRapidaUbicacion', descripcion: 'consultaRapidaDescripcion',
+    tabla: 'consultaRapidaTabla', tbody: 'consultaRapidaTbody', placeholder: 'consultaRapidaPlaceholder',
+    placeholderVacio: 'Escriba un código, elija una ubicación o filtre por descripción para consultar el stock. Cerrar esta ventana no afecta lo que ya tenía escrito en el formulario.'
+  });
+}
+
+function buscarCodigoConsultaRapida(texto) {
+  const dropdown = document.getElementById('consultaRapidaDropdown');
+  filtrarConsultaRapida();
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
+  dropdown.innerHTML = resultados.map(c =>
+    `<div class="codigo-item" onclick="seleccionarCodigoConsultaRapida('${c.codigo.replace(/'/g,"\\'")}','${c.descripcion.replace(/'/g,"\\'")}')">
+      <div class="cod">${c.codigo}</div>
+      <div class="desc-cod">${c.descripcion}</div>
+    </div>`).join('');
+  dropdown.classList.add('visible');
+}
+
+function seleccionarCodigoConsultaRapida(codigo, descripcion) {
+  document.getElementById('consultaRapidaBuscar').value = codigo;
+  document.getElementById('consultaRapidaDropdown').classList.remove('visible');
+  filtrarConsultaRapida();
+}
+
+function limpiarFiltrosConsultaRapida() {
+  document.getElementById('consultaRapidaBuscar').value = '';
+  document.getElementById('consultaRapidaDescripcion').value = '';
+  document.getElementById('consultaRapidaUbicacion').value = '';
+  document.getElementById('consultaRapidaDropdown').classList.remove('visible');
+  filtrarConsultaRapida();
+  document.getElementById('consultaRapidaBuscar').focus();
+}
+
+// ── Detalle de Reserva: doble clic sobre el "Reservado" de un código, en cualquiera de las
+// dos Consultas de Stock, muestra quién lo tiene reservado (cliente, comercial, tipo y N° de
+// documento). Pide el detalle fresco al servidor en vez de reusar lo que ya hubiera cargado
+// el modal de "Aplicar Reservas" — que puede ni haberse abierto todavía en esta sesión. ──
+async function mostrarDetalleReservaCodigo(codigo) {
+  const cuerpo = document.getElementById('detalleReservaCuerpo');
+  cuerpo.innerHTML = '<div class="mov-consulta-placeholder">Cargando...</div>';
+  document.getElementById('modalDetalleReserva').classList.add('visible');
+  let detalle = [];
+  try {
+    const resp = await fetch(GS_URL + '?tipo=RESERVAS_DETALLE&t=' + Date.now());
+    const json = await resp.json();
+    detalle = json.status === 'ok' ? (json.datos || []) : [];
+  } catch (err) {
+    cuerpo.innerHTML = '<div class="mov-consulta-placeholder">No se pudo cargar el detalle de la reserva. Cierre esta ventana e intente de nuevo.</div>';
+    return;
+  }
+  const claveCodigo = String(codigo).trim().toUpperCase();
+  const filasCodigo = detalle.filter(r => String(r.codigo).trim().toUpperCase() === claveCodigo);
+  if (filasCodigo.length === 0) {
+    cuerpo.innerHTML = '<div class="mov-consulta-placeholder">Ya no hay reservas activas de este código (puede que se acaben de aplicar o cancelar). Cierre esta ventana y actualice la consulta.</div>';
+    return;
+  }
+  cuerpo.innerHTML = filasCodigo.map(r => `
+    <div class="detalle-reserva-item">
+      <div><strong>Cliente:</strong> ${r.nombre_cliente || '—'}</div>
+      <div><strong>Comercial:</strong> ${r.comercial || '—'}</div>
+      <div><strong>Tipo de documento:</strong> ${r.reserva_con || '—'}</div>
+      <div><strong>N° Documento:</strong> ${r.documento || '—'}</div>
+      <div><strong>Cantidad reservada:</strong> ${r.cantidad}</div>
+      <div><strong>Ubicación:</strong> ${r.ubicacion}</div>
+      <div><strong>Responsable:</strong> ${r.responsable || '—'}</div>
+      <div><strong>Fecha:</strong> ${r.fecha}</div>
+    </div>`).join('<hr class="detalle-reserva-separador">');
+}
+
+function cerrarModalDetalleReserva() {
+  document.getElementById('modalDetalleReserva').classList.remove('visible');
 }
 
 // ── Validación de campos comunes según el tipo de movimiento activo ──
