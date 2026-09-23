@@ -173,6 +173,21 @@
   .detalle-reserva-item { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; padding: 4px 0; }
   .detalle-reserva-separador { border: none; border-top: 1px solid var(--gris); margin: 12px 0; }
 
+  /* Botón "🕒" junto al código en Consulta de Stock: abre el historial completo de
+     movimientos de ese código (para rastrear dónde quedó un error de inventario). */
+  .btn-historial-codigo { background: none; border: none; cursor: pointer; font-size: 13px; padding: 0 2px; vertical-align: middle; opacity: 0.75; }
+  .btn-historial-codigo:hover { opacity: 1; }
+  .historial-tabla-wrap { max-height: 50vh; overflow-y: auto; }
+  .historial-tabla-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .historial-tabla-wrap th { position: sticky; top: 0; background: var(--azul); color: #fff; text-align: left; padding: 8px 10px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .historial-tabla-wrap td { padding: 7px 10px; border-bottom: 1px solid var(--gris); }
+  .historial-tabla-wrap tr:last-child td { border-bottom: none; }
+  .historial-tipo-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .historial-tipo-INGRESO { background: #e3f6e9; color: #1f8a4c; }
+  .historial-tipo-SALIDA { background: #fdeaea; color: #c0392b; }
+  .historial-tipo-TRASLADO { background: #e8f0fd; color: #2b5fc0; }
+  .historial-resumen { margin: 0 0 14px; font-size: 13.5px; color: var(--azul); }
+
   /* MODAL: Aplicar Reservas — agrupa reservas por comercial/documento y permite aplicar
      (dar salida) o cancelar, igual que la ventana "APLICAR RESERVAS" de la macro. */
   .reserva-lista-box { border: 1px solid var(--gris); border-radius: 10px; overflow-y: auto; margin-bottom: 16px; }
@@ -1427,6 +1442,33 @@
   </div>
 </div>
 
+<!-- MODAL: Historial de Movimientos de un código — se abre con el botón "🕒" junto al código
+     en Consulta de Stock (Inicio o la ventana rápida), y muestra TODOS los movimientos reales
+     (Ingresos/Salidas/Traslados) de ese código en orden, del más reciente al más antiguo, para
+     poder rastrear dónde quedó un error de inventario. Las reservas pendientes (todavía sin
+     aplicar) NO aparecen aquí porque no son un movimiento de stock real — solo se ven una vez
+     aplicadas (quedan como SALIDA). -->
+<div class="modal-overlay" id="modalHistorialCodigo" onclick="if (event.target === this) cerrarModalHistorialCodigo()">
+  <div class="modal-box modal-box-ancho">
+    <div class="modal-header">
+      <div class="modal-header-titulo">🕒 Historial de Movimientos</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalHistorialCodigo()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p class="historial-resumen" id="historialCodigoResumen"></p>
+      <div class="historial-tabla-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Ubicación</th><th>Documento</th><th>Responsable</th></tr></thead>
+          <tbody id="historialCodigoTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalNuevoCodigo" onclick="if (event.target === this) cerrarModalNuevoCodigo()">
   <div class="modal-box">
     <div class="modal-header">
@@ -2310,6 +2352,7 @@ document.addEventListener('keydown', function(e) {
   cerrarModalAplicarReservas();
   cerrarModalConfirmarDocumentoReserva();
   cerrarModalDetalleReserva();
+  cerrarModalHistorialCodigo();
   cerrarModalConsultaRapida();
 });
 
@@ -2490,8 +2533,15 @@ function renderConsultaStock(ids) {
     const atributosFila = filaReservada
       ? ` class="fila-reservada" ondblclick="mostrarDetalleReservaCodigo('${escJsAttr(claveCodigo)}')"`
       : '';
+    // El botón de Historial se muestra solo una vez por código (en su primera línea, igual
+    // que Stock Total/Reservado/Disponible) — el historial es del código completo, no de una
+    // ubicación en particular, así que repetirlo en cada línea de la misma agrupación sería
+    // redundante.
+    const btnHistorial = esPrimeraLineaDelCodigo
+      ? ` <button type="button" class="btn-historial-codigo" title="Ver historial de movimientos de este código" onclick="mostrarHistorialCodigo('${escJsAttr(claveCodigo)}','${escJsAttr(d.descripcion)}')">🕒</button>`
+      : '';
     return `<tr${atributosFila}>
-      <td><span class="codigo-cell">${d.codigo}</span></td>
+      <td><span class="codigo-cell">${d.codigo}</span>${btnHistorial}</td>
       <td>${d.descripcion}</td>
       <td>${d.bodega}</td>
       <td><strong>${d.stock}</strong></td>
@@ -2596,6 +2646,67 @@ async function mostrarDetalleReservaCodigo(codigo) {
 
 function cerrarModalDetalleReserva() {
   document.getElementById('modalDetalleReserva').classList.remove('visible');
+}
+
+// ── Historial de Movimientos por código (botón "🕒" en Consulta de Stock) — ayuda a
+// rastrear dónde quedó un error de inventario mostrando TODOS los Ingresos/Salidas/Traslados
+// reales de ese código, del más reciente al más antiguo. Reutiliza movimientosHistorial (el
+// mismo dato que ya usan los reportes de Conteo/Compras/Resumen Mensual): si el usuario ya
+// entró a Reportes en esta sesión, se abre al instante sin pedir nada al servidor; si no,
+// cargarDatosReportes() lo trae una sola vez y queda en memoria para la próxima vez.
+function formatearFechaHistorial(fecha) {
+  // El backend entrega la fecha como 'yyyy-MM-dd'; se muestra como dd/mm/yyyy para que
+  // coincida con el resto de la app. Si viniera en otro formato, se deja tal cual.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fecha || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(fecha || '');
+}
+
+async function mostrarHistorialCodigo(codigo, descripcion) {
+  const tbody = document.getElementById('historialCodigoTbody');
+  const resumen = document.getElementById('historialCodigoResumen');
+  resumen.textContent = `${codigo} — ${descripcion || 'sin descripción'}`;
+  tbody.innerHTML = '<tr><td colspan="6" class="reserva-lista-vacia">Cargando historial...</td></tr>';
+  document.getElementById('modalHistorialCodigo').classList.add('visible');
+
+  try {
+    await cargarDatosReportes();
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" class="reserva-lista-vacia">No se pudo cargar el historial. Cierre esta ventana e intente de nuevo.</td></tr>';
+    return;
+  }
+
+  const claveCodigo = String(codigo).trim().toUpperCase();
+  // El historial (movimientosHistorial) viene en el mismo orden en que se registraron los
+  // movimientos (más antiguo primero, tal como quedan las filas en TRAZABILIDAD TOTAL) — se
+  // invierte para mostrar el más reciente arriba, que es lo más útil para rastrear un error.
+  const filas = (movimientosHistorial || [])
+    .filter(m => String(m.codigo).trim().toUpperCase() === claveCodigo)
+    .slice().reverse();
+
+  if (filas.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="reserva-lista-vacia">Este código no tiene movimientos (Ingresos/Salidas/Traslados) registrados. Si tiene una reserva pendiente sin aplicar, tampoco aparece aquí — solo se ve una vez aplicada.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filas.map(m => {
+    const tipo = String(m.tipo || '').toUpperCase();
+    const ubicacion = tipo === 'TRASLADO'
+      ? `${m.ubicacion_origen || '—'} → ${m.ubicacion_destino || '—'}`
+      : (m.ubicacion_origen || '—');
+    const documentoTexto = [m.despacho_con, m.documento].filter(v => v).join(' ') || (m.proveedor || '—');
+    return `<tr>
+      <td>${formatearFechaHistorial(m.fecha)}</td>
+      <td><span class="historial-tipo-badge historial-tipo-${tipo}">${tipo}</span></td>
+      <td>${m.cantidad}</td>
+      <td>${ubicacion}</td>
+      <td>${documentoTexto}</td>
+      <td>${m.responsable || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function cerrarModalHistorialCodigo() {
+  document.getElementById('modalHistorialCodigo').classList.remove('visible');
 }
 
 // ── Validación de campos comunes según el tipo de movimiento activo ──
