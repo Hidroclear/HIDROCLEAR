@@ -1680,11 +1680,9 @@ function actualizarFiltros() {
   const bodegas = [...new Set(datosInventario.map(d => d.bodega))].sort();
   const categorias = [...new Set(datosInventario.map(d => d.categoria))].sort();
   const selBodega = document.getElementById('filtroBodega');
-  selBodega.innerHTML = '<option value="">Todas las bodegas</option>';
-  bodegas.forEach(b => { if (b) selBodega.innerHTML += `<option value="${b}">${b}</option>`; });
+  selBodega.innerHTML = '<option value="">Todas las bodegas</option>' + bodegas.filter(b => b).map(b => `<option value="${b}">${b}</option>`).join('');
   const selCat = document.getElementById('filtroCategoria');
-  selCat.innerHTML = '<option value="">Todas las categorías</option>';
-  categorias.forEach(c => { if (c) selCat.innerHTML += `<option value="${c}">${c}</option>`; });
+  selCat.innerHTML = '<option value="">Todas las categorías</option>' + categorias.filter(c => c).map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
 function actualizarStats() {
@@ -1798,17 +1796,23 @@ function cargarListasMovimientos() {
 }
 
 function llenarSelectUbicaciones() {
+  // IMPORTANTE (rendimiento): las opciones se arman en un arreglo y se insertan con UNA sola
+  // asignación a innerHTML (join), nunca con "innerHTML +=" dentro de un forEach. Concatenar
+  // con += dentro de un ciclo obliga al navegador a releer y volver a interpretar TODO el HTML
+  // acumulado en cada vuelta, así que con muchas ubicaciones (bodega-pasillo-tramo-nivel) el
+  // costo crece al cuadrado y puede congelar la pantalla por muchos segundos. Esta función se
+  // llama cada vez que se cambia entre Ingreso/Salida/Traslado/Reservas (ver
+  // seleccionarMovimiento), así que el += aquí era la causa de la demora al cambiar de pantalla.
+  const opcionesUbicaciones = todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
   ['movUbicacion','movUbicacionOrigen','movUbicacionDestino'].forEach(id => {
     const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
-    todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
+    sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + opcionesUbicaciones;
   });
   ['consultaModalUbicacion', 'consultaRapidaUbicacion'].forEach(id => {
     const selConsulta = document.getElementById(id);
     if (!selConsulta) return;
     const valorActual = selConsulta.value;
-    selConsulta.innerHTML = '<option value="">Todas</option>';
-    todasUbicaciones.forEach(u => { selConsulta.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
+    selConsulta.innerHTML = '<option value="">Todas</option>' + opcionesUbicaciones;
     selConsulta.value = valorActual;
   });
 }
@@ -2745,9 +2749,8 @@ function seleccionarCodigo(codigo, descripcion) {
     const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega))];
     const selId = tipoMovimientoActual === 'SALIDA' ? 'movUbicacion' : 'movUbicacionOrigen';
     const sel = document.getElementById(selId);
-    sel.innerHTML = '<option value="">Seleccione ubicación...</option>';
     if (ubicacionesConStock.length > 0) {
-      ubicacionesConStock.forEach(u => { sel.innerHTML += `<option value="${u}">${u}</option>`; });
+      sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + ubicacionesConStock.map(u => `<option value="${u}">${u}</option>`).join('');
       // Autorrellena con la ubicación PRIMARIA si tiene stock, sin importar cuántas otras
       // bodegas (secundarias) también tengan stock de este código. Antes solo autorrellenaba
       // cuando había EXACTAMENTE una bodega con stock en total, así que un código con stock
@@ -2759,7 +2762,7 @@ function seleccionarCodigo(codigo, descripcion) {
         sel.value = ubicacionesConStock[0];
       }
     } else {
-      todasUbicaciones.forEach(u => { sel.innerHTML += `<option value="${u.ubicacion}">${u.ubicacion}</option>`; });
+      sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
     }
   }
 }
