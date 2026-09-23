@@ -1273,9 +1273,15 @@
       </div>
     </div>
     <div class="modal-body">
-      <div class="form-field">
-        <label>Comercial</label>
-        <select id="reservaComercial" onchange="cambiarComercialReserva()"><option value="">Seleccione...</option></select>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Comercial</label>
+          <select id="reservaComercial" onchange="cambiarComercialReserva()"><option value="">Seleccione...</option></select>
+        </div>
+        <div class="form-field">
+          <label>N° Documento</label>
+          <input type="text" id="reservaDocumentoFiltro" placeholder="Buscar por N° de documento..." oninput="cambiarComercialReserva()" autocomplete="off">
+        </div>
       </div>
 
       <div class="mov-listbox-titulo" style="margin:16px 0 8px">Reservas Pendientes</div>
@@ -1453,6 +1459,23 @@
 <script>
 const SHEET_ID = '18ABHh-28OwyxIKTtehCgjFlbW1PG1B8zLR6sBXYCwJw';
 const GS_URL = 'https://script.google.com/macros/s/AKfycbxGchhv05q_aSHuwByPUmqct0ARI0GyPI0A1fYgI5gX-rp3o0EMbACihJqDaNKssmiE/exec';
+
+// Escapa un valor para poder meterlo, entre comillas simples, dentro de un atributo
+// onclick="..."/ondblclick="..." (que va delimitado con comillas DOBLES en el HTML). Antes
+// solo se escapaban las comillas simples (para no romper el ' ... ' de JavaScript) pero NO
+// las comillas dobles — un código o, sobre todo, una DESCRIPCIÓN que trae una medida en
+// pulgadas (ej. NEMA 6-15") tiene una comilla doble literal, que cortaba el atributo
+// onclick="..." a la mitad y dejaba el botón/fila sin ninguna función asociada: se veía el
+// resultado en el buscador pero al hacer clic no pasaba nada (el dropdown se quedaba pegado
+// en pantalla). Por eso aquí también se convierte la comilla doble a &quot; (el navegador la
+// vuelve a convertir en " al leer el atributo, así que adentro del onclick sigue llegando el
+// texto tal cual) y el "&" a &amp; por si acaso, antes que cualquier otra cosa.
+function escJsAttr(valor) {
+  return String(valor == null ? '' : valor)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, "\\'");
+}
 
 const USUARIOS = {
   'JJIMENEZ': { password: 'J0jimen', nombre: 'JIMMY JIMENEZ', rol: 'admin' },
@@ -1982,6 +2005,7 @@ let itemsReservaActuales = [];
 async function abrirModalAplicarReservas() {
   document.getElementById('modalAplicarReservas').classList.add('visible');
   document.getElementById('reservaComercial').innerHTML = '<option value="">Cargando...</option>';
+  document.getElementById('reservaDocumentoFiltro').value = '';
   document.getElementById('reservaDocumentosBody').innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Cargando reservas...</td></tr>';
   itemsReservaActuales = [];
   renderItemsReserva();
@@ -2008,30 +2032,45 @@ async function cargarReservasDetalle() {
   cambiarComercialReserva();
 }
 
+// Filtra reservasDetalleCargadas por comercial (select) y/o N° de documento (texto libre) —
+// ambos son opcionales y se pueden usar juntos o por separado (ver cambiarComercialReserva y
+// seleccionarDocumentoReserva más abajo, que se apoyan en esta misma función para no repetir
+// la lógica del filtro dos veces).
+function filasReservasFiltradas() {
+  const comercial = document.getElementById('reservaComercial').value;
+  const documentoFiltro = document.getElementById('reservaDocumentoFiltro').value.trim().toLowerCase();
+  return reservasDetalleCargadas.filter(r => {
+    if (comercial && r.comercial !== comercial) return false;
+    if (documentoFiltro && !String(r.documento || '').toLowerCase().includes(documentoFiltro)) return false;
+    return true;
+  });
+}
+
 function cambiarComercialReserva() {
   const comercial = document.getElementById('reservaComercial').value;
+  const documentoFiltro = document.getElementById('reservaDocumentoFiltro').value.trim();
   const cuerpo = document.getElementById('reservaDocumentosBody');
   itemsReservaActuales = [];
   renderItemsReserva();
-  if (!comercial) {
-    cuerpo.innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Elija un comercial para ver sus reservas pendientes.</td></tr>';
+  if (!comercial && !documentoFiltro) {
+    cuerpo.innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Elija un comercial o escriba un N° de documento para ver reservas pendientes.</td></tr>';
     return;
   }
   // Agrupa por N° Documento, igual que la macro
   const porDocumento = {};
-  reservasDetalleCargadas.filter(r => r.comercial === comercial).forEach(r => {
+  filasReservasFiltradas().forEach(r => {
     if (!r.documento) return;
     if (!porDocumento[r.documento]) porDocumento[r.documento] = { fecha: r.fecha, comercial: r.comercial, cantidad: 0 };
     porDocumento[r.documento].cantidad++;
   });
   const documentos = Object.keys(porDocumento);
   if (documentos.length === 0) {
-    cuerpo.innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">Este comercial no tiene reservas pendientes.</td></tr>';
+    cuerpo.innerHTML = '<tr><td colspan="4" class="reserva-lista-vacia">No hay reservas pendientes con ese filtro.</td></tr>';
     return;
   }
   cuerpo.innerHTML = documentos.map(doc => {
     const d = porDocumento[doc];
-    return `<tr class="reserva-doc-row" onclick="seleccionarDocumentoReserva('${doc.replace(/'/g, "\\'")}', this)">
+    return `<tr class="reserva-doc-row" onclick="seleccionarDocumentoReserva('${escJsAttr(doc)}', this)">
       <td>${d.fecha}</td><td>${doc}</td><td>${d.comercial}</td><td>${d.cantidad} ítem(s)</td>
     </tr>`;
   }).join('');
@@ -2040,8 +2079,10 @@ function cambiarComercialReserva() {
 function seleccionarDocumentoReserva(documento, el) {
   document.querySelectorAll('.reserva-doc-row').forEach(tr => tr.classList.remove('seleccionada'));
   el.classList.add('seleccionada');
-  const comercial = document.getElementById('reservaComercial').value;
-  itemsReservaActuales = reservasDetalleCargadas.filter(r => r.comercial === comercial && r.documento === documento);
+  // Se filtra con los MISMOS filtros activos (comercial y/o documento) para no depender de
+  // que el comercial esté elegido — así también funciona buscando solo por N° de documento,
+  // sin necesidad de saber de antemano qué comercial hizo esa reserva.
+  itemsReservaActuales = filasReservasFiltradas().filter(r => r.documento === documento);
   renderItemsReserva();
 }
 
@@ -2311,7 +2352,7 @@ function buscarCodigoConsultaModal(texto) {
   const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
   dropdown.innerHTML = resultados.map(c =>
-    `<div class="codigo-item" onclick="seleccionarCodigoConsultaModal('${c.codigo.replace(/'/g,"\\'")}','${c.descripcion.replace(/'/g,"\\'")}')">
+    `<div class="codigo-item" onclick="seleccionarCodigoConsultaModal('${escJsAttr(c.codigo)}','${escJsAttr(c.descripcion)}')">
       <div class="cod">${c.codigo}</div>
       <div class="desc-cod">${c.descripcion}</div>
     </div>`).join('');
@@ -2447,7 +2488,7 @@ function renderConsultaStock(ids) {
     }
     const filaReservada = esPrimeraLineaDelCodigo && reservado > 0;
     const atributosFila = filaReservada
-      ? ` class="fila-reservada" ondblclick="mostrarDetalleReservaCodigo('${claveCodigo.replace(/'/g, "\\'")}')"`
+      ? ` class="fila-reservada" ondblclick="mostrarDetalleReservaCodigo('${escJsAttr(claveCodigo)}')"`
       : '';
     return `<tr${atributosFila}>
       <td><span class="codigo-cell">${d.codigo}</span></td>
@@ -2495,7 +2536,7 @@ function buscarCodigoConsultaRapida(texto) {
   const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
   dropdown.innerHTML = resultados.map(c =>
-    `<div class="codigo-item" onclick="seleccionarCodigoConsultaRapida('${c.codigo.replace(/'/g,"\\'")}','${c.descripcion.replace(/'/g,"\\'")}')">
+    `<div class="codigo-item" onclick="seleccionarCodigoConsultaRapida('${escJsAttr(c.codigo)}','${escJsAttr(c.descripcion)}')">
       <div class="cod">${c.codigo}</div>
       <div class="desc-cod">${c.descripcion}</div>
     </div>`).join('');
@@ -2825,7 +2866,7 @@ function buscarCodigo(texto) {
   const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
   dropdown.innerHTML = resultados.map(c =>
-    `<div class="codigo-item" onclick="seleccionarCodigo('${c.codigo.replace(/'/g,"\\'")}','${c.descripcion.replace(/'/g,"\\'")}')">
+    `<div class="codigo-item" onclick="seleccionarCodigo('${escJsAttr(c.codigo)}','${escJsAttr(c.descripcion)}')">
       <div class="cod">${c.codigo}</div>
       <div class="desc-cod">${c.descripcion}</div>
     </div>`).join('');
@@ -4290,7 +4331,7 @@ function buscarCodigoGenerico(texto, dropdownId, inputId) {
   const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
   dropdown.innerHTML = resultados.map(c =>
-    `<div class="codigo-item" onclick="seleccionarCodigoGenerico('${c.codigo.replace(/'/g,"\\'")}','${inputId}','${dropdownId}')">
+    `<div class="codigo-item" onclick="seleccionarCodigoGenerico('${escJsAttr(c.codigo)}','${inputId}','${dropdownId}')">
       <div class="cod">${c.codigo}</div>
       <div class="desc-cod">${c.descripcion}</div>
     </div>`).join('');
