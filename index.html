@@ -2199,36 +2199,57 @@ function filtrarConsultaModal() {
 
   const inventarioAgrupado = agruparPorCodigoUbicacion(datosInventario);
 
-  const filas = inventarioAgrupado.filter(d => {
+  const coincidencias = inventarioAgrupado.filter(d => {
     const coincideCodigo = !codigoFiltro || String(d.codigo).toLowerCase().includes(codigoFiltro) || (d.descripcion || '').toLowerCase().includes(codigoFiltro);
     const coincideUbicacion = !ubicacionFiltro || d.bodega === ubicacionFiltro;
     const coincideDesc = !descFiltro || (d.descripcion || '').toLowerCase().includes(descFiltro);
     return coincideCodigo && coincideUbicacion && coincideDesc;
-  }).sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
+  });
+
+  // NUEVO: cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila
+  // sigue existiendo en "EXISTENCIAS" para no perder el historial de esa ubicación, pero
+  // mostrarla aquí como si todavía tuviera algo solo confunde — se oculta. Si un código
+  // termina sin NINGUNA ubicación con stock, se avisa aparte más abajo en vez de decir
+  // "sin resultados" (que daría a entender que el código no existe).
+  const filas = coincidencias.filter(d => d.stock > 0)
+    .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
 
   if (!filas.length) {
     tabla.classList.add('hidden');
     placeholder.classList.remove('hidden');
-    placeholder.textContent = 'Sin resultados para ese filtro.';
+    placeholder.textContent = !coincidencias.length
+      ? 'Sin resultados para ese filtro.'
+      : (ubicacionFiltro
+        ? 'Esa ubicación no tiene stock de este código en este momento.'
+        : 'Este código no tiene stock en ninguna ubicación en este momento.');
     tbody.innerHTML = '';
     return;
   }
 
   placeholder.classList.add('hidden');
   tabla.classList.remove('hidden');
+  // NUEVO: "Stock Total", "Reservado" y "Disponible" son del CÓDIGO completo, no de cada
+  // ubicación — antes se repetía el mismo número en cada línea. Ahora se calculan una sola
+  // vez por código y solo se escriben en su primera línea; en las demás ubicaciones del
+  // mismo código esas tres celdas quedan en blanco.
+  let codigoAnterior = null;
   tbody.innerHTML = filas.map(d => {
     const claveCodigo = String(d.codigo).trim().toUpperCase();
-    const stockTotal = inventarioAgrupado.filter(x => String(x.codigo).trim().toUpperCase() === claveCodigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
-    const reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
-    const disponible = stockTotal - reservado;
+    const esPrimeraLineaDelCodigo = claveCodigo !== codigoAnterior;
+    codigoAnterior = claveCodigo;
+    let celdasCodigo = '<td></td><td></td><td></td>';
+    if (esPrimeraLineaDelCodigo) {
+      const stockTotal = inventarioAgrupado.filter(x => String(x.codigo).trim().toUpperCase() === claveCodigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
+      const reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
+      const disponible = stockTotal - reservado;
+      celdasCodigo = `<td>${stockTotal}</td><td>${reservado}</td><td>${disponible}</td>`;
+    }
     return `<tr>
       <td><span class="codigo-cell">${d.codigo}</span></td>
       <td>${d.descripcion}</td>
       <td>${d.bodega}</td>
       <td><strong>${d.stock}</strong></td>
-      <td>${stockTotal}</td>
-      <td>${reservado}</td>
-      <td>${disponible}</td>
+      ${celdasCodigo}
     </tr>`;
   }).join('');
 }
