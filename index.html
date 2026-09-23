@@ -1994,8 +1994,27 @@ async function aplicarReservasSeleccionadas() {
     const result = await resp.json();
     if (result.status === 'ok') {
       alert(`${items.length} ítem(s) aplicado(s) y registrado(s) como salida.`);
+      // NUEVO: quita de inmediato, en memoria, los ítems recién aplicados y vuelve a dibujar
+      // el modal ANTES de esperar la respuesta del servidor. Antes, la fila del documento
+      // (comercial + cantidad de ítems) dependía por completo de que cargarReservasDetalle()
+      // volviera a traer todo desde la hoja RESERVAS — si esa llamada se demoraba o fallaba,
+      // la fila seguía en pantalla como si nada hubiera pasado, con riesgo de aplicarla dos
+      // veces. Con este cambio desaparece al instante, sin depender de la red.
+      const filasAplicadas = items.map(it => it.fila);
+      reservasDetalleCargadas = reservasDetalleCargadas.filter(r => !filasAplicadas.includes(r.fila));
+      cambiarComercialReserva();
       await cargarReservasDetalle();
       await refrescarReservasPorCodigo();
+      // NUEVO: si la pantalla de Consulta de Códigos ya estaba abierta con una búsqueda
+      // activa (por ejemplo en otra sección mientras se aplicaba la reserva), se queda
+      // mostrando el "Reservado" de antes porque nada la vuelve a dibujar sola — filtrarla
+      // de nuevo aquí la refresca con los totales ya actualizados.
+      try { filtrarConsultaModal(); } catch (e) {}
+      // Aplicar una reserva es, en la práctica, una SALIDA real (ver comentario en
+      // registrarListaMovimientos) — refresca también el snapshot de inventario en segundo
+      // plano para que Consulta de Códigos no se quede mostrando el stock de antes, y vuelve
+      // a dibujarla cuando esa carga termine (por si el stock/disponible también cambió).
+      cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
     } else {
       alert('No se pudo aplicar la reserva:\n' + (result.mensaje || 'Error desconocido'));
     }
@@ -2023,8 +2042,16 @@ async function cancelarReservaSeleccionada() {
     const result = await resp.json();
     if (result.status === 'ok') {
       alert(`${filas.length} reserva(s) cancelada(s).`);
+      // NUEVO: mismo motivo que en aplicarReservasSeleccionadas — quita de inmediato, en
+      // memoria, las reservas recién canceladas para que la fila desaparezca al instante,
+      // sin esperar el round-trip al servidor.
+      reservasDetalleCargadas = reservasDetalleCargadas.filter(r => !filas.includes(r.fila));
+      cambiarComercialReserva();
       await cargarReservasDetalle();
       await refrescarReservasPorCodigo();
+      // NUEVO: refresca la Consulta de Códigos si ya estaba abierta con una búsqueda activa
+      // (ver comentario igual en aplicarReservasSeleccionadas).
+      try { filtrarConsultaModal(); } catch (e) {}
     } else {
       alert('No se pudo cancelar la reserva:\n' + (result.mensaje || 'Error desconocido'));
     }
@@ -2443,6 +2470,20 @@ async function registrarListaMovimientos() {
       indiceEdicionLista = null;
       renderListaMovimientos();
       document.getElementById('successMsg').style.display = 'block';
+      // NUEVO: refresca en segundo plano el snapshot de inventario (datosInventario) que usa
+      // Consulta de Códigos. Antes, registrar un movimiento actualizaba EXISTENCIAS en el
+      // servidor al instante, pero la copia en memoria del navegador se quedaba con los
+      // valores de antes hasta que alguien presionara "↻ Actualizar" — así que si el mismo
+      // usuario, en la misma sesión, registraba un Traslado y enseguida iba a Consulta de
+      // Códigos, seguía viendo la ubicación/stock viejos como si el movimiento nunca hubiera
+      // pasado. No se espera esta llamada (no hay "await") para no demorar el aviso de éxito;
+      // si falla, el usuario siempre puede refrescar a mano con el botón de Consulta.
+      // NUEVO: además, si la Consulta de Códigos ya estaba abierta con una búsqueda activa
+      // (visible en pantalla en ese momento), cargarDatos() solo actualiza el dato en
+      // memoria — la tabla ya dibujada se queda con los números viejos hasta que algo la
+      // vuelva a dibujar. Por eso se encadena un filtrarConsultaModal() cuando esa carga
+      // termina.
+      cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
     } else {
       alert('No se pudo registrar el lote de movimientos:\n' + (result.mensaje || 'Error desconocido') + '\nLos movimientos quedan en la lista para reintentar.');
     }
