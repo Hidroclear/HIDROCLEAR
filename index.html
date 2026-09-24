@@ -401,7 +401,12 @@
   .etq50-label:last-child { page-break-after: auto; break-after: auto; }
   .etq50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
   .etq50-row:last-child { border-bottom: none; }
-  .etq50-codigo { flex: 54 0 auto; font-weight: 900; font-size: 30px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* El tamaño de letra ya NO es fijo (antes 30px siempre) — se calcula en JS según el largo
+     del código (ver tamanoFuenteCodigoEtq50) y se aplica con style="font-size" en cada
+     etiqueta, para que un código corto se vea bien grande y uno largo no se corte. El
+     font-weight:900 ya es el máximo estándar, así que se suma un trazo fino
+     (-webkit-text-stroke) para que se vea con más cuerpo al imprimir, como pidió el usuario. */
+  .etq50-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.5px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .etq50-desc { flex: 35.25 0 auto; font-size: 13px; }
   .etq50-barcode-row { flex: 33.75 0 auto; }
   .etq50-cat { flex: 17.25 0 auto; font-size: 11px; font-weight: 700; }
@@ -3897,6 +3902,19 @@ function seleccionarCodigoEtiqueta50(idx) {
   dropdown.classList.remove('visible');
 }
 
+// Mientras más largo el código, más chico el texto — mismo criterio que
+// tamanoFuenteUbicacionRack usa para la ubicación de la etiqueta de Rack: un código corto
+// (la mayoría) se ve bien grande, y uno largo se va achicando en vez de cortarse con "...".
+function tamanoFuenteCodigoEtq50(codigo) {
+  const len = String(codigo || '').length;
+  if (len <= 6) return 48;
+  if (len <= 8) return 42;
+  if (len <= 10) return 36;
+  if (len <= 13) return 30;
+  if (len <= 16) return 25;
+  return 20;
+}
+
 function imprimirEtiquetaCodigo50() {
   if (!etiqueta50Seleccionada) { alert('Debe seleccionar un código'); return; }
   const cantidad = parseInt(document.getElementById('etq50Cantidad').value, 10);
@@ -3904,12 +3922,13 @@ function imprimirEtiquetaCodigo50() {
 
   const { codigo, descripcion, categoria } = etiqueta50Seleccionada;
   const printArea = document.getElementById('printAreaEtiqueta');
+  const tamCodigo = tamanoFuenteCodigoEtq50(codigo);
 
   let html = '';
   for (let n = 0; n < cantidad; n++) {
     html += `
       <div class="etq50-label">
-        <div class="etq50-row etq50-codigo">${codigo}</div>
+        <div class="etq50-row etq50-codigo" style="font-size:${tamCodigo}px">${codigo}</div>
         <div class="etq50-row etq50-desc">${descripcion}</div>
         <div class="etq50-row etq50-barcode-row"><svg class="etq50-barcode-svg" data-codigo="${codigo}"></svg></div>
         <div class="etq50-row etq50-cat"><span>CATEGORIA:</span><span>${categoria || ''}</span></div>
