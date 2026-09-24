@@ -377,20 +377,36 @@
     page-break-after: always; break-after: page;
   }
   .etq-label:last-child { page-break-after: auto; break-after: auto; }
-  .etq-banda { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid #000; }
+  /* IMPORTANTE (bug de "faltan columnas"/código de barras cortado): antes cada banda usaba
+     "flex: N 0 auto" (flex-shrink:0 + ancho automático). El problema es que "automático" se
+     calcula ANTES de rotar el contenido — por ejemplo el código de barras, antes de sus
+     -90°, mide 150mm de ANCHO (ver ajustarBarcodeSVG con rotado=true, que le pone ese ancho
+     a propósito para que al rotarlo termine con el alto correcto). Con flex-shrink:0, esa
+     banda se estiraba a esos 150mm reales dentro de una fila de solo 100mm de ancho total,
+     empujando las bandas de Descripción y Código completamente fuera del papel (por eso no
+     aparecían) y cortando buena parte del propio código de barras.
+     La solución: cada banda ahora tiene un ancho FIJO en mm (que sí suman 100mm entre las 5),
+     y el contenido que hay que rotar se saca del flujo normal con position:absolute + centrado
+     (top/left 50% + transform con translate y rotate) — así el tamaño de la banda ya no
+     depende de cuánto mediría su contenido sin rotar, el mismo truco que ya se usa en las
+     etiquetas de Rack/Receta 150mm (ver el comentario grande de .rack150-inner más abajo). */
+  .etq-banda { position: relative; height: 100%; overflow: hidden; border-right: 1px solid #000; box-sizing: border-box; }
   .etq-banda:last-child { border-right: none; }
-  .etq-banda-hidroclear { flex: 5 0 auto; }
-  .etq-banda-categoria { flex: 5.5 0 auto; }
-  .etq-banda-barras { flex: 14 0 auto; }
-  .etq-banda-desc { flex: 12 0 auto; }
-  .etq-banda-codigo { flex: 14 0 auto; }
-  .etq-rot { transform: rotate(-90deg); white-space: nowrap; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .etq-banda-hidroclear { flex: 0 0 9.9mm; }
+  .etq-banda-categoria { flex: 0 0 10.89mm; }
+  .etq-banda-barras { flex: 0 0 27.72mm; }
+  .etq-banda-desc { flex: 0 0 23.76mm; }
+  .etq-banda-codigo { flex: 0 0 27.72mm; }
+  .etq-rot {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg);
+    white-space: nowrap; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  }
   .etq-hidroclear-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 1px; color: #000; }
   .etq-cat-label { font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 13px; color: #000; }
   .etq-cat-valor { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #000; }
   .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 140mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .etq-codigo-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 40px; color: #000; }
-  .etq-barcode-svg { transform: rotate(-90deg); }
+  .etq-barcode-svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
 
   /* Etiqueta de Código 100mm x 50mm (sin rotación, texto horizontal) */
   .etq50-label {
