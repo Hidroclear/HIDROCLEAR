@@ -430,13 +430,17 @@
   .etqruta-valor-col { flex: 1; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
   .etqruta-titulo { flex: 39 0 auto; font-size: 22px; font-weight: 900; }
   .etqruta-cliente { flex: 82.5 0 auto; }
-  .etqruta-cliente .etqruta-valor-col { font-weight: 700; text-decoration: underline; font-size: 19px; white-space: normal; }
+  /* CLIENTE y OBS ya NO tienen un tamaño de letra fijo en CSS — se calculan en JS según la
+     cantidad de caracteres (ver tamanoFuenteClienteRuta/tamanoFuenteObsRuta) y se aplican con
+     style="font-size" en cada etiqueta, igual que ya se hace con el Código: un nombre/texto
+     corto se ve bien grande, y uno largo se va achicando en vez de cortarse. */
+  .etqruta-cliente .etqruta-valor-col { font-weight: 900; text-decoration: underline; text-decoration-thickness: 3px; -webkit-text-stroke: 0.4px #000; white-space: normal; }
   .etqruta-factura { flex: 39.75 0 auto; }
   .etqruta-factura .etqruta-valor-col { font-weight: 700; font-size: 20px; white-space: nowrap; }
   .etqruta-bultos { flex: 64.5 0 auto; }
-  .etqruta-bultos .etqruta-valor-col { font-weight: 900; font-size: 28px; text-align: center; white-space: nowrap; }
+  .etqruta-bultos .etqruta-valor-col { font-weight: 900; font-size: 44px; -webkit-text-stroke: 0.6px #000; text-align: center; white-space: nowrap; }
   .etqruta-obs { flex: 34.5 0 auto; }
-  .etqruta-obs .etqruta-valor-col { font-weight: 700; font-size: 13px; white-space: normal; }
+  .etqruta-obs .etqruta-valor-col { font-weight: 700; white-space: normal; }
   .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; }
 
   /* Etiqueta de Rack 100mm x 150mm — la foto que enviaste (una vez girada) muestra que TODO
@@ -3982,6 +3986,32 @@ function imprimirEtiquetaCodigo50() {
 
 /* ---------- RUTA 100mm x 100mm (cliente/factura/bultos, sin código de barras) ---------- */
 
+// Mientras más largo el nombre del cliente, más chica la letra — mismo criterio que ya se usa
+// para el Código en las etiquetas de Código: un nombre corto (la mayoría) se ve bien grande, y
+// uno largo se va achicando en vez de desbordar la fila. La fila de CLIENTE tiene bastante alto
+// disponible (puede acomodar el texto en 2 líneas si hace falta), así que los tamaños son
+// generosos.
+function tamanoFuenteClienteRuta(texto) {
+  const len = String(texto || '').length;
+  if (len <= 12) return 30;
+  if (len <= 18) return 26;
+  if (len <= 24) return 22;
+  if (len <= 32) return 19;
+  if (len <= 42) return 16;
+  return 14;
+}
+
+// Mismo criterio para Observaciones, pero con tamaños más chicos porque esa fila tiene bastante
+// menos alto disponible que la de CLIENTE.
+function tamanoFuenteObsRuta(texto) {
+  const len = String(texto || '').length;
+  if (len <= 15) return 18;
+  if (len <= 25) return 15;
+  if (len <= 40) return 13;
+  if (len <= 60) return 11;
+  return 9;
+}
+
 function imprimirEtiquetaRuta() {
   const cliente = document.getElementById('rutaCliente').value.trim();
   const factura = document.getElementById('rutaFactura').value.trim();
@@ -3993,6 +4023,10 @@ function imprimirEtiquetaRuta() {
   if (!totalBultos || totalBultos <= 0) { alert('La cantidad de bultos debe ser un número válido.'); return; }
 
   const printArea = document.getElementById('printAreaEtiqueta');
+  const clienteTexto = cliente.toUpperCase();
+  const obsTexto = observaciones.toUpperCase();
+  const tamCliente = tamanoFuenteClienteRuta(clienteTexto);
+  const tamObs = tamanoFuenteObsRuta(obsTexto);
 
   // Una etiqueta por bulto, numerada "n DE totalBultos" — igual que CMDIMPRIMIR100_100_Click
   let html = '';
@@ -4002,7 +4036,7 @@ function imprimirEtiquetaRuta() {
         <div class="etqruta-row etqruta-full etqruta-titulo">HIDROCLEAR</div>
         <div class="etqruta-row etqruta-cliente">
           <div class="etqruta-label-col">CLIENTE:</div>
-          <div class="etqruta-valor-col">${cliente.toUpperCase()}</div>
+          <div class="etqruta-valor-col" style="font-size:${tamCliente}px">${clienteTexto}</div>
         </div>
         <div class="etqruta-row etqruta-factura">
           <div class="etqruta-label-col">FACTURA:</div>
@@ -4014,7 +4048,7 @@ function imprimirEtiquetaRuta() {
         </div>
         <div class="etqruta-row etqruta-obs">
           <div class="etqruta-label-col">OBS:</div>
-          <div class="etqruta-valor-col">${observaciones.toUpperCase()}</div>
+          <div class="etqruta-valor-col" style="font-size:${tamObs}px">${obsTexto}</div>
         </div>
         <div class="etqruta-row etqruta-full etqruta-pie">HIDROCLEAR - Tel: (506) 2282-0100</div>
       </div>`;
