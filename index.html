@@ -400,19 +400,21 @@
   }
   .etqcod-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
   .etqcod-row:last-child { border-bottom: none; }
-  /* El tamaño de letra ya NO es fijo — se calcula en JS según el largo del código (ver
+  /* El tamaño de letra del código ya NO es fijo — se calcula en JS según su largo (ver
      tamanoFuenteCodigoEtiqueta) y se aplica con style="font-size" en cada etiqueta, para que
      un código corto se vea bien grande y uno largo no se corte. El font-weight:900 ya es el
-     máximo estándar, así que se suma un trazo fino (-webkit-text-stroke) para que se vea con
-     más cuerpo al imprimir, como pidió el usuario. Los tamaños son los mismos en las dos
-     etiquetas porque el ancho (100mm en ambas) es lo que realmente limita cuánto puede crecer
-     la letra sin desbordarse — el alto extra de la de 150mm simplemente le da más aire
-     alrededor del texto, no letra más grande. */
-  .etqcod-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.5px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .etqcod-desc { flex: 35.25 0 auto; font-size: 13px; }
+     máximo estándar, así que se suma un trazo (-webkit-text-stroke) para que se vea con más
+     cuerpo al imprimir. El usuario después pidió más volumen/tamaño también en Descripción,
+     Categoría e HIDROCLEAR — se subieron todos dejando margen de sobra dentro de cada fila
+     (los anchos de fila ya vienen con aire de sobra respecto al contenido real, así que hay
+     espacio para crecer sin que se corten ni se encimen). Los tamaños son los mismos en las
+     dos etiquetas (100x150mm y 100x50mm) porque comparten exactamente el mismo diseño — el
+     lienzo de la de 150mm simplemente es más grande, así que le queda incluso más aire. */
+  .etqcod-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.7px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .etqcod-desc { flex: 35.25 0 auto; font-size: 20px; font-weight: 700; -webkit-text-stroke: 0.3px #000; line-height: 1.1; }
   .etqcod-barcode-row { flex: 33.75 0 auto; }
-  .etqcod-cat { flex: 17.25 0 auto; font-size: 11px; font-weight: 700; }
-  .etqcod-hidroclear { flex: 18.75 0 auto; font-size: 14px; font-weight: 900; }
+  .etqcod-cat { flex: 17.25 0 auto; font-size: 15px; font-weight: 800; }
+  .etqcod-hidroclear { flex: 18.75 0 auto; font-size: 19px; font-weight: 900; -webkit-text-stroke: 0.3px #000; }
 
   /* Etiqueta para Ruta 100mm x 100mm (sin código de barras) */
   .etqruta-label {
@@ -3898,12 +3900,12 @@ function seleccionarCodigoEtiqueta50(idx) {
 // (100mm) — es el ancho, no el alto, lo que limita cuánto puede crecer el texto del código.
 function tamanoFuenteCodigoEtiqueta(codigo) {
   const len = String(codigo || '').length;
-  if (len <= 6) return 48;
-  if (len <= 8) return 42;
-  if (len <= 10) return 36;
-  if (len <= 13) return 30;
-  if (len <= 16) return 25;
-  return 20;
+  if (len <= 6) return 54;
+  if (len <= 8) return 48;
+  if (len <= 10) return 42;
+  if (len <= 13) return 36;
+  if (len <= 16) return 30;
+  return 24;
 }
 
 // Arma el HTML de UNA etiqueta de Código (100x150mm o 100x50mm). El usuario pidió
