@@ -441,7 +441,8 @@
   .etqruta-bultos .etqruta-valor-col { font-weight: 900; font-size: 44px; -webkit-text-stroke: 0.6px #000; text-align: center; white-space: nowrap; }
   .etqruta-obs { flex: 34.5 0 auto; }
   .etqruta-obs .etqruta-valor-col { font-weight: 700; white-space: normal; }
-  .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; }
+  .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; gap: 5px; }
+  .etqruta-icono-pie { height: 12px; width: 12px; flex-shrink: 0; }
 
   /* Etiqueta de Rack 100mm x 150mm — la foto que enviaste (una vez girada) muestra que TODO
      el contenido (HIDROCLEAR, la ubicación, las flechas+código de barras y la leyenda) es en
@@ -4012,6 +4013,17 @@ function tamanoFuenteObsRuta(texto) {
   return 9;
 }
 
+// El usuario pidió reemplazar la palabra "HIDROCLEAR" del pie de la etiqueta (ya está arriba,
+// en el título) por un ícono de Facebook y un símbolo de internet, antes del teléfono. Se
+// dibujan como SVG simples en blanco y negro (sin depender de ninguna fuente de íconos externa,
+// que no siempre imprime bien en la impresora térmica).
+function iconoFacebookSVG() {
+  return `<svg class="etqruta-icono-pie" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="10" fill="#000"/><path d="M38 14h-6c-7 0-11 4-11 11v7h-8v10h8v22h11V32h8l1-10h-9v-5c0-2 1-3 4-3h5z" fill="#fff"/></svg>`;
+}
+function iconoWebSVG() {
+  return `<svg class="etqruta-icono-pie" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#000" stroke-width="5"/><ellipse cx="32" cy="32" rx="11" ry="26" fill="none" stroke="#000" stroke-width="4"/><line x1="6" y1="32" x2="58" y2="32" stroke="#000" stroke-width="4"/><line x1="10" y1="18" x2="54" y2="18" stroke="#000" stroke-width="3"/><line x1="10" y1="46" x2="54" y2="46" stroke="#000" stroke-width="3"/></svg>`;
+}
+
 function imprimirEtiquetaRuta() {
   const cliente = document.getElementById('rutaCliente').value.trim();
   const factura = document.getElementById('rutaFactura').value.trim();
@@ -4050,7 +4062,11 @@ function imprimirEtiquetaRuta() {
           <div class="etqruta-label-col">OBS:</div>
           <div class="etqruta-valor-col" style="font-size:${tamObs}px">${obsTexto}</div>
         </div>
-        <div class="etqruta-row etqruta-full etqruta-pie">HIDROCLEAR - Tel: (506) 2282-0100</div>
+        <div class="etqruta-row etqruta-full etqruta-pie">
+          ${iconoFacebookSVG()}
+          ${iconoWebSVG()}
+          <span>Tel: (506) 2282-0100</span>
+        </div>
       </div>`;
   }
   printArea.innerHTML = html;
