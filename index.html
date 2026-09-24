@@ -474,7 +474,7 @@
   .rack150-flecha-svg { width: 36mm; height: 36mm; flex-shrink: 0; }
   .rack150-caption-txt { font-size: 22px; font-weight: 400; white-space: nowrap; }
 
-  /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas horizontales) */
+  /* Etiqueta de Rack 100mm x 50mm (sin rotación, flechas hacia abajo) */
   .rack50-label {
     width: 100mm; height: 50mm; box-sizing: border-box; border: 1px solid #000;
     display: flex; flex-direction: column; overflow: hidden;
@@ -484,12 +484,21 @@
   .rack50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 8px; min-height: 0; box-sizing: border-box; }
   .rack50-row:last-child { border-bottom: none; }
   .rack50-hidro { flex: 22 0 auto; font-size: 20px; font-weight: 900; }
-  .rack50-ubic { flex: 52 0 auto; font-size: 46px; font-weight: 900; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* Más grande (46px -> 60px) y con más "cuerpo": font-weight:900 ya es el máximo estándar,
+     así que se suma un trazo fino (-webkit-text-stroke) para que se vea más gruesa al
+     imprimir, más un subrayado más grueso para que acompañe. line-height:1 para que quepa
+     bien dentro de la fila con letra más grande. */
+  .rack50-ubic {
+    flex: 52 0 auto; font-size: 60px; font-weight: 900; line-height: 1;
+    text-decoration: underline; text-decoration-thickness: 4px; text-underline-offset: 3px;
+    -webkit-text-stroke: 0.6px #000;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
   .rack50-barcode-row { flex: 40 0 auto; }
   /* Antes eran caracteres de texto "▶"/"◀" (font-size 26px) — se ven distintos a las flechas
      sólidas en SVG de la etiqueta de 150mm. Ahora usan el MISMO dibujo (ver flechaRackSVG en
-     el JS), solo rotado 90° para quedar horizontal en vez de vertical, para que las dos
-     etiquetas de Rack se vean con el mismo estilo de flecha. */
+     el JS), apuntando hacia abajo (sin rotar), igual de estilo que en la de 150mm y como
+     corresponde: apuntan hacia la ubicación. */
   .rack50-flecha-svg { width: 10mm; height: 10mm; flex-shrink: 0; }
   .rack50-caption { flex: 18 0 auto; font-size: 12px; }
 
@@ -4140,19 +4149,19 @@ function imprimirEtiquetaRack(tam) {
           </div>
         </div>`;
     } else {
-      // Mismo dibujo de flecha que la de 150mm (flechaRackSVG), pero rotada en horizontal ya
-      // que aquí no hay ningún bloque que se rote como unidad: la izquierda apunta hacia la
-      // derecha y la derecha hacia la izquierda, ambas "mirando" hacia el código de barras.
-      const flechaIzq = flechaRackSVG('rack50-flecha-svg', -90);
-      const flechaDer = flechaRackSVG('rack50-flecha-svg', 90);
+      // Mismo dibujo de flecha que la de 150mm (flechaRackSVG) — aquí SIN rotar, ya que su
+      // orientación normal (apuntando hacia abajo) es la que corresponde: en esta etiqueta no
+      // hay ningún bloque que se rote como unidad, así que "abajo" en el dibujo es "abajo" en
+      // la etiqueta impresa tal cual.
+      const flechaAbajo = flechaRackSVG('rack50-flecha-svg', 0);
       html += `
         <div class="rack50-label">
           <div class="rack50-row rack50-hidro">HIDROCLEAR</div>
           <div class="rack50-row rack50-ubic">${ubicacion}</div>
           <div class="rack50-row rack50-barcode-row">
-            ${flechaIzq}
+            ${flechaAbajo}
             <svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg>
-            ${flechaDer}
+            ${flechaAbajo}
           </div>
           <div class="rack50-row rack50-caption">Bodega / Pasillo / Tramo / Nivel</div>
         </div>`;
