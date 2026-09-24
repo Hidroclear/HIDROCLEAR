@@ -486,7 +486,11 @@
   .rack50-hidro { flex: 22 0 auto; font-size: 20px; font-weight: 900; }
   .rack50-ubic { flex: 52 0 auto; font-size: 46px; font-weight: 900; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .rack50-barcode-row { flex: 40 0 auto; }
-  .rack50-flecha { font-size: 26px; font-weight: 900; }
+  /* Antes eran caracteres de texto "▶"/"◀" (font-size 26px) — se ven distintos a las flechas
+     sólidas en SVG de la etiqueta de 150mm. Ahora usan el MISMO dibujo (ver flechaRackSVG en
+     el JS), solo rotado 90° para quedar horizontal en vez de vertical, para que las dos
+     etiquetas de Rack se vean con el mismo estilo de flecha. */
+  .rack50-flecha-svg { width: 10mm; height: 10mm; flex-shrink: 0; }
   .rack50-caption { flex: 18 0 auto; font-size: 12px; }
 
   /* Etiqueta de Componentes de Receta 100mm x 150mm — mismo tamaño y misma orientación que
@@ -4063,6 +4067,18 @@ function llenarSelectResponsable() {
   else if (coincideUsuario) sel.value = coincideUsuario;
 }
 
+// Dibuja la misma flecha sólida (un triángulo con "cola", no la flecha fina de texto "▶"/"▼")
+// para las DOS etiquetas de Rack (150mm y 50mm), así se ven con el mismo estilo. La forma
+// base apunta hacia abajo; "grados" la rota para la orientación que haga falta en cada caso:
+//   - Rack 150mm: el bloque COMPLETO ya se rota como unidad (ver comentario grande de
+//     .rack150-inner más arriba), así que la flecha se dibuja sin rotación propia (0°).
+//   - Rack 50mm: no hay rotación de bloque, así que cada flecha se rota individualmente para
+//     apuntar en horizontal hacia el código de barras (-90° a la derecha, 90° a la izquierda).
+function flechaRackSVG(clase, grados) {
+  const rotacion = grados ? ` style="transform: rotate(${grados}deg)"` : '';
+  return `<svg class="${clase}" viewBox="0 0 100 100"${rotacion}><path d="M30,0 L70,0 L70,38 L92,38 L50,100 L8,38 L30,38 Z" fill="#000"/></svg>`;
+}
+
 // Mientras más larga la ubicación (bodega-pasillo-tramo-nivel), más chico el texto rotado
 // en la columna D de la etiqueta de 150mm, igual que el ajuste dinámico de la macro.
 function tamanoFuenteUbicacionRack(ubicacion) {
@@ -4109,7 +4125,7 @@ function imprimirEtiquetaRack(tam) {
       // definida en cualquier navegador/impresora, como la flecha de la foto de referencia.
       // Apunta hacia abajo en este bloque "derecho"; al rotar el bloque completo queda
       // apuntando hacia la ubicación, indicando hacia dónde corresponde ese nivel.
-      const flechaSVG = '<svg class="rack150-flecha-svg" viewBox="0 0 100 100"><path d="M30,0 L70,0 L70,38 L92,38 L50,100 L8,38 L30,38 Z" fill="#000"/></svg>';
+      const flechaSVG = flechaRackSVG('rack150-flecha-svg', 0);
       html += `
         <div class="rack150-label">
           <div class="rack150-inner">
@@ -4124,14 +4140,19 @@ function imprimirEtiquetaRack(tam) {
           </div>
         </div>`;
     } else {
+      // Mismo dibujo de flecha que la de 150mm (flechaRackSVG), pero rotada en horizontal ya
+      // que aquí no hay ningún bloque que se rote como unidad: la izquierda apunta hacia la
+      // derecha y la derecha hacia la izquierda, ambas "mirando" hacia el código de barras.
+      const flechaIzq = flechaRackSVG('rack50-flecha-svg', -90);
+      const flechaDer = flechaRackSVG('rack50-flecha-svg', 90);
       html += `
         <div class="rack50-label">
           <div class="rack50-row rack50-hidro">HIDROCLEAR</div>
           <div class="rack50-row rack50-ubic">${ubicacion}</div>
           <div class="rack50-row rack50-barcode-row">
-            <span class="rack50-flecha">▶</span>
+            ${flechaIzq}
             <svg class="rack-barcode-svg" data-codigo="${ubicacion}"></svg>
-            <span class="rack50-flecha">◀</span>
+            ${flechaDer}
           </div>
           <div class="rack50-row rack50-caption">Bodega / Pasillo / Tramo / Nivel</div>
         </div>`;
