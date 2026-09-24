@@ -410,7 +410,7 @@
      espacio para crecer sin que se corten ni se encimen). Los tamaños son los mismos en las
      dos etiquetas (100x150mm y 100x50mm) porque comparten exactamente el mismo diseño — el
      lienzo de la de 150mm simplemente es más grande, así que le queda incluso más aire. */
-  .etqcod-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.7px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .etqcod-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.9px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .etqcod-desc { flex: 35.25 0 auto; font-size: 20px; font-weight: 700; -webkit-text-stroke: 0.3px #000; line-height: 1.1; }
   .etqcod-barcode-row { flex: 33.75 0 auto; }
   .etqcod-cat { flex: 17.25 0 auto; font-size: 15px; font-weight: 800; }
@@ -3896,25 +3896,35 @@ function seleccionarCodigoEtiqueta50(idx) {
 // Mientras más largo el código, más chico el texto — mismo criterio que
 // tamanoFuenteUbicacionRack usa para la ubicación de la etiqueta de Rack: un código corto
 // (la mayoría) se ve bien grande, y uno largo se va achicando en vez de cortarse con "...".
-// Se usa igual para la etiqueta de 100x50mm y la de 100x150mm: las dos tienen el mismo ANCHO
-// (100mm) — es el ancho, no el alto, lo que limita cuánto puede crecer el texto del código.
-function tamanoFuenteCodigoEtiqueta(codigo) {
+// El usuario pidió además que el código se vea bien de largo/lejos, así que en la de 100x150mm
+// se aprovecha que su lienzo interno (ver .etqcod-inner) mide 100mm de alto antes de rotarse —
+// el DOBLE que el de la de 100x50mm (que mide 50mm) — y el texto del código escala también al
+// doble: mismo diseño y las mismas proporciones, solo que la etiqueta más grande deja más
+// espacio real para la letra, así que se usa. El resto de los campos (descripción, categoría,
+// HIDROCLEAR) no escalan por ahora — solo el código, que es lo único que pidió el usuario.
+const ESCALA_LETRA_CODIGO_POR_TAMANO = { '150': 2, '50': 1 };
+function tamanoFuenteCodigoEtiqueta(codigo, tam) {
   const len = String(codigo || '').length;
-  if (len <= 6) return 54;
-  if (len <= 8) return 48;
-  if (len <= 10) return 42;
-  if (len <= 13) return 36;
-  if (len <= 16) return 30;
-  return 24;
+  let base;
+  if (len <= 6) base = 54;
+  else if (len <= 8) base = 48;
+  else if (len <= 10) base = 42;
+  else if (len <= 13) base = 36;
+  else if (len <= 16) base = 30;
+  else base = 24;
+  const escala = ESCALA_LETRA_CODIGO_POR_TAMANO[tam] || 1;
+  return base * escala;
 }
 
 // Arma el HTML de UNA etiqueta de Código (100x150mm o 100x50mm). El usuario pidió
 // expresamente que las dos se vean iguales — mismo diseño, mismas filas, mismo orden — y que
 // lo ÚNICO que cambie sea el tamaño físico de la etiqueta (clase "tam-150"/"tam-50", que solo
-// controla el alto en CSS). Por eso imprimirEtiquetas() (150mm) e imprimirEtiquetaCodigo50()
-// arman su HTML llamando a esta misma función, en vez de tener cada una su propio template.
+// controla el alto en CSS) — el tamaño de letra del código sí escala junto con el tamaño físico
+// (ver ESCALA_LETRA_CODIGO_POR_TAMANO más arriba), el resto de los campos no. Por eso
+// imprimirEtiquetas() (150mm) e imprimirEtiquetaCodigo50() arman su HTML llamando a esta misma
+// función, en vez de tener cada una su propio template.
 function construirHtmlEtiquetaCodigo(codigo, descripcion, categoria, tam) {
-  const tamCodigo = tamanoFuenteCodigoEtiqueta(codigo);
+  const tamCodigo = tamanoFuenteCodigoEtiqueta(codigo, tam);
   return `
     <div class="etqcod-label tam-${tam}">
       <div class="etqcod-inner">
