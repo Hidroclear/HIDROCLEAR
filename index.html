@@ -371,62 +371,36 @@
   tr.rep-reabastecer td { background: rgb(255,235,156) !important; }
   tr.rep-comprar td { background: rgb(255,165,0) !important; }
   tr.rep-revisar td { background: rgb(255,235,156) !important; }
-  .etq-label {
-    width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
-    display: flex; flex-direction: row; overflow: hidden;
-    page-break-after: always; break-after: page;
-  }
-  .etq-label:last-child { page-break-after: auto; break-after: auto; }
-  /* IMPORTANTE (bug de "faltan columnas"/código de barras cortado): antes cada banda usaba
-     "flex: N 0 auto" (flex-shrink:0 + ancho automático). El problema es que "automático" se
-     calcula ANTES de rotar el contenido — por ejemplo el código de barras, antes de sus
-     -90°, mide 150mm de ANCHO (ver ajustarBarcodeSVG con rotado=true, que le pone ese ancho
-     a propósito para que al rotarlo termine con el alto correcto). Con flex-shrink:0, esa
-     banda se estiraba a esos 150mm reales dentro de una fila de solo 100mm de ancho total,
-     empujando las bandas de Descripción y Código completamente fuera del papel (por eso no
-     aparecían) y cortando buena parte del propio código de barras.
-     La solución: cada banda ahora tiene un ancho FIJO en mm (que sí suman 100mm entre las 5),
-     y el contenido que hay que rotar se saca del flujo normal con position:absolute + centrado
-     (top/left 50% + transform con translate y rotate) — así el tamaño de la banda ya no
-     depende de cuánto mediría su contenido sin rotar, el mismo truco que ya se usa en las
-     etiquetas de Rack/Receta 150mm (ver el comentario grande de .rack150-inner más abajo). */
-  .etq-banda { position: relative; height: 100%; overflow: hidden; border-right: 1px solid #000; box-sizing: border-box; }
-  .etq-banda:last-child { border-right: none; }
-  .etq-banda-hidroclear { flex: 0 0 9.9mm; }
-  .etq-banda-categoria { flex: 0 0 10.89mm; }
-  .etq-banda-barras { flex: 0 0 27.72mm; }
-  .etq-banda-desc { flex: 0 0 23.76mm; }
-  .etq-banda-codigo { flex: 0 0 27.72mm; }
-  .etq-rot {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg);
-    white-space: nowrap; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  }
-  .etq-hidroclear-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 1px; color: #000; }
-  .etq-cat-label { font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 13px; color: #000; }
-  .etq-cat-valor { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #000; }
-  .etq-desc-txt { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #000; max-width: 140mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .etq-codigo-txt { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 40px; color: #000; }
-  .etq-barcode-svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
-
-  /* Etiqueta de Código 100mm x 50mm (sin rotación, texto horizontal) */
-  .etq50-label {
-    width: 100mm; height: 50mm; box-sizing: border-box; border: 1px solid #000;
+  /* Etiqueta de Código: el usuario pidió que la de 100x150mm se vea IGUAL que la de
+     100x50mm — mismo diseño, mismo orden, sin rotar nada — y que lo ÚNICO que cambie sea el
+     tamaño físico de la etiqueta. Antes la de 150mm tenía un diseño totalmente distinto (5
+     franjas verticales con el texto rotado -90°, heredado de la macro vieja de Excel), así
+     que se reemplazó por este mismo diseño de filas apiladas que ya se usaba en la de 50mm —
+     ahora ambas comparten exactamente las mismas clases, y ".tam-150"/".tam-50" son las
+     ÚNICAS reglas que cambian entre una y otra (solo el alto de la etiqueta). */
+  .etqcod-label {
+    width: 100mm; box-sizing: border-box; border: 1px solid #000;
     display: flex; flex-direction: column; overflow: hidden;
     page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
   }
-  .etq50-label:last-child { page-break-after: auto; break-after: auto; }
-  .etq50-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
-  .etq50-row:last-child { border-bottom: none; }
-  /* El tamaño de letra ya NO es fijo (antes 30px siempre) — se calcula en JS según el largo
-     del código (ver tamanoFuenteCodigoEtq50) y se aplica con style="font-size" en cada
-     etiqueta, para que un código corto se vea bien grande y uno largo no se corte. El
-     font-weight:900 ya es el máximo estándar, así que se suma un trazo fino
-     (-webkit-text-stroke) para que se vea con más cuerpo al imprimir, como pidió el usuario. */
-  .etq50-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.5px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .etq50-desc { flex: 35.25 0 auto; font-size: 13px; }
-  .etq50-barcode-row { flex: 33.75 0 auto; }
-  .etq50-cat { flex: 17.25 0 auto; font-size: 11px; font-weight: 700; }
-  .etq50-hidroclear { flex: 18.75 0 auto; font-size: 14px; font-weight: 900; }
+  .etqcod-label:last-child { page-break-after: auto; break-after: auto; }
+  .etqcod-label.tam-150 { height: 150mm; }
+  .etqcod-label.tam-50 { height: 50mm; }
+  .etqcod-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
+  .etqcod-row:last-child { border-bottom: none; }
+  /* El tamaño de letra ya NO es fijo — se calcula en JS según el largo del código (ver
+     tamanoFuenteCodigoEtiqueta) y se aplica con style="font-size" en cada etiqueta, para que
+     un código corto se vea bien grande y uno largo no se corte. El font-weight:900 ya es el
+     máximo estándar, así que se suma un trazo fino (-webkit-text-stroke) para que se vea con
+     más cuerpo al imprimir, como pidió el usuario. Los tamaños son los mismos en las dos
+     etiquetas porque el ancho (100mm en ambas) es lo que realmente limita cuánto puede crecer
+     la letra sin desbordarse — el alto extra de la de 150mm simplemente le da más aire
+     alrededor del texto, no letra más grande. */
+  .etqcod-codigo { flex: 54 0 auto; font-weight: 900; -webkit-text-stroke: 0.5px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .etqcod-desc { flex: 35.25 0 auto; font-size: 13px; }
+  .etqcod-barcode-row { flex: 33.75 0 auto; }
+  .etqcod-cat { flex: 17.25 0 auto; font-size: 11px; font-weight: 700; }
+  .etqcod-hidroclear { flex: 18.75 0 auto; font-size: 14px; font-weight: 900; }
 
   /* Etiqueta para Ruta 100mm x 100mm (sin código de barras) */
   .etqruta-label {
@@ -3818,44 +3792,28 @@ function imprimirEtiquetas() {
   const { codigo, descripcion, categoria } = etiquetaSeleccionada;
   const printArea = document.getElementById('printAreaEtiqueta');
 
-  // Construir N etiquetas idénticas (una por copia), igual que la macro (CMDIMPRIMIR_Click)
+  // El usuario pidió que esta etiqueta (100x150mm) se vea EXACTAMENTE igual que la de
+  // 100x50mm — mismo diseño, mismas filas, sin rotar nada — y que lo único que cambie sea el
+  // tamaño físico de la etiqueta. Por eso arma su HTML con la misma función compartida que usa
+  // imprimirEtiquetaCodigo50(), solo que pasándole tam='150'.
   let html = '';
   for (let n = 0; n < cantidad; n++) {
-    html += `
-      <div class="etq-label">
-        <div class="etq-banda etq-banda-hidroclear">
-          <div class="etq-rot"><span class="etq-hidroclear-txt">HIDROCLEAR</span></div>
-        </div>
-        <div class="etq-banda etq-banda-categoria">
-          <div class="etq-rot">
-            <span class="etq-cat-label">CATEGORIA</span>
-            <span class="etq-cat-valor">${categoria || ''}</span>
-          </div>
-        </div>
-        <div class="etq-banda etq-banda-barras">
-          <svg class="etq-barcode-svg" data-codigo="${codigo}"></svg>
-        </div>
-        <div class="etq-banda etq-banda-desc">
-          <div class="etq-rot"><span class="etq-desc-txt">${descripcion}</span></div>
-        </div>
-        <div class="etq-banda etq-banda-codigo">
-          <div class="etq-rot"><span class="etq-codigo-txt">${codigo}</span></div>
-        </div>
-      </div>`;
+    html += construirHtmlEtiquetaCodigo(codigo, descripcion, categoria, '150');
   }
   printArea.innerHTML = html;
 
   // Generar el código de barras real (Code128, escaneable) en cada etiqueta
-  printArea.querySelectorAll('.etq-barcode-svg').forEach(svg => {
+  printArea.querySelectorAll('.etqcod-barcode-svg').forEach(svg => {
     JsBarcode(svg, svg.dataset.codigo, {
       format: 'CODE128',
       displayValue: false,
       margin: 0,
-      width: 1.4,
-      height: 470
+      width: 1.2,
+      height: 60
     });
-    // Columna C: 14 de 50.5 unidades de ancho total (100mm) x 150mm de alto, rotada.
-    ajustarBarcodeSVG(svg, 100 * 14 / 50.5, 150, true);
+    // Fila de código de barras: 33.75 de 159 unidades de alto total (150mm), sin rotar —
+    // misma proporción que en la de 50mm, solo que sobre una etiqueta 3 veces más alta.
+    ajustarBarcodeSVG(svg, 92, 150 * 33.75 / 159, false);
   });
 
   // Forzar el tamaño de página a 100x150mm solo durante esta impresión,
@@ -3921,7 +3879,9 @@ function seleccionarCodigoEtiqueta50(idx) {
 // Mientras más largo el código, más chico el texto — mismo criterio que
 // tamanoFuenteUbicacionRack usa para la ubicación de la etiqueta de Rack: un código corto
 // (la mayoría) se ve bien grande, y uno largo se va achicando en vez de cortarse con "...".
-function tamanoFuenteCodigoEtq50(codigo) {
+// Se usa igual para la etiqueta de 100x50mm y la de 100x150mm: las dos tienen el mismo ANCHO
+// (100mm) — es el ancho, no el alto, lo que limita cuánto puede crecer el texto del código.
+function tamanoFuenteCodigoEtiqueta(codigo) {
   const len = String(codigo || '').length;
   if (len <= 6) return 48;
   if (len <= 8) return 42;
@@ -3931,6 +3891,23 @@ function tamanoFuenteCodigoEtq50(codigo) {
   return 20;
 }
 
+// Arma el HTML de UNA etiqueta de Código (100x150mm o 100x50mm). El usuario pidió
+// expresamente que las dos se vean iguales — mismo diseño, mismas filas, mismo orden — y que
+// lo ÚNICO que cambie sea el tamaño físico de la etiqueta (clase "tam-150"/"tam-50", que solo
+// controla el alto en CSS). Por eso imprimirEtiquetas() (150mm) e imprimirEtiquetaCodigo50()
+// arman su HTML llamando a esta misma función, en vez de tener cada una su propio template.
+function construirHtmlEtiquetaCodigo(codigo, descripcion, categoria, tam) {
+  const tamCodigo = tamanoFuenteCodigoEtiqueta(codigo);
+  return `
+    <div class="etqcod-label tam-${tam}">
+      <div class="etqcod-row etqcod-codigo" style="font-size:${tamCodigo}px">${codigo}</div>
+      <div class="etqcod-row etqcod-desc">${descripcion}</div>
+      <div class="etqcod-row etqcod-barcode-row"><svg class="etqcod-barcode-svg" data-codigo="${codigo}"></svg></div>
+      <div class="etqcod-row etqcod-cat"><span>CATEGORIA:</span><span>${categoria || ''}</span></div>
+      <div class="etqcod-row etqcod-hidroclear">HIDROCLEAR</div>
+    </div>`;
+}
+
 function imprimirEtiquetaCodigo50() {
   if (!etiqueta50Seleccionada) { alert('Debe seleccionar un código'); return; }
   const cantidad = parseInt(document.getElementById('etq50Cantidad').value, 10);
@@ -3938,22 +3915,14 @@ function imprimirEtiquetaCodigo50() {
 
   const { codigo, descripcion, categoria } = etiqueta50Seleccionada;
   const printArea = document.getElementById('printAreaEtiqueta');
-  const tamCodigo = tamanoFuenteCodigoEtq50(codigo);
 
   let html = '';
   for (let n = 0; n < cantidad; n++) {
-    html += `
-      <div class="etq50-label">
-        <div class="etq50-row etq50-codigo" style="font-size:${tamCodigo}px">${codigo}</div>
-        <div class="etq50-row etq50-desc">${descripcion}</div>
-        <div class="etq50-row etq50-barcode-row"><svg class="etq50-barcode-svg" data-codigo="${codigo}"></svg></div>
-        <div class="etq50-row etq50-cat"><span>CATEGORIA:</span><span>${categoria || ''}</span></div>
-        <div class="etq50-row etq50-hidroclear">HIDROCLEAR</div>
-      </div>`;
+    html += construirHtmlEtiquetaCodigo(codigo, descripcion, categoria, '50');
   }
   printArea.innerHTML = html;
 
-  printArea.querySelectorAll('.etq50-barcode-svg').forEach(svg => {
+  printArea.querySelectorAll('.etqcod-barcode-svg').forEach(svg => {
     JsBarcode(svg, svg.dataset.codigo, { format: 'CODE128', displayValue: false, margin: 0, width: 1.2, height: 60 });
     // Fila de código de barras: 33.75 de 159 unidades de alto total (50mm), sin rotar.
     ajustarBarcodeSVG(svg, 92, 50 * 33.75 / 159, false);
