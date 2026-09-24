@@ -371,21 +371,33 @@
   tr.rep-reabastecer td { background: rgb(255,235,156) !important; }
   tr.rep-comprar td { background: rgb(255,165,0) !important; }
   tr.rep-revisar td { background: rgb(255,235,156) !important; }
-  /* Etiqueta de Código: el usuario pidió que la de 100x150mm se vea IGUAL que la de
-     100x50mm — mismo diseño, mismo orden, sin rotar nada — y que lo ÚNICO que cambie sea el
-     tamaño físico de la etiqueta. Antes la de 150mm tenía un diseño totalmente distinto (5
-     franjas verticales con el texto rotado -90°, heredado de la macro vieja de Excel), así
-     que se reemplazó por este mismo diseño de filas apiladas que ya se usaba en la de 50mm —
-     ahora ambas comparten exactamente las mismas clases, y ".tam-150"/".tam-50" son las
-     ÚNICAS reglas que cambian entre una y otra (solo el alto de la etiqueta). */
+  /* Etiqueta de Código: el usuario pidió que la de 100x150mm tenga la MISMA información y
+     diseño que la de 100x50mm (mismas filas, mismo orden, mismo estilo) — pero aclaró después
+     que, como el rollo de papel mide 100mm de ancho fijo, la hoja de 150mm sale "parada"
+     (más alta que ancha), y esta etiqueta se usa/lee de forma HORIZONTAL (acostada, con el
+     lado de 150mm de forma horizontal) — igual que ya pasa con Rack/Receta 100x150mm. Por eso
+     el contenido se arma en un lienzo horizontal (150mm de ancho x 100mm de alto) y se rota
+     -90° con position:absolute para que encaje en la hoja física parada (100x150mm); leída en
+     su posición de uso (acostada), se ve exactamente igual que la de 100x50mm, solo más
+     grande. La de 100x50mm no necesita nada de esto porque esa hoja YA sale acostada (100mm
+     de ancho x 50mm de alto), así que su contenido no se rota.
+     ".etqcod-inner" es el único lugar donde cambia el mecanismo entre un tamaño y otro — todas
+     las filas (".etqcod-row" y sus variantes) son compartidas tal cual entre las dos. */
   .etqcod-label {
     width: 100mm; box-sizing: border-box; border: 1px solid #000;
-    display: flex; flex-direction: column; overflow: hidden;
+    position: relative; overflow: hidden;
     page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
   }
   .etqcod-label:last-child { page-break-after: auto; break-after: auto; }
   .etqcod-label.tam-150 { height: 150mm; }
   .etqcod-label.tam-50 { height: 50mm; }
+  .etqcod-inner { display: flex; flex-direction: column; }
+  .etqcod-label.tam-50 .etqcod-inner { width: 100%; height: 100%; }
+  .etqcod-label.tam-150 .etqcod-inner {
+    position: absolute; top: 50%; left: 50%;
+    width: 150mm; height: 100mm;
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
   .etqcod-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
   .etqcod-row:last-child { border-bottom: none; }
   /* El tamaño de letra ya NO es fijo — se calcula en JS según el largo del código (ver
@@ -3811,9 +3823,12 @@ function imprimirEtiquetas() {
       width: 1.2,
       height: 60
     });
-    // Fila de código de barras: 33.75 de 159 unidades de alto total (150mm), sin rotar —
-    // misma proporción que en la de 50mm, solo que sobre una etiqueta 3 veces más alta.
-    ajustarBarcodeSVG(svg, 92, 150 * 33.75 / 159, false);
+    // El código de barras vive DENTRO del lienzo horizontal ya rotado (.etqcod-inner, 150mm de
+    // ancho x 100mm de alto antes de rotarse) — por eso NO necesita su propia rotación
+    // individual (rotado=false): toda la hoja ya gira como un solo bloque. Misma proporción de
+    // alto que en la de 50mm (33.75 de 159 unidades), sobre un lienzo de 100mm de alto en vez
+    // de 50mm, y de 150mm de ancho en vez de 100mm (92% de cobertura, igual que en la de 50mm).
+    ajustarBarcodeSVG(svg, 150 * 0.92, 100 * 33.75 / 159, false);
   });
 
   // Forzar el tamaño de página a 100x150mm solo durante esta impresión,
@@ -3900,11 +3915,13 @@ function construirHtmlEtiquetaCodigo(codigo, descripcion, categoria, tam) {
   const tamCodigo = tamanoFuenteCodigoEtiqueta(codigo);
   return `
     <div class="etqcod-label tam-${tam}">
-      <div class="etqcod-row etqcod-codigo" style="font-size:${tamCodigo}px">${codigo}</div>
-      <div class="etqcod-row etqcod-desc">${descripcion}</div>
-      <div class="etqcod-row etqcod-barcode-row"><svg class="etqcod-barcode-svg" data-codigo="${codigo}"></svg></div>
-      <div class="etqcod-row etqcod-cat"><span>CATEGORIA:</span><span>${categoria || ''}</span></div>
-      <div class="etqcod-row etqcod-hidroclear">HIDROCLEAR</div>
+      <div class="etqcod-inner">
+        <div class="etqcod-row etqcod-codigo" style="font-size:${tamCodigo}px">${codigo}</div>
+        <div class="etqcod-row etqcod-desc">${descripcion}</div>
+        <div class="etqcod-row etqcod-barcode-row"><svg class="etqcod-barcode-svg" data-codigo="${codigo}"></svg></div>
+        <div class="etqcod-row etqcod-cat"><span>CATEGORIA:</span><span>${categoria || ''}</span></div>
+        <div class="etqcod-row etqcod-hidroclear">HIDROCLEAR</div>
+      </div>
     </div>`;
 }
 
