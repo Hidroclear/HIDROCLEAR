@@ -72,7 +72,7 @@
   .content-scroll { flex: 1; overflow-y: auto; }
 
   /* MAIN */
-  .main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .main { max-width: 1320px; margin: 0 auto; padding: 32px 24px; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
   .stat-card { background: #fff; border-radius: 10px; padding: 18px 20px; border-left: 4px solid var(--celeste); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .stat-card .label { font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
@@ -136,7 +136,7 @@
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10,20,40,0.55); z-index: 1000; align-items: flex-start; justify-content: center; padding: 8vh 16px; }
   .modal-overlay.visible { display: flex; }
   .modal-box { background: #fff; border-radius: 14px; width: 100%; max-width: 420px; max-height: 78vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
-  .modal-box-ancho { max-width: 980px; }
+  .modal-box-ancho { max-width: 1140px; }
   .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 2px solid var(--gris); position: sticky; top: 0; background: #fff; border-radius: 14px 14px 0 0; }
   .modal-header-marca { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .modal-header-logo { height: 22px; object-fit: contain; flex-shrink: 0; }
@@ -147,9 +147,14 @@
   .consulta-filtros { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px; }
   .consulta-filtros .form-field { flex: 1 1 180px; min-width: 150px; }
   .consulta-filtros .btn-limpiar { flex: 0 0 auto; }
-  .consulta-tabla-wrap { border: 1px solid var(--gris); border-radius: 10px; overflow: hidden; max-height: 48vh; overflow-y: auto; }
+  .consulta-tabla-wrap { border: 1px solid var(--gris); border-radius: 10px; overflow: hidden; max-height: 48vh; overflow-y: auto; overflow-x: auto; }
   .consulta-tabla-wrap table { width: 100%; border-collapse: collapse; }
   .consulta-tabla-wrap thead th { position: sticky; top: 0; z-index: 1; }
+  /* Código, Ubicación y las columnas de cantidades son valores cortos y de una sola pieza
+     (ej. "02-O-1-01") — se ven mal partidos en dos líneas, así que no se les permite wrap.
+     Solo la Descripción (columna 2) se deja envolver normalmente si hace falta. */
+  .consulta-tabla-wrap th:not(:nth-child(2)),
+  .consulta-tabla-wrap td:not(:nth-child(2)) { white-space: nowrap; }
   .mov-consulta-placeholder { font-size: 13px; color: var(--texto-suave); text-align: center; padding: 34px 12px; }
 
   /* Cabecera del formulario de movimiento, con el botón "Aplicar Reservas" a la derecha
@@ -177,10 +182,10 @@
      movimientos de ese código (para rastrear dónde quedó un error de inventario). */
   .btn-historial-codigo { background: none; border: none; cursor: pointer; font-size: 13px; padding: 0 2px; vertical-align: middle; opacity: 0.75; }
   .btn-historial-codigo:hover { opacity: 1; }
-  .historial-tabla-wrap { max-height: 50vh; overflow-y: auto; }
+  .historial-tabla-wrap { max-height: 50vh; overflow-y: auto; overflow-x: auto; }
   .historial-tabla-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .historial-tabla-wrap th { position: sticky; top: 0; background: var(--azul); color: #fff; text-align: left; padding: 8px 10px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.3px; }
-  .historial-tabla-wrap td { padding: 7px 10px; border-bottom: 1px solid var(--gris); }
+  .historial-tabla-wrap td { padding: 7px 10px; border-bottom: 1px solid var(--gris); white-space: nowrap; }
   .historial-tabla-wrap tr:last-child td { border-bottom: none; }
   .historial-tipo-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
   .historial-tipo-INGRESO { background: #e3f6e9; color: #1f8a4c; }
@@ -190,10 +195,14 @@
 
   /* MODAL: Aplicar Reservas — agrupa reservas por comercial/documento y permite aplicar
      (dar salida) o cancelar, igual que la ventana "APLICAR RESERVAS" de la macro. */
-  .reserva-lista-box { border: 1px solid var(--gris); border-radius: 10px; overflow-y: auto; margin-bottom: 16px; }
+  .reserva-lista-box { border: 1px solid var(--gris); border-radius: 10px; overflow-y: auto; overflow-x: auto; margin-bottom: 16px; }
   .reserva-lista-box.docs { max-height: 160px; }
   .reserva-lista-box.items { max-height: 220px; }
   .reserva-lista-box table { width: 100%; border-collapse: collapse; }
+  /* Igual que en Consulta de Stock: Código, Cantidad y Ubicación no se dejan partir en dos
+     líneas — solo la Descripción (columna 3 de "Ítems Pendientes") se deja envolver. */
+  .reserva-lista-box td { white-space: nowrap; }
+  #reservaItemsBody td:nth-child(3) { white-space: normal; }
   .reserva-doc-row { cursor: pointer; }
   .reserva-doc-row:hover td { background: #f0f5ff; }
   .reserva-doc-row.seleccionada td { background: #e3edff; }
@@ -3020,6 +3029,22 @@ function seleccionarCodigo(codigo, descripcion) {
       }
     } else {
       sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
+    }
+  } else if (tipoMovimientoActual === 'INGRESO') {
+    // NUEVO: si el código ya tiene existencia en alguna ubicación, se autorellena esa
+    // ubicación en "Ubicación Entrante" (lo normal es reingresarlo donde ya vivía) — a
+    // diferencia de Salida/Traslado, aquí NO se restringe la lista de ubicaciones del select
+    // (un Ingreso puede ser justo para guardarlo en una bodega nueva que todavía no tiene
+    // stock de este código), solo se preselecciona un valor por defecto.
+    const ubicacionesConStockIngreso = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega))];
+    const selIngreso = document.getElementById('movUbicacion');
+    if (ubicacionesConStockIngreso.length > 0) {
+      const primariaIngreso = ubicacionesConStockIngreso.find(u => tipoDeUbicacion(u) === 'PRIMARIA');
+      selIngreso.value = primariaIngreso || (ubicacionesConStockIngreso.length === 1 ? ubicacionesConStockIngreso[0] : '');
+    } else {
+      // Código nuevo sin ninguna existencia: se limpia el select para que no se quede pegada
+      // la ubicación de un código anterior que sí tenía autorrelleno.
+      selIngreso.value = '';
     }
   }
 }
