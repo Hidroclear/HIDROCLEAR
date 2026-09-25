@@ -3029,6 +3029,39 @@ function tipoDeUbicacion(bodega) {
   return u && String(u.tipo || '').toUpperCase() === 'PRIMARIA' ? 'PRIMARIA' : 'SECUNDARIA';
 }
 
+// Para TRASLADO, el usuario pidió que "Ubicación Destino" se autorellene con la ubicación
+// PRIMARIA de este código — la ubicación PRIMARIA donde puede que ya haya stock (no
+// necesariamente: puede ser 0, es justo el motivo típico de un traslado, devolver el producto a
+// su lugar), o si ahora mismo no tiene nada en ninguna Primaria, la ÚLTIMA ubicación PRIMARIA
+// que este código tuvo alguna vez según su historial de movimientos (Ingresos/Salidas/Traslados
+// anteriores). Si el código nunca ha estado en ninguna Primaria (ni ahora ni en su historial),
+// no se fuerza nada y el usuario elige libremente, como pidió.
+async function buscarUbicacionPrimariaParaTraslado(codigo) {
+  // 1) ¿Tiene alguna fila en Existencias en una bodega marcada Primaria ahora mismo? (sin
+  // exigir stock > 0 — una Primaria en 0 es justo el caso típico que motiva el traslado).
+  const filaPrimariaActual = datosInventario.find(d => d.codigo === codigo && tipoDeUbicacion(d.bodega) === 'PRIMARIA');
+  if (filaPrimariaActual) return filaPrimariaActual.bodega;
+
+  // 2) Si no, se revisa su historial completo (se carga bajo demanda, una sola vez por sesión)
+  // de más reciente a más antiguo, y se toma la primera ubicación Primaria que aparezca —
+  // ya sea como destino o como origen de un movimiento anterior.
+  try {
+    await cargarDatosReportes();
+  } catch (err) {
+    return ''; // sin historial disponible, no se fuerza nada
+  }
+  const claveCodigo = String(codigo).trim().toUpperCase();
+  const filasCodigo = (movimientosHistorial || [])
+    .filter(m => String(m.codigo).trim().toUpperCase() === claveCodigo)
+    .slice()
+    .reverse(); // más reciente primero (vienen más antiguo primero, ver mostrarHistorialCodigo)
+  for (const m of filasCodigo) {
+    if (m.ubicacion_destino && tipoDeUbicacion(m.ubicacion_destino) === 'PRIMARIA') return m.ubicacion_destino;
+    if (m.ubicacion_origen && tipoDeUbicacion(m.ubicacion_origen) === 'PRIMARIA') return m.ubicacion_origen;
+  }
+  return ''; // nunca ha estado en una Primaria: se deja libre, el usuario elige
+}
+
 function seleccionarCodigo(codigo, descripcion) {
   document.getElementById('movCodigoBuscar').value = codigo + ' - ' + descripcion;
   document.getElementById('movCodigo').value = codigo;
@@ -3056,6 +3089,23 @@ function seleccionarCodigo(codigo, descripcion) {
       }
     } else {
       sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
+    }
+    if (tipoMovimientoActual === 'TRASLADO') {
+      // "Ubicación Destino": NO se restringe la lista (puede ser cualquier bodega, incluso una
+      // sin stock todavía — de eso se trata un traslado), solo se preselecciona la Primaria de
+      // este código si se encuentra una (ver buscarUbicacionPrimariaParaTraslado). La búsqueda
+      // en el historial es asíncrona (se carga bajo demanda), así que se guarda qué código
+      // estaba seleccionado al pedirla, y si el usuario ya cambió de código para cuando
+      // responde, el resultado se descarta en vez de pisarle el destino a otro código.
+      const selDestino = document.getElementById('movUbicacionDestino');
+      selDestino.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
+      selDestino.value = '';
+      const codigoAlPedir = codigo;
+      buscarUbicacionPrimariaParaTraslado(codigo).then(primariaDestino => {
+        if (primariaDestino && document.getElementById('movCodigo').value === codigoAlPedir) {
+          selDestino.value = primariaDestino;
+        }
+      });
     }
   } else if (tipoMovimientoActual === 'INGRESO') {
     // NUEVO: si el código ya tiene existencia en alguna ubicación, se autorellena esa
