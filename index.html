@@ -1555,17 +1555,81 @@ function escJsAttr(valor) {
     .replace(/'/g, "\\'");
 }
 
-const USUARIOS = {
-  'JJIMENEZ': { password: 'J0jimen', nombre: 'JIMMY JIMENEZ', rol: 'admin' },
-  'LRIOS':    { password: 'LRIOS1',  nombre: 'LUIS RIOS', rol: 'admin' },
-  'KARIAS':   { password: '7019',    nombre: 'KENNER ARIAS', rol: 'admin' },
-  'CONSULTA': { password: 'Consulta', nombre: 'USUARIO CONSULTA', rol: 'consulta' },
-  'TECNICO':  { password: 'Tec2026',  nombre: 'TECNICO',          rol: 'tecnico' },
-  'COMERCIAL': { password: 'Com2026', nombre: 'COMERCIAL',         rol: 'comercial' },
-  'BODEGA':   { password: 'Bod2026',  nombre: 'BODEGA',            rol: 'bodega' }
-};
+// SEGURIDAD: antes aquí había un objeto USUARIOS con las contraseñas de los 7 usuarios en
+// texto plano — como este archivo es público (GitHub Pages), cualquiera podía abrir el
+// código fuente de la página y leerlas. Ahora el usuario y la contraseña se validan en el
+// backend (Apps Script), que responde con un token de sesión — este archivo ya no conoce
+// ninguna contraseña. Ver iniciarSesion() más abajo.
+
+// Duración de la sesión por INACTIVIDAD (no desde el login): si pasan estos minutos sin
+// ninguna actividad real (clic, tecla, scroll, etc.), se cierra la sesión sola y hay que
+// volver a ingresar usuario y contraseña. Debe coincidir con DURACION_SESION_SEG del
+// backend (Code_actualizado.gs) — ahí se controla la parte que de verdad importa (el
+// token deja de servir), esto solo evita que la pantalla se quede "viva" más tiempo del
+// que el token realmente dura.
+const DURACION_INACTIVIDAD_MS = 10 * 60 * 1000;
 
 let usuarioActivo = null;
+let sesionToken = null;
+let ultimaActividadUsuario = Date.now();
+
+// Agrega el token de sesión a una URL de consulta (GET) del backend.
+function conToken(url) {
+  return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + encodeURIComponent(sesionToken || '');
+}
+
+// Agrega el token de sesión al cuerpo de una petición (POST) al backend, sin tener que
+// repetir esto a mano en cada una de las llamadas que escriben datos.
+function cuerpoConToken(obj) {
+  return JSON.stringify(Object.assign({}, obj, { token: sesionToken }));
+}
+
+// Se llama después de leer CUALQUIER respuesta del backend (ver leerRespuestaBackend). Si
+// el backend dice que la sesión ya no es válida (venció por inactividad, o el token no
+// existe), se cierra la sesión localmente y se manda de vuelta a la pantalla de login —
+// en vez de dejar que cada pantalla del sistema falle en silencio o muestre un error
+// confuso sin explicar por qué.
+let avisoDeSesionExpiradaEnProceso = false;
+function manejarSesionExpirada() {
+  if (avisoDeSesionExpiradaEnProceso) return;
+  avisoDeSesionExpiradaEnProceso = true;
+  cerrarSesion('Tu sesión expiró por inactividad. Ingresa de nuevo.');
+  setTimeout(() => { avisoDeSesionExpiradaEnProceso = false; }, 2000);
+}
+
+// Envoltorio para leer la respuesta JSON de cualquier llamada al backend: además de
+// parsear el JSON, revisa si la sesión ya expiró (código SESION_EXPIRADA) para reaccionar
+// en un solo lugar, en vez de repetir esa revisión en cada una de las ~20 llamadas al
+// backend que tiene el sistema.
+async function leerRespuestaBackend(resp) {
+  const datos = await resp.json();
+  if (datos && datos.status === 'error' && datos.codigo === 'SESION_EXPIRADA') {
+    manejarSesionExpirada();
+    throw new Error('SESION_EXPIRADA');
+  }
+  return datos;
+}
+
+// Cualquier interacción real del usuario (clic, tecla, scroll, tocar la pantalla) reinicia
+// el conteo de inactividad. Se registra apenas ocurre el evento (passive:true = no hace
+// más lento el scroll/touch esperando a que termine este código).
+function registrarActividad() {
+  ultimaActividadUsuario = Date.now();
+}
+['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evento => {
+  document.addEventListener(evento, registrarActividad, { passive: true });
+});
+
+// Revisa cada 15 segundos si ya pasaron DURACION_INACTIVIDAD_MS sin actividad real; si es
+// así, cierra la sesión sola (aunque la pestaña siga abierta) para que quien llegue después
+// a ese equipo tenga que volver a ingresar usuario y contraseña.
+function verificarInactividad() {
+  if (!usuarioActivo) return;
+  if (Date.now() - ultimaActividadUsuario >= DURACION_INACTIVIDAD_MS) {
+    cerrarSesion('Sesión cerrada por inactividad. Ingresa de nuevo.');
+  }
+}
+setInterval(verificarInactividad, 15000);
 let datosInventario = [];
 // Catálogo maestro de códigos (hoja CODIGOS): a diferencia de datosInventario (que solo
 // trae códigos con stock > 0 en EXISTENCIAS), este incluye TODOS los códigos que existen,
@@ -1614,22 +1678,51 @@ function actualizarLiveIndicador() {
 }
 setInterval(actualizarLiveIndicador, 30000);
 
-function iniciarSesion() {
+async function iniciarSesion() {
   const usuario = document.getElementById('loginUsuario').value.trim().toUpperCase();
   const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
-  if (USUARIOS[usuario] && USUARIOS[usuario].password === password) {
-    usuarioActivo = { usuario, nombre: USUARIOS[usuario].nombre, rol: USUARIOS[usuario].rol };
-    sessionStorage.setItem('hc_usuario', JSON.stringify(usuarioActivo));
-    errorEl.style.display = 'none';
-    mostrarApp();
-  } else {
+  const btn = document.querySelector('.btn-login');
+  if (!usuario || !password) {
+    errorEl.textContent = 'Ingrese usuario y contraseña.';
     errorEl.style.display = 'block';
-    document.getElementById('loginPassword').value = '';
+    return;
+  }
+  errorEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Ingresando...';
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo_peticion: 'LOGIN', usuario, password })
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      sesionToken = result.token;
+      usuarioActivo = { usuario: result.usuario, nombre: result.nombre, rol: result.rol };
+      sessionStorage.setItem('hc_usuario', JSON.stringify(usuarioActivo));
+      sessionStorage.setItem('hc_token', sesionToken);
+      registrarActividad();
+      mostrarApp();
+    } else {
+      errorEl.textContent = 'Usuario o contraseña incorrectos.';
+      errorEl.style.display = 'block';
+      document.getElementById('loginPassword').value = '';
+    }
+  } catch (err) {
+    // Distingue un fallo de red/backend de una contraseña incorrecta, para no confundir a
+    // quien intenta entrar sin conexión con alguien que de verdad se equivocó de clave.
+    errorEl.textContent = 'No se pudo conectar con el servidor. Revise su conexión a internet e intente de nuevo.';
+    errorEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Ingresar';
   }
 }
 
 function mostrarApp() {
+  registrarActividad();
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('appContent').classList.remove('hidden');
   document.getElementById('nombreUsuario').textContent = usuarioActivo.nombre;
@@ -1661,18 +1754,39 @@ function mostrarApp() {
   cargarDatos();
 }
 
-function cerrarSesion() {
+function cerrarSesion(mensaje) {
+  // Aviso al backend para invalidar el token de una vez (en vez de esperar a que expire
+  // solo por inactividad). Es "mejor esfuerzo": si esta llamada falla (sin conexión, etc.)
+  // la sesión local se cierra igual, y el token de todas formas vence solo a los 10 minutos.
+  if (sesionToken) {
+    fetch(GS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo_peticion: 'LOGOUT', token: sesionToken })
+    }).catch(() => {});
+  }
   sessionStorage.removeItem('hc_usuario');
+  sessionStorage.removeItem('hc_token');
   usuarioActivo = null;
+  sesionToken = null;
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('appContent').classList.add('hidden');
   document.getElementById('loginUsuario').value = '';
   document.getElementById('loginPassword').value = '';
+  const errorEl = document.getElementById('loginError');
+  if (mensaje) {
+    errorEl.textContent = mensaje;
+    errorEl.style.display = 'block';
+  } else {
+    errorEl.style.display = 'none';
+  }
 }
 
 const sesionGuardada = sessionStorage.getItem('hc_usuario');
-if (sesionGuardada) {
+const tokenGuardado = sessionStorage.getItem('hc_token');
+if (sesionGuardada && tokenGuardado) {
   usuarioActivo = JSON.parse(sesionGuardada);
+  sesionToken = tokenGuardado;
   mostrarApp();
 }
 
@@ -1770,19 +1884,19 @@ async function cargarDatos() {
   datosInventario = [];
   try {
     const [respInv, respRes, respCod] = await Promise.all([
-      fetch(GS_URL + '?tipo=INVENTARIO'),
-      fetch(GS_URL + '?tipo=RESERVAS'),
-      fetch(GS_URL + '?tipo=CODIGOS')
+      fetch(conToken(GS_URL + '?tipo=INVENTARIO')),
+      fetch(conToken(GS_URL + '?tipo=RESERVAS')),
+      fetch(conToken(GS_URL + '?tipo=CODIGOS'))
     ]);
     if (!respInv.ok) throw new Error('Error de red: ' + respInv.status);
-    const result = await respInv.json();
+    const result = await leerRespuestaBackend(respInv);
     if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
     datosInventario = result.datos || [];
 
     // Catálogo maestro de códigos (ver obtenerCodigosUnicos) — si falla, no se detiene la
     // carga: sencillamente los códigos con stock cero no aparecerán hasta el próximo refresh.
     try {
-      const resultCod = await respCod.json();
+      const resultCod = await leerRespuestaBackend(respCod);
       datosCodigos = resultCod.status === 'ok' ? (resultCod.datos || []) : [];
     } catch (errCod) {
       console.error('Error cargando catálogo de códigos:', errCod);
@@ -1799,7 +1913,7 @@ async function cargarDatos() {
 
     reservasPorCodigo = {};
     try {
-      const resultRes = await respRes.json();
+      const resultRes = await leerRespuestaBackend(respRes);
       if (resultRes.status === 'ok') {
         (resultRes.datos || []).forEach(r => {
           reservasPorCodigo[String(r.codigo).trim()] = Number(r.cantidad) || 0;
@@ -1925,8 +2039,8 @@ function cargarListasMovimientos() {
   // Los códigos ya no se piden aparte al Apps Script: se derivan del inventario (ver
   // obtenerCodigosUnicos). Solo Ubicaciones necesita su propia llamada, porque incluye
   // bodegas/posiciones vacías que no aparecen en el inventario actual.
-  listasMovimientosCargaPromise = fetch(GS_URL + '?tipo=UBICACIONES')
-    .then(resp => resp.json())
+  listasMovimientosCargaPromise = fetch(conToken(GS_URL + '?tipo=UBICACIONES'))
+    .then(resp => leerRespuestaBackend(resp))
     .then(jsonUbic => {
       todosCodigos = obtenerCodigosUnicos();
       todasUbicaciones = jsonUbic.status === 'ok' ? jsonUbic.datos : [];
@@ -2059,8 +2173,8 @@ async function cargarComercialesReserva() {
   const sel = document.getElementById('movComercial');
   sel.innerHTML = '<option value="">Seleccione...</option>';
   try {
-    const resp = await fetch(GS_URL + '?tipo=USUARIOS_PEDIDO&perfil=COMERCIAL&t=' + Date.now());
-    const json = await resp.json();
+    const resp = await fetch(conToken(GS_URL + '?tipo=USUARIOS_PEDIDO&perfil=COMERCIAL&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
     if (json.status === 'ok' && json.datos.length > 0) {
       json.datos.forEach(n => {
         const opt = document.createElement('option');
@@ -2096,8 +2210,8 @@ function cerrarModalAplicarReservas() {
 
 async function cargarReservasDetalle() {
   try {
-    const resp = await fetch(GS_URL + '?tipo=RESERVAS_DETALLE&t=' + Date.now());
-    const json = await resp.json();
+    const resp = await fetch(conToken(GS_URL + '?tipo=RESERVAS_DETALLE&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
     reservasDetalleCargadas = json.status === 'ok' ? (json.datos || []) : [];
   } catch (err) {
     reservasDetalleCargadas = [];
@@ -2293,9 +2407,9 @@ async function confirmarAplicarReservas() {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ tipo_peticion: 'APLICAR_RESERVAS', items: itemsAEnviar })
+      body: cuerpoConToken({ tipo_peticion: 'APLICAR_RESERVAS', items: itemsAEnviar })
     });
-    const result = await resp.json();
+    const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
       cerrarModalConfirmarDocumentoReserva();
       alert(`${itemsAEnviar.length} ítem(s) aplicado(s) y registrado(s) como salida.`);
@@ -2343,9 +2457,9 @@ async function cancelarReservaSeleccionada() {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ tipo_peticion: 'CANCELAR_RESERVA_LOTE', filas })
+      body: cuerpoConToken({ tipo_peticion: 'CANCELAR_RESERVA_LOTE', filas })
     });
-    const result = await resp.json();
+    const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
       alert(`${filas.length} reserva(s) cancelada(s).`);
       // NUEVO: mismo motivo que en aplicarReservasSeleccionadas — quita de inmediato, en
@@ -2372,8 +2486,8 @@ async function cancelarReservaSeleccionada() {
 // formularios de movimiento) sin recargar todo el inventario.
 async function refrescarReservasPorCodigo() {
   try {
-    const resp = await fetch(GS_URL + '?tipo=RESERVAS&t=' + Date.now());
-    const json = await resp.json();
+    const resp = await fetch(conToken(GS_URL + '?tipo=RESERVAS&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
     if (json.status === 'ok') {
       reservasPorCodigo = {};
       (json.datos || []).forEach(r => { reservasPorCodigo[String(r.codigo).trim()] = Number(r.cantidad) || 0; });
@@ -2654,8 +2768,8 @@ async function mostrarDetalleReservaCodigo(codigo) {
   document.getElementById('modalDetalleReserva').classList.add('visible');
   let detalle = [];
   try {
-    const resp = await fetch(GS_URL + '?tipo=RESERVAS_DETALLE&t=' + Date.now());
-    const json = await resp.json();
+    const resp = await fetch(conToken(GS_URL + '?tipo=RESERVAS_DETALLE&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
     detalle = json.status === 'ok' ? (json.datos || []) : [];
   } catch (err) {
     cuerpo.innerHTML = '<div class="mov-consulta-placeholder">No se pudo cargar el detalle de la reserva. Cierre esta ventana e intente de nuevo.</div>';
@@ -2960,12 +3074,12 @@ async function registrarListaMovimientos() {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
+      body: cuerpoConToken({
         tipo_peticion: 'MOVIMIENTOS_LOTE',
         items: movimientosPendientes.map(construirPayloadItem)
       })
     });
-    const result = await resp.json();
+    const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
       // Actualiza el Resumen Mensual de forma optimista (si ya está abierto en esta sesión),
       // sin esperar ningún refresh — igual que pide el usuario ("dinámicos... según se van
@@ -3182,9 +3296,9 @@ async function guardarNuevoCodigo() {
   try {
     const resp = await fetch(GS_URL, {
       method: 'POST',
-      body: JSON.stringify({ tipo_peticion: 'AGREGAR_CODIGO', codigo, descripcion, categoria })
+      body: cuerpoConToken({ tipo_peticion: 'AGREGAR_CODIGO', codigo, descripcion, categoria })
     });
-    const result = await resp.json();
+    const result = await leerRespuestaBackend(resp);
     if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
 
     // Se agrega al instante al catálogo en memoria, sin esperar a un refresco completo de datos.
@@ -3347,9 +3461,9 @@ async function enviarPedido() {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ tipo_peticion: 'PEDIDO', fecha, responsable, orden: cliente, items: carritoPedido })
+      body: cuerpoConToken({ tipo_peticion: 'PEDIDO', fecha, responsable, orden: cliente, items: carritoPedido })
     });
-    const result = await resp.json();
+    const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
       const consec = result.consecutivo || '';
       mostrarMsgPedido('✅ Solicitud ' + consec + ' enviada correctamente para: ' + cliente, 'ok');
@@ -3478,8 +3592,8 @@ async function cargarPedidosPendientes() {
     document.getElementById('btnRecargarPendientes').textContent = '↻ Actualizando...';
   }
   try {
-    const resp = await fetch(GS_URL + '?tipo=PEDIDOS&t=' + Date.now());
-    const json = await resp.json();
+    const resp = await fetch(conToken(GS_URL + '?tipo=PEDIDOS&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
     if (json.status !== 'ok') throw new Error(json.mensaje);
     todosPedidos = json.datos || [];
     renderPedidosPendientes();
@@ -3631,7 +3745,7 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
     await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
+      body: cuerpoConToken({
         tipo_peticion: 'ENTREGAR_PEDIDO',
         consecutivo,
         fecha: fechaEntrega,
@@ -3660,7 +3774,7 @@ async function cancelarPedido(filasJson) {
     await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ tipo_peticion: 'CANCELAR_PEDIDOS_LOTE', filas })
+      body: cuerpoConToken({ tipo_peticion: 'CANCELAR_PEDIDOS_LOTE', filas })
     });
     todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'CANCELADA'; });
     renderPedidosPendientes();
@@ -3710,8 +3824,8 @@ async function cargarNombresPedido() {
   const tipo = rol === 'comercial' ? 'COMERCIAL' : 'TECNICO';
   sel.innerHTML = '<option value="">— Seleccione su nombre —</option>';
   try {
-    const resp = await fetch(GS_URL + '?tipo=USUARIOS_PEDIDO&perfil=' + tipo + '&t=' + Date.now());
-    const json = await resp.json();
+    const resp = await fetch(conToken(GS_URL + '?tipo=USUARIOS_PEDIDO&perfil=' + tipo + '&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
     if (json.status === 'ok' && json.datos.length > 0) {
       json.datos.forEach(n => {
         const opt = document.createElement('option');
@@ -4168,8 +4282,8 @@ let listasRackCargaPromise = null;
 function cargarListasRack() {
   if (listasRackCargaPromise) return listasRackCargaPromise;
   document.querySelectorAll('.rack-select').forEach(s => { s.innerHTML = '<option value="">Cargando...</option>'; });
-  listasRackCargaPromise = fetch(GS_URL + '?tipo=LISTAS_RACK')
-    .then(resp => resp.json())
+  listasRackCargaPromise = fetch(conToken(GS_URL + '?tipo=LISTAS_RACK'))
+    .then(resp => leerRespuestaBackend(resp))
     .then(json => {
       if (json.status === 'ok') {
         listasRack = json.datos;
@@ -4416,11 +4530,11 @@ function prepararFiltrosReporte(tipo) {
 function cargarDatosReportes() {
   if (reportesCargaPromise) return reportesCargaPromise;
   reportesCargaPromise = Promise.all([
-    fetch(GS_URL + '?tipo=MOVIMIENTOS_HISTORIAL'),
-    fetch(GS_URL + '?tipo=RESERVAS_DETALLE')
+    fetch(conToken(GS_URL + '?tipo=MOVIMIENTOS_HISTORIAL')),
+    fetch(conToken(GS_URL + '?tipo=RESERVAS_DETALLE'))
   ]).then(async ([respHist, respRes]) => {
-    const jsonHist = await respHist.json();
-    const jsonRes = await respRes.json();
+    const jsonHist = await leerRespuestaBackend(respHist);
+    const jsonRes = await leerRespuestaBackend(respRes);
     movimientosHistorial = jsonHist.status === 'ok' ? jsonHist.datos : [];
     reservasDetalleReportes = jsonRes.status === 'ok' ? jsonRes.datos : [];
     datosReportesCargados = true;
@@ -4589,8 +4703,8 @@ function imprimirExistencias() {
 function cargarDatosRecetas() {
   if (recetasCargaPromise) return recetasCargaPromise;
   datosRecetasError = false;
-  recetasCargaPromise = fetch(GS_URL + '?tipo=RECETAS')
-    .then(resp => resp.json())
+  recetasCargaPromise = fetch(conToken(GS_URL + '?tipo=RECETAS'))
+    .then(resp => leerRespuestaBackend(resp))
     .then(json => {
       datosRecetas = json.status === 'ok' ? json.datos : [];
       datosRecetasCargados = true;
