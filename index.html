@@ -1561,17 +1561,8 @@ function escJsAttr(valor) {
 // backend (Apps Script), que responde con un token de sesión — este archivo ya no conoce
 // ninguna contraseña. Ver iniciarSesion() más abajo.
 
-// Duración de la sesión por INACTIVIDAD (no desde el login): si pasan estos minutos sin
-// ninguna actividad real (clic, tecla, scroll, etc.), se cierra la sesión sola y hay que
-// volver a ingresar usuario y contraseña. Debe coincidir con DURACION_SESION_SEG del
-// backend (Code_actualizado.gs) — ahí se controla la parte que de verdad importa (el
-// token deja de servir), esto solo evita que la pantalla se quede "viva" más tiempo del
-// que el token realmente dura.
-const DURACION_INACTIVIDAD_MS = 10 * 60 * 1000;
-
 let usuarioActivo = null;
 let sesionToken = null;
-let ultimaActividadUsuario = Date.now();
 
 // Agrega el token de sesión a una URL de consulta (GET) del backend.
 function conToken(url) {
@@ -1584,16 +1575,17 @@ function cuerpoConToken(obj) {
   return JSON.stringify(Object.assign({}, obj, { token: sesionToken }));
 }
 
-// Se llama después de leer CUALQUIER respuesta del backend (ver leerRespuestaBackend). Si
-// el backend dice que la sesión ya no es válida (venció por inactividad, o el token no
-// existe), se cierra la sesión localmente y se manda de vuelta a la pantalla de login —
-// en vez de dejar que cada pantalla del sistema falle en silencio o muestre un error
-// confuso sin explicar por qué.
+// Se llama después de leer CUALQUIER respuesta del backend (ver leerRespuestaBackend). Ya
+// no hay cierre automático por inactividad (a pedido de Jimmy) — esto solo reacciona si el
+// backend dice que la sesión ya no es válida por otro motivo (por ejemplo, alguien cerró esa
+// misma sesión desde otro equipo, o el token ya no existe), mandando de vuelta a la pantalla
+// de login en vez de dejar que cada pantalla del sistema falle en silencio o muestre un
+// error confuso sin explicar por qué.
 let avisoDeSesionExpiradaEnProceso = false;
 function manejarSesionExpirada() {
   if (avisoDeSesionExpiradaEnProceso) return;
   avisoDeSesionExpiradaEnProceso = true;
-  cerrarSesion('Tu sesión expiró por inactividad. Ingresa de nuevo.');
+  cerrarSesion('Tu sesión ya no es válida. Ingresa de nuevo.');
   setTimeout(() => { avisoDeSesionExpiradaEnProceso = false; }, 2000);
 }
 
@@ -1610,26 +1602,6 @@ async function leerRespuestaBackend(resp) {
   return datos;
 }
 
-// Cualquier interacción real del usuario (clic, tecla, scroll, tocar la pantalla) reinicia
-// el conteo de inactividad. Se registra apenas ocurre el evento (passive:true = no hace
-// más lento el scroll/touch esperando a que termine este código).
-function registrarActividad() {
-  ultimaActividadUsuario = Date.now();
-}
-['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evento => {
-  document.addEventListener(evento, registrarActividad, { passive: true });
-});
-
-// Revisa cada 15 segundos si ya pasaron DURACION_INACTIVIDAD_MS sin actividad real; si es
-// así, cierra la sesión sola (aunque la pestaña siga abierta) para que quien llegue después
-// a ese equipo tenga que volver a ingresar usuario y contraseña.
-function verificarInactividad() {
-  if (!usuarioActivo) return;
-  if (Date.now() - ultimaActividadUsuario >= DURACION_INACTIVIDAD_MS) {
-    cerrarSesion('Sesión cerrada por inactividad. Ingresa de nuevo.');
-  }
-}
-setInterval(verificarInactividad, 15000);
 let datosInventario = [];
 // Catálogo maestro de códigos (hoja CODIGOS): a diferencia de datosInventario (que solo
 // trae códigos con stock > 0 en EXISTENCIAS), este incluye TODOS los códigos que existen,
@@ -1703,7 +1675,6 @@ async function iniciarSesion() {
       usuarioActivo = { usuario: result.usuario, nombre: result.nombre, rol: result.rol };
       sessionStorage.setItem('hc_usuario', JSON.stringify(usuarioActivo));
       sessionStorage.setItem('hc_token', sesionToken);
-      registrarActividad();
       mostrarApp();
     } else {
       errorEl.textContent = 'Usuario o contraseña incorrectos.';
@@ -1722,7 +1693,6 @@ async function iniciarSesion() {
 }
 
 function mostrarApp() {
-  registrarActividad();
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('appContent').classList.remove('hidden');
   document.getElementById('nombreUsuario').textContent = usuarioActivo.nombre;
@@ -1800,6 +1770,10 @@ const TITULOS_SECCION = {
 };
 
 function mostrarSeccion(seccion, el) {
+  // A pedido de Jimmy: si se sale de "Consulta de Códigos" hacia otra sección, la próxima vez
+  // que la vuelva a abrir debe verse limpia (sin el código que haya consultado antes), en vez
+  // de conservar la última búsqueda de la vez anterior.
+  const consultaEstabaAbierta = !document.getElementById('seccionConsulta').classList.contains('hidden');
   document.getElementById('seccionConsulta').classList.add('hidden');
   document.getElementById('seccionMovimientos').classList.add('hidden');
   document.getElementById('seccionPedidos').classList.add('hidden');
@@ -1814,6 +1788,10 @@ function mostrarSeccion(seccion, el) {
   if (titulos) {
     document.getElementById('crumb').textContent = titulos[0];
     document.getElementById('tituloPag').textContent = titulos[1];
+  }
+
+  if (consultaEstabaAbierta && seccion !== 'consulta') {
+    limpiarFiltrosConsultaModal();
   }
 
   if (seccion === 'consulta') {
@@ -2718,6 +2696,10 @@ function abrirModalConsultaRapida() {
 
 function cerrarModalConsultaRapida() {
   document.getElementById('modalConsultaRapida').classList.remove('visible');
+  // A pedido de Jimmy: al cerrar esta ventana se limpia la búsqueda, para que la próxima vez
+  // que se abra (desde Ingresos/Salidas/Traslados/Reservas) aparezca en blanco, sin el
+  // código que se haya consultado la vez anterior.
+  limpiarFiltrosConsultaRapida();
 }
 
 function filtrarConsultaRapida() {
