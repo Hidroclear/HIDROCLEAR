@@ -2696,42 +2696,61 @@ function renderConsultaStock(ids) {
 
   const inventarioAgrupado = agruparPorCodigoUbicacion(datosInventario);
 
-  let coincidencias = inventarioAgrupado.filter(d => {
+  const coincidencias = inventarioAgrupado.filter(d => {
     const coincideCodigo = !codigoFiltro || String(d.codigo).toLowerCase().includes(codigoFiltro) || (d.descripcion || '').toLowerCase().includes(codigoFiltro);
     const coincideUbicacion = !ubicacionFiltro || d.bodega === ubicacionFiltro;
     const coincideDesc = !descFiltro || (d.descripcion || '').toLowerCase().includes(descFiltro);
     return coincideCodigo && coincideUbicacion && coincideDesc;
   });
 
+  // IMPORTANTE: el código buscado puede quedar "tapado" por otro código que coincide por
+  // casualidad como subcadena de texto — por ejemplo, buscar "806010" SÍ encuentra
+  // "9806010" (que tiene stock), así que "coincidencias" ya no sale vacío aunque el "806010"
+  // exacto no tenga ninguna fila en EXISTENCIAS. Por eso los dos pasos de abajo (catálogo e
+  // historial) NO se condicionan a que "coincidencias" esté vacío — se AGREGAN aparte,
+  // evitando duplicar los códigos que ya aparecieron, para que un código distinto con 0 nunca
+  // quede oculto solo porque otro código no relacionado sí dio una coincidencia.
+  const codigosYaIncluidos = new Set(coincidencias.map(d => String(d.codigo).trim().toUpperCase()));
+
   // Caso reportado por Jimmy (código 806010): un código puede llegar a 0 en TODAS sus
   // ubicaciones y, poco después, desaparecer POR COMPLETO de "EXISTENCIAS" — no solo quedar
   // en 0 — porque la exportación periódica de la macro de Excel (cada ~30 min, ver el
   // comentario grande en ajustarStockPorMovimientos en el backend) reescribe esa hoja dejando
   // solo las combinaciones con stock positivo. Cuando eso ya pasó, el código ya no tiene
-  // NINGUNA fila en datosInventario, así que "coincidencias" sale vacío aunque el código sí
-  // exista. Por eso, si se buscó por código (no por ubicación, que no aplica aquí porque un
-  // código sin ninguna fila en EXISTENCIAS no puede "pertenecer" a una ubicación concreta) y
-  // no hay ninguna coincidencia en el inventario, se busca igual en el catálogo maestro de
-  // códigos (CODIGOS, que no depende del stock) para seguir mostrando el código en 0 y no
-  // perder el acceso al Historial.
-  if (!coincidencias.length && codigoFiltro && !ubicacionFiltro) {
-    coincidencias = (todosCodigos || []).filter(c => {
+  // NINGUNA fila en datosInventario. Por eso, si se buscó por código (no por ubicación, que no
+  // aplica aquí porque un código sin ninguna fila en EXISTENCIAS no puede "pertenecer" a una
+  // ubicación concreta), se busca TAMBIÉN en el catálogo maestro de códigos (CODIGOS, que no
+  // depende del stock) y se agrega cualquier código que coincida y que no haya aparecido ya,
+  // para seguir mostrándolo en 0 y no perder el acceso al Historial.
+  if (codigoFiltro && !ubicacionFiltro) {
+    (todosCodigos || []).forEach(c => {
+      const clave = String(c.codigo).trim().toUpperCase();
+      if (codigosYaIncluidos.has(clave)) return; // ya tiene fila real (con o sin stock)
       const coincideCodigo = String(c.codigo).toLowerCase().includes(codigoFiltro) || (c.descripcion || '').toLowerCase().includes(codigoFiltro);
       const coincideDesc = !descFiltro || (c.descripcion || '').toLowerCase().includes(descFiltro);
-      return coincideCodigo && coincideDesc;
-    }).map(c => ({ codigo: c.codigo, descripcion: c.descripcion, bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: c.categoria || '' }));
+      if (!coincideCodigo || !coincideDesc) return;
+      coincidencias.push({ codigo: c.codigo, descripcion: c.descripcion, bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: c.categoria || '' });
+      codigosYaIncluidos.add(clave);
+    });
   }
 
-  // Último recurso: el código tampoco está en el catálogo de CODIGOS (puede haberse borrado
-  // de ahí también, o nunca haber estado — con datos reales, a veces un código se registra
-  // directo en un movimiento sin pasarlo antes por el catálogo). La fuente definitiva de qué
-  // códigos han existido alguna vez es el historial completo de movimientos (TRAZABILIDAD
-  // TOTAL): si aparece ahí aunque sea una vez, se muestra en 0 para no perder el acceso al
-  // Historial — que es, al final, lo que Jimmy pidió poder consultar siempre.
+  // Último recurso: el código buscado tampoco apareció, ni exacto ni como parte de otro
+  // código, en EXISTENCIAS ni en el catálogo de CODIGOS (puede haberse borrado de ahí también,
+  // o nunca haber estado — con datos reales, a veces un código se registra directo en un
+  // movimiento sin pasarlo antes por el catálogo). La fuente definitiva de qué códigos han
+  // existido alguna vez es el historial completo de movimientos (TRAZABILIDAD TOTAL): si
+  // aparece ahí aunque sea una vez, se muestra en 0 para no perder el acceso al Historial —
+  // que es, al final, lo que Jimmy pidió poder consultar siempre.
+  // OJO: a propósito se activa con "coincidencias sigue vacío" (después de EXISTENCIAS y del
+  // catálogo), NO con "no hay coincidencia exacta" — una búsqueda como "COD-" que de entrada
+  // ya trae varios códigos reales (COD-1, COD-2, ...) no es "código no encontrado", es una
+  // búsqueda amplia a propósito, y no debe dispararle una carga del historial completo ni
+  // reemplazar esos resultados por "Buscando...". El historial queda como último recurso
+  // solo para cuando de verdad no apareció NADA en EXISTENCIAS ni en el catálogo.
   // "Consulta de Códigos" es también la pantalla de Inicio y carga rápido a propósito, sin
   // pedir el historial completo (eso puede tardar); por eso solo se pide aquí, como último
-  // recurso, cuando de verdad no se encontró nada más — y la consulta se vuelve a pintar sola
-  // en cuanto llegue, sin que el usuario tenga que volver a buscar.
+  // recurso — y la consulta se vuelve a pintar sola en cuanto llegue, sin que el usuario tenga
+  // que volver a buscar.
   if (!coincidencias.length && codigoFiltro && !ubicacionFiltro && !descFiltro) {
     if (!datosReportesCargados) {
       tabla.classList.add('hidden');
@@ -2741,12 +2760,13 @@ function renderConsultaStock(ids) {
       cargarDatosReportes().then(() => renderConsultaStock(ids));
       return;
     }
-    const codigosEnHistorial = [...new Set(
-      (movimientosHistorial || [])
-        .filter(m => String(m.codigo).toLowerCase().includes(codigoFiltro))
-        .map(m => String(m.codigo).trim())
-    )];
-    coincidencias = codigosEnHistorial.map(cod => ({ codigo: cod, descripcion: '', bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: '' }));
+    (movimientosHistorial || []).forEach(m => {
+      const clave = String(m.codigo).trim().toUpperCase();
+      if (codigosYaIncluidos.has(clave)) return;
+      if (!String(m.codigo).toLowerCase().includes(codigoFiltro)) return;
+      coincidencias.push({ codigo: String(m.codigo).trim(), descripcion: '', bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: '' });
+      codigosYaIncluidos.add(clave);
+    });
   }
 
   // Cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila sigue
