@@ -5506,9 +5506,13 @@ function imprimirReporte() {
   printArea.style.display = 'none';
 }
 
-// Mientras más componentes tenga la receta, más chica la letra de la tabla, para que quepan
-// todas las filas sin cortarse dentro de la etiqueta de 100x150mm (mismo criterio que
-// tamanoFuenteUbicacionRack usa para el texto de ubicación en la etiqueta de Rack).
+// Punto de partida para el tamaño de letra de la tabla — antes era el valor FINAL (una tabla
+// de tramos fija a ojo), pero Jimmy reportó que con 14 componentes (ej. SC90-TWIN-WS125) el
+// tramo asignado (9.5px) igual no alcanzaba y la impresión salía cortada en 10 líneas: las
+// cuentas de cuánto "debería" caber a mano no coincidían con lo que el navegador imprimía de
+// verdad. Ahora esto solo da el tamaño INICIAL (para que las recetas cortas no tengan que
+// iterar), y calcularFuenteQueCabe() de abajo lo termina de ajustar midiendo el alto REAL ya
+// renderizado, así siempre caben todas las filas sin importar cuántas sean.
 function tamanoFuenteTablaReceta(numFilas) {
   if (numFilas <= 5) return 15;
   if (numFilas <= 8) return 13;
@@ -5516,6 +5520,30 @@ function tamanoFuenteTablaReceta(numFilas) {
   if (numFilas <= 15) return 9.5;
   if (numFilas <= 20) return 8;
   return 7;
+}
+
+// ¿La tabla de componentes (ya con el tamaño de letra actual) se sale del bloque de 100x150mm
+// que la contiene? Se mide con el alto REAL ya renderizado (scrollHeight vs. clientHeight) en
+// vez de calcularlo a mano con los mm/px del CSS — esa cuenta a mano es justo lo que falló con
+// la tabla de tramos fija de arriba. Separada en su propia función para poder reemplazarla en
+// las pruebas automáticas (jsdom no calcula layout real, así que ahí se simula).
+function medirDesbordeTablaReceta(contenedor) {
+  return contenedor.scrollHeight > contenedor.clientHeight + 0.5;
+}
+
+// Reduce el tamaño de letra de "tabla" de a poco, volviendo a medir cada vez, hasta que quepa
+// completa dentro de "contenedor" (o hasta llegar a "tamMinimo", para no dejarla ilegible) —
+// así la etiqueta de Receta siempre imprime TODAS las filas, sea cual sea la cantidad de
+// componentes, en vez de depender de una tabla de tamaños calculada a mano que podía quedarse
+// corta (como pasó con 14 componentes).
+function calcularFuenteQueCabe(tabla, contenedor, tamInicial, tamMinimo) {
+  let tam = tamInicial;
+  tabla.style.fontSize = tam + 'px';
+  while (tam > tamMinimo && medirDesbordeTablaReceta(contenedor)) {
+    tam = Math.max(tamMinimo, tam - 0.25);
+    tabla.style.fontSize = tam + 'px';
+  }
+  return tam;
 }
 
 // Imprime los componentes de la receta actualmente en pantalla (ver generarReceta) como una
@@ -5569,6 +5597,17 @@ function imprimirEtiquetaReceta() {
 
   ocultarTodasLasAreasDeImpresion();
   printArea.style.display = 'block';
+
+  // Recién AHORA que el bloque está visible (display:block) el navegador puede medir su alto
+  // real, así que el ajuste fino de letra se hace aquí, justo antes de imprimir — con la tabla
+  // ya visible pero todavía sin mandar a imprimir, por si hace falta achicarla más de lo que
+  // tamanoFuenteTablaReceta calculó de entrada (ver el comentario grande ahí arriba).
+  const tablaEtiqueta = printArea.querySelector('.receta150-tabla');
+  const innerEtiqueta = printArea.querySelector('.receta150-inner');
+  if (tablaEtiqueta && innerEtiqueta) {
+    calcularFuenteQueCabe(tablaEtiqueta, innerEtiqueta, tamFuente, 6);
+  }
+
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
 }
 
