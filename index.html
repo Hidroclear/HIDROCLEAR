@@ -367,6 +367,30 @@
   .dash-card-sub { font-size: 12px; color: var(--texto-suave); }
   @media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 520px) { .dash-grid { grid-template-columns: 1fr; } }
+
+  /* ===== REPORTES → RESUMEN MENSUAL: desglose día por día (debajo de los anillos) ===== */
+  .rep-sub-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin: 28px 0 14px; }
+  .rep-sub-header h3 { font-size: 15px; color: var(--azul); margin: 0; }
+  .resumen-dia-con-movs { cursor: pointer; }
+  .resumen-dia-con-movs:hover td { background: #eaf1ff !important; }
+  #resumenDiaTbody tr:not(.resumen-dia-con-movs) td { color: #bbb; }
+
+  /* ===== Panel de detalle "línea por línea" (reutilizado por Resumen Mensual → por día, y
+     por el reporte Por Responsable → al hacer clic en una barra) ===== */
+  .rep-detalle-wrap { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-top: 14px; padding: 16px 18px; }
+  .rep-detalle-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .rep-detalle-header h4 { font-size: 13.5px; color: var(--azul); margin: 0; }
+
+  /* ===== REPORTES → POR RESPONSABLE (barras) ===== */
+  .resp-barras { display: flex; flex-direction: column; gap: 22px; }
+  .resp-bar-grupo { background: #fff; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+  .resp-bar-nombre { font-size: 14px; font-weight: 700; color: var(--azul); margin-bottom: 12px; }
+  .resp-bar-fila { display: grid; grid-template-columns: 100px 1fr 40px; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; border-radius: 6px; }
+  .resp-bar-fila:hover { background: #f5f9ff; }
+  .resp-bar-tipo { font-size: 12.5px; color: var(--texto-suave); white-space: nowrap; }
+  .resp-bar-pista { background: var(--gris); border-radius: 6px; height: 16px; overflow: hidden; }
+  .resp-bar-relleno { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
+  .resp-bar-valor { font-size: 13px; font-weight: 700; color: var(--texto); text-align: right; }
   tr.rep-urgente td { background: rgb(255,199,206) !important; }
   tr.rep-reabastecer td { background: rgb(255,235,156) !important; }
   tr.rep-comprar td { background: rgb(255,165,0) !important; }
@@ -393,10 +417,21 @@
   .etqcod-label.tam-50 { height: 50mm; }
   .etqcod-inner { display: flex; flex-direction: column; }
   .etqcod-label.tam-50 .etqcod-inner { width: 100%; height: 100%; }
+  /* IMPORTANTE: el centrado se hace con margin-top/margin-left fijos (la mitad de 100mm/150mm),
+     NO con "top:50%;left:50% + transform:translate(-50%,-50%) rotate(...)" — ese combo (que
+     esta regla tenía antes) es el mismo que ya se identificó como la causa de la impresión
+     "mal armada" en Rack/Receta 100x150mm al imprimir varias copias (ver el comentario grande
+     junto a .rack150-inner): cuando el navegador tiene que paginar varias copias y la posición
+     final depende de un translate() en porcentaje DENTRO del mismo transform que la rotación,
+     el cálculo de layout de impresión se desalinea a partir de cierta cantidad de páginas — por
+     eso Jimmy reportó que con más de 3 copias la etiqueta de Código 100x150mm salía mal, igual
+     que ya había pasado con Rack/Receta antes de cambiarlas a este mismo mecanismo (margen fijo
+     + rotate() solo). Visualmente da exactamente lo mismo en una sola etiqueta — por eso el
+     bug no se notaba hasta pedir varias copias de una vez. */
   .etqcod-label.tam-150 .etqcod-inner {
-    position: absolute; top: 50%; left: 50%;
+    position: absolute; top: 50%; left: 50%; margin-top: -50mm; margin-left: -75mm;
     width: 150mm; height: 100mm;
-    transform: translate(-50%, -50%) rotate(-90deg);
+    transform: rotate(-90deg);
   }
   .etqcod-row { display: flex; align-items: center; justify-content: center; text-align: center; border-bottom: 1px solid #000; overflow: hidden; padding: 0 4px; gap: 6px; }
   .etqcod-row:last-child { border-bottom: none; }
@@ -698,6 +733,7 @@
     <button class="sb-item hidden" id="btnReportes" onclick="toggleSubmenuReportes()"><span class="ic">📊</span> Reportes <span class="sb-caret" id="repCaret">▸</span></button>
     <div class="sb-submenu" id="submenuReportes">
       <button class="sb-subitem" onclick="irAReporte('RESUMEN', this)">📅 Resumen Mensual</button>
+      <button class="sb-subitem" onclick="irAReporte('RESPONSABLE', this)">👤 Por Responsable</button>
       <button class="sb-subitem" onclick="irAReporte('EXISTENCIAS', this)">📦 Existencias</button>
       <button class="sb-subitem" onclick="irAReporte('CONTEO', this)">🧮 Conteo de Inventario</button>
       <button class="sb-subitem" onclick="irAReporte('REABASTOS', this)">🔁 Reabastos</button>
@@ -1133,6 +1169,59 @@
             <div class="dash-ring-wrap"><div class="dash-ring dash-ring-vacio"><div class="dash-ring-hueco"><span>—</span></div></div></div>
             <div class="dash-card-label">⚖️ Ajustes +/-</div>
             <div class="dash-card-sub">Próximamente</div>
+          </div>
+        </div>
+
+        <!-- A pedido de Jimmy: además de los totales del mes en los anillos de arriba, poder
+             ver los movimientos día por día dentro de este mismo reporte. Cada fila con
+             movimientos es clickeable y abre el detalle línea por línea debajo; también se
+             puede exportar todo el detalle del mes de una sola vez. -->
+        <div class="rep-sub-header">
+          <h3>Movimientos por día — <span id="resumenDiaMesTexto"></span></h3>
+          <button class="btn-limpiar" type="button" onclick="exportarDetalleDiaCompleto()">⬇️ Exportar detalle del mes (CSV)</button>
+        </div>
+        <div class="rep-tabla-wrap">
+          <table>
+            <thead><tr><th>Día</th><th>📥 Ingresos</th><th>📤 Salidas</th><th>🔄 Traslados</th></tr></thead>
+            <tbody id="resumenDiaTbody"><tr><td colspan="4" class="rep-vacio">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="rep-detalle-wrap hidden" id="resumenDiaDetalleWrap">
+          <div class="rep-detalle-header">
+            <h4 id="resumenDiaDetalleTitulo"></h4>
+            <button class="btn-limpiar" type="button" onclick="exportarDetalleDia()">⬇️ Exportar este día (CSV)</button>
+          </div>
+          <div class="rep-tabla-wrap">
+            <table>
+              <thead><tr><th>Tipo</th><th>Código</th><th>Cantidad</th><th>Ubic. Origen</th><th>Ubic. Destino</th><th>Documento</th><th>Responsable</th></tr></thead>
+              <tbody id="resumenDiaDetalleTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- POR RESPONSABLE: a pedido de Jimmy, cuánto movió cada responsable (Ingresos/Salidas/
+           Traslados) en el mes elegido, en barras; cada barra abre el detalle línea por línea
+           de ese responsable+tipo, con su propio botón de exportar. -->
+      <div class="rep-panel hidden" id="repResponsable">
+        <div class="dash-header">
+          <div class="dash-subtitulo">Cantidad de movimientos registrados por cada responsable en el mes elegido — haga clic en una barra para ver el detalle línea por línea.</div>
+          <div class="dash-mes-wrap">
+            <label for="responsableMes">Mes</label>
+            <select id="responsableMes" onchange="cambiarMesResponsable()"></select>
+          </div>
+        </div>
+        <div class="resp-barras" id="responsableBarras"></div>
+        <div class="rep-detalle-wrap hidden" id="responsableDetalleWrap">
+          <div class="rep-detalle-header">
+            <h4 id="responsableDetalleTitulo"></h4>
+            <button class="btn-limpiar" type="button" onclick="exportarDetalleResponsable()">⬇️ Exportar CSV</button>
+          </div>
+          <div class="rep-tabla-wrap">
+            <table>
+              <thead><tr><th>Fecha</th><th>Código</th><th>Cantidad</th><th>Ubic. Origen</th><th>Ubic. Destino</th><th>Documento</th></tr></thead>
+              <tbody id="responsableDetalleTbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1632,8 +1721,8 @@ let movimientosHistorial = [];
 let reservasDetalleReportes = [];
 let reporteResultadosActuales = [];
 let filtrosReporteListos = { RESUMEN: true, EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
-const PANEL_REPORTE = { RESUMEN: 'repResumen', EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
-const TITULO_REPORTE = { RESUMEN: '📅 Resumen Mensual de Movimientos', EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
+const PANEL_REPORTE = { RESUMEN: 'repResumen', RESPONSABLE: 'repResponsable', EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
+const TITULO_REPORTE = { RESUMEN: '📅 Resumen Mensual de Movimientos', RESPONSABLE: '👤 Ingresos y Salidas por Responsable', EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
 let datosRecetas = [];
 let datosRecetasCargados = false;
 let datosRecetasError = false;
@@ -2616,20 +2705,32 @@ function renderConsultaStock(ids) {
 
   // Cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila sigue
   // existiendo en "EXISTENCIAS" para no perder el historial de esa ubicación, pero mostrarla
-  // aquí como si todavía tuviera algo solo confunde — se oculta. Si un código termina sin
-  // NINGUNA ubicación con stock, se avisa aparte más abajo en vez de decir "sin resultados"
-  // (que daría a entender que el código no existe).
-  const filas = coincidencias.filter(d => d.stock > 0)
-    .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
+  // aquí junto a otras ubicaciones que sí tienen stock del mismo código solo confunde — se
+  // oculta. Pero si un código terminó en 0 en TODAS sus ubicaciones coincidentes, a pedido de
+  // Jimmy ya no se trata como "sin resultados" (eso da a entender que el código no existe):
+  // se muestra UNA línea en 0 para que el botón de Historial siga accesible y pueda ver la
+  // trazabilidad de cómo el stock llegó a cero.
+  const porCodigo = {};
+  coincidencias.forEach(d => {
+    const clave = String(d.codigo).trim().toUpperCase();
+    (porCodigo[clave] = porCodigo[clave] || []).push(d);
+  });
+  const filas = [];
+  Object.values(porCodigo).forEach(filasDelCodigo => {
+    const conStock = filasDelCodigo.filter(d => d.stock > 0);
+    if (conStock.length > 0) {
+      filas.push(...conStock);
+    } else {
+      // Agotado en todas las ubicaciones coincidentes: una sola línea representativa en 0.
+      filas.push({ ...filasDelCodigo[0], stock: 0 });
+    }
+  });
+  filas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
 
   if (!filas.length) {
     tabla.classList.add('hidden');
     placeholder.classList.remove('hidden');
-    placeholder.textContent = !coincidencias.length
-      ? 'Sin resultados para ese filtro.'
-      : (ubicacionFiltro
-        ? 'Esa ubicación no tiene stock de este código en este momento.'
-        : 'Este código no tiene stock en ninguna ubicación en este momento.');
+    placeholder.textContent = 'Sin resultados para ese filtro.';
     tbody.innerHTML = '';
     return;
   }
@@ -3172,16 +3273,29 @@ function seleccionarCodigo(codigo, descripcion) {
     const selId = tipoMovimientoActual === 'SALIDA' ? 'movUbicacion' : 'movUbicacionOrigen';
     const sel = document.getElementById(selId);
     if (ubicacionesConStock.length > 0) {
-      sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + ubicacionesConStock.map(u => `<option value="${u}">${u}</option>`).join('');
-      // Autorrellena con la ubicación PRIMARIA si tiene stock, sin importar cuántas otras
-      // bodegas (secundarias) también tengan stock de este código. Antes solo autorrellenaba
-      // cuando había EXACTAMENTE una bodega con stock en total, así que un código con stock
-      // en su Primaria Y en una Secundaria nunca se autocompletaba.
-      const primaria = ubicacionesConStock.find(u => tipoDeUbicacion(u) === 'PRIMARIA');
-      if (primaria) {
-        sel.value = primaria;
-      } else if (ubicacionesConStock.length === 1) {
-        sel.value = ubicacionesConStock[0];
+      if (tipoMovimientoActual === 'TRASLADO') {
+        // A diferencia de Salida, en Traslado Jimmy pidió que "Ubicación Saliente" muestre
+        // PRIMERO las ubicaciones SECUNDARIAS (y la Primaria al final de la lista) y
+        // preseleccione una Secundaria con stock en vez de la Primaria — lo normal en un
+        // traslado es mover stock de una secundaria hacia la Primaria (reabastecerla), no al
+        // revés, así que la Primaria solo se preselecciona si es la ÚNICA que tiene stock.
+        const secundarias = ubicacionesConStock.filter(u => tipoDeUbicacion(u) !== 'PRIMARIA');
+        const primarias = ubicacionesConStock.filter(u => tipoDeUbicacion(u) === 'PRIMARIA');
+        const ordenadas = [...secundarias, ...primarias];
+        sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + ordenadas.map(u => `<option value="${u}">${u}</option>`).join('');
+        sel.value = secundarias[0] || primarias[0] || '';
+      } else {
+        sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + ubicacionesConStock.map(u => `<option value="${u}">${u}</option>`).join('');
+        // Autorrellena con la ubicación PRIMARIA si tiene stock, sin importar cuántas otras
+        // bodegas (secundarias) también tengan stock de este código. Antes solo autorrellenaba
+        // cuando había EXACTAMENTE una bodega con stock en total, así que un código con stock
+        // en su Primaria Y en una Secundaria nunca se autocompletaba.
+        const primaria = ubicacionesConStock.find(u => tipoDeUbicacion(u) === 'PRIMARIA');
+        if (primaria) {
+          sel.value = primaria;
+        } else if (ubicacionesConStock.length === 1) {
+          sel.value = ubicacionesConStock[0];
+        }
       }
     } else {
       sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
@@ -4006,7 +4120,23 @@ function imprimirEtiquetas() {
     msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
     msg.style.display = 'block';
     setTimeout(() => { msg.style.display = 'none'; }, 4000);
+    // A pedido de Jimmy: una vez impresa, el formulario queda limpio para anotar el siguiente
+    // código — antes el código recién impreso se quedaba escrito y había que borrarlo a mano
+    // antes de poder buscar el próximo.
+    limpiarFormularioEtiquetaCodigo();
   });
+}
+
+// Deja el formulario de "Etiqueta de Código (100x150mm)" en blanco, listo para el siguiente
+// código — se llama al terminar de imprimir (ver imprimirEtiquetas) y también se puede llamar
+// al entrar a la sección, por si quedó algo pegado de una visita anterior.
+function limpiarFormularioEtiquetaCodigo() {
+  etiquetaSeleccionada = null;
+  document.getElementById('etqCodigoBuscar').value = '';
+  document.getElementById('etqPreview').classList.remove('visible');
+  document.getElementById('etqCodigoDropdown').classList.remove('visible');
+  document.getElementById('etqCantidad').value = '1';
+  document.getElementById('btnImprimirEtiqueta').disabled = true;
 }
 
 /* ---------- CÓDIGO 100mm x 50mm (mismos datos de producto, layout sin rotar) ---------- */
@@ -4128,7 +4258,20 @@ function imprimirEtiquetaCodigo50() {
     msg.textContent = '✅ ' + cantidad + ' etiqueta(s) enviada(s) a imprimir.';
     msg.style.display = 'block';
     setTimeout(() => { msg.style.display = 'none'; }, 4000);
+    // Mismo pedido de Jimmy que en la de 100x150mm: tras imprimir, el formulario queda limpio
+    // para el siguiente código.
+    limpiarFormularioEtiquetaCodigo50();
   });
+}
+
+// Equivalente a limpiarFormularioEtiquetaCodigo() pero para el formulario de 100x50mm.
+function limpiarFormularioEtiquetaCodigo50() {
+  etiqueta50Seleccionada = null;
+  document.getElementById('etq50CodigoBuscar').value = '';
+  document.getElementById('etq50Preview').classList.remove('visible');
+  document.getElementById('etq50CodigoDropdown').classList.remove('visible');
+  document.getElementById('etq50Cantidad').value = '1';
+  document.getElementById('btnImprimirEtiqueta50').disabled = true;
 }
 
 /* ---------- RUTA 100mm x 100mm (cliente/factura/bultos, sin código de barras) ---------- */
@@ -4481,6 +4624,7 @@ function seleccionarReporte(tipo) {
   }
   if (tipo === 'RECETA' && !datosRecetasCargados) cargarDatosRecetas();
   if (tipo === 'RESUMEN') inicializarResumenMensual();
+  if (tipo === 'RESPONSABLE') inicializarReporteResponsable();
   prepararFiltrosReporte(tipo);
   if (!datosReportesCargados) cargarDatosReportes();
 }
@@ -4576,8 +4720,13 @@ function inicializarResumenMensual() {
 
 function cambiarMesResumen() {
   resumenMesSeleccionado = document.getElementById('resumenMes').value;
+  ocultarDetalleDia(); // el detalle del día abierto era de otro mes, ya no aplica
   renderResumenMensual();
 }
+
+// Texto corto reutilizado por "Resumen Mensual → por día" y "Por Responsable" para las
+// columnas de Tipo en las tablas de detalle línea por línea.
+const TIPO_TEXTO_CORTO = { INGRESO: 'Ingresos', SALIDA: 'Salidas', TRASLADO: 'Traslados' };
 
 // Pinta un anillo tipo "donut" en CSS puro (conic-gradient) según qué proporción del total
 // de movimientos del mes le corresponde a este tipo — no hay una "meta" definida para
@@ -4620,6 +4769,8 @@ function renderResumenMensual() {
   delMes.forEach(m => { if (conteo.hasOwnProperty(m.tipo)) conteo[m.tipo]++; });
   const total = conteo.INGRESO + conteo.SALIDA + conteo.TRASLADO;
 
+  renderResumenDiario(delMes);
+
   elIngreso.textContent = conteo.INGRESO;
   document.getElementById('dashValSalida').textContent = conteo.SALIDA;
   document.getElementById('dashValTraslado').textContent = conteo.TRASLADO;
@@ -4641,6 +4792,212 @@ function renderResumenMensual() {
   pintarAnilloResumen('ringIngreso', pctIngreso, '--verde');
   pintarAnilloResumen('ringSalida', pctSalida, '--rojo');
   pintarAnilloResumen('ringTraslado', pctTraslado, '--celeste');
+}
+
+// Igual que mesDeFechaHistorial pero devuelve el día del mes (1-31) — reconoce los mismos
+// formatos ('yyyy-MM-dd' que es lo normal, o 'dd/mm/yyyy' de alguna carga masiva pegada
+// directo en la hoja) para que el desglose diario no falle por un formato de fecha distinto.
+function diaDeFechaHistorial(fechaStr) {
+  const s = String(fechaStr || '').trim();
+  let m = s.match(/^\d{4}-\d{1,2}-(\d{1,2})/);
+  if (m) return parseInt(m[1], 10);
+  m = s.match(/^(\d{1,2})\/\d{1,2}\/\d{4}/);
+  if (m) return parseInt(m[1], 10);
+  const d = new Date(s);
+  return !isNaN(d.getTime()) ? d.getDate() : null;
+}
+
+let resumenDiaSeleccionado = null; // día (1-31) cuyo detalle está abierto, dentro del mes elegido
+let resumenDiaDetalleActual = []; // movimientos visibles en ese detalle, listos para exportar
+
+// A pedido de Jimmy: además de los totales del mes en los anillos, poder ver los
+// movimientos día por día — una fila por cada día del mes elegido (aunque no haya tenido
+// movimientos, para que se note que el mes está completo), clickeable para abrir el detalle.
+function renderResumenDiario(delMes) {
+  const tbody = document.getElementById('resumenDiaTbody');
+  if (!tbody) return;
+  document.getElementById('resumenDiaMesTexto').textContent = nombreMesCorto(resumenMesSeleccionado);
+  const [aaaa, mm] = resumenMesSeleccionado.split('-').map(Number);
+  const ultimoDia = new Date(aaaa, mm, 0).getDate();
+  const porDia = {};
+  delMes.forEach(m => {
+    const dia = diaDeFechaHistorial(m.fecha);
+    if (!dia) return;
+    if (!porDia[dia]) porDia[dia] = { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
+    if (porDia[dia].hasOwnProperty(m.tipo)) porDia[dia][m.tipo]++;
+  });
+  let filas = '';
+  for (let dia = 1; dia <= ultimoDia; dia++) {
+    const c = porDia[dia] || { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
+    const tieneMovs = (c.INGRESO + c.SALIDA + c.TRASLADO) > 0;
+    const fechaCorta = String(dia).padStart(2, '0') + '/' + String(mm).padStart(2, '0');
+    filas += tieneMovs
+      ? `<tr class="resumen-dia-con-movs" onclick="mostrarDetalleDia(${dia})" title="Ver detalle de este día">
+          <td>${fechaCorta}</td><td>${c.INGRESO}</td><td>${c.SALIDA}</td><td>${c.TRASLADO}</td>
+        </tr>`
+      : `<tr><td>${fechaCorta}</td><td>${c.INGRESO}</td><td>${c.SALIDA}</td><td>${c.TRASLADO}</td></tr>`;
+  }
+  tbody.innerHTML = filas || `<tr><td colspan="4" class="rep-vacio">${datosReportesCargados ? 'Sin movimientos este mes.' : 'Cargando…'}</td></tr>`;
+  // Si el día que estaba abierto ya no corresponde a este mes (se cambió de mes), se cierra;
+  // si sigue siendo válido (ej. solo se recargaron los datos), se refresca con lo nuevo.
+  if (resumenDiaSeleccionado) mostrarDetalleDia(resumenDiaSeleccionado);
+}
+
+function filaDetalleHtml(m) {
+  return `<tr><td>${TIPO_TEXTO_CORTO[m.tipo] || m.tipo}</td><td>${m.codigo}</td><td>${m.cantidad}</td><td>${m.ubicacion_origen || ''}</td><td>${m.ubicacion_destino || ''}</td><td>${m.documento || ''}</td><td>${m.responsable || ''}</td></tr>`;
+}
+
+// Muestra, línea por línea, todos los movimientos de un día concreto del mes elegido — así
+// Jimmy puede ver exactamente cómo el gráfico/tabla llegó a esos números, no solo el total.
+function mostrarDetalleDia(dia) {
+  resumenDiaSeleccionado = dia;
+  const delDia = (movimientosHistorial || []).filter(m => mesDeFechaHistorial(m.fecha) === resumenMesSeleccionado && diaDeFechaHistorial(m.fecha) === dia);
+  resumenDiaDetalleActual = delDia;
+  const [, mm] = resumenMesSeleccionado.split('-');
+  document.getElementById('resumenDiaDetalleWrap').classList.remove('hidden');
+  document.getElementById('resumenDiaDetalleTitulo').textContent = `Detalle del ${String(dia).padStart(2, '0')}/${mm} (${delDia.length} movimiento${delDia.length === 1 ? '' : 's'})`;
+  document.getElementById('resumenDiaDetalleTbody').innerHTML = delDia.length
+    ? delDia.map(filaDetalleHtml).join('')
+    : '<tr><td colspan="7" class="rep-vacio">Sin movimientos este día.</td></tr>';
+}
+
+function ocultarDetalleDia() {
+  resumenDiaSeleccionado = null;
+  resumenDiaDetalleActual = [];
+  const wrap = document.getElementById('resumenDiaDetalleWrap');
+  if (wrap) wrap.classList.add('hidden');
+}
+
+function exportarDetalleDia() {
+  if (!resumenDiaDetalleActual.length) { alert('No hay detalle para exportar — primero haga clic en un día con movimientos.'); return; }
+  const hoy = new Date().toISOString().split('T')[0];
+  exportarCSV(
+    ['FECHA', 'TIPO', 'CODIGO', 'CANTIDAD', 'UBICACION ORIGEN', 'UBICACION DESTINO', 'DOCUMENTO', 'RESPONSABLE'],
+    resumenDiaDetalleActual.map(m => [m.fecha, m.tipo, m.codigo, m.cantidad, m.ubicacion_origen || '', m.ubicacion_destino || '', m.documento || '', m.responsable || '']),
+    'movimientos_dia_' + hoy + '.csv'
+  );
+}
+
+// Exporta TODO el detalle línea por línea del mes elegido (los 365/12... días, no solo el
+// que esté abierto) — a pedido de Jimmy, para poder revisar fuera de la app cómo se armó
+// cada número de la tabla de arriba.
+function exportarDetalleDiaCompleto() {
+  const delMes = (movimientosHistorial || []).filter(m => mesDeFechaHistorial(m.fecha) === resumenMesSeleccionado);
+  if (!delMes.length) { alert('No hay movimientos este mes para exportar.'); return; }
+  const ordenado = [...delMes].sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  exportarCSV(
+    ['FECHA', 'TIPO', 'CODIGO', 'CANTIDAD', 'UBICACION ORIGEN', 'UBICACION DESTINO', 'DOCUMENTO', 'RESPONSABLE'],
+    ordenado.map(m => [m.fecha, m.tipo, m.codigo, m.cantidad, m.ubicacion_origen || '', m.ubicacion_destino || '', m.documento || '', m.responsable || '']),
+    'movimientos_' + resumenMesSeleccionado + '.csv'
+  );
+}
+
+/* =========================================================
+   REPORTES → POR RESPONSABLE: cuánto movió cada responsable (Ingresos/Salidas/Traslados)
+   en el mes elegido, en barras — a pedido de Jimmy. Cada barra abre, debajo, el detalle
+   línea por línea de ese responsable+tipo, con su propio botón de exportar CSV.
+   ========================================================= */
+
+let responsableMesSeleccionado = null; // 'YYYY-MM'
+let responsableReporteInicializado = false;
+let responsableDetalleActual = []; // movimientos visibles en el detalle abierto, listos para exportar
+
+function inicializarReporteResponsable() {
+  if (responsableReporteInicializado) { renderReporteResponsable(); return; }
+  responsableReporteInicializado = true;
+  const sel = document.getElementById('responsableMes');
+  const meses = obtenerUltimosMeses();
+  responsableMesSeleccionado = meses[0].valor; // mes en curso, por defecto
+  sel.innerHTML = meses.map(m => `<option value="${m.valor}">${m.texto}${m.valor === meses[0].valor ? ' (actual)' : ''}</option>`).join('');
+  sel.value = responsableMesSeleccionado;
+  if (!datosReportesCargados) cargarDatosReportes().then(renderReporteResponsable);
+  renderReporteResponsable();
+}
+
+function cambiarMesResponsable() {
+  responsableMesSeleccionado = document.getElementById('responsableMes').value;
+  ocultarDetalleResponsable();
+  renderReporteResponsable();
+}
+
+function renderReporteResponsable() {
+  if (!responsableMesSeleccionado) return;
+  const cont = document.getElementById('responsableBarras');
+  if (!cont) return; // el reporte aún no se ha abierto en esta sesión
+  const delMes = (movimientosHistorial || []).filter(m => mesDeFechaHistorial(m.fecha) === responsableMesSeleccionado);
+  if (!delMes.length) {
+    cont.innerHTML = `<div class="rep-vacio">${datosReportesCargados ? 'Sin movimientos este mes.' : 'Cargando…'}</div>`;
+    return;
+  }
+  const porResponsable = {};
+  delMes.forEach(m => {
+    const nombre = (m.responsable || '').trim() || 'Sin responsable';
+    if (!porResponsable[nombre]) porResponsable[nombre] = { INGRESO: 0, SALIDA: 0, TRASLADO: 0 };
+    if (porResponsable[nombre].hasOwnProperty(m.tipo)) porResponsable[nombre][m.tipo]++;
+  });
+  // De mayor a menor actividad total, para que quien más movió aparezca primero.
+  const nombres = Object.keys(porResponsable).sort((a, b) => {
+    const totalA = porResponsable[a].INGRESO + porResponsable[a].SALIDA + porResponsable[a].TRASLADO;
+    const totalB = porResponsable[b].INGRESO + porResponsable[b].SALIDA + porResponsable[b].TRASLADO;
+    return totalB - totalA;
+  });
+  const maximo = Math.max(1, ...nombres.flatMap(n => [porResponsable[n].INGRESO, porResponsable[n].SALIDA, porResponsable[n].TRASLADO]));
+
+  const filaBarra = (nombre, c, tipo, etiqueta, colorVar) => {
+    const pct = Math.round((c[tipo] / maximo) * 100);
+    return `<div class="resp-bar-fila" onclick="mostrarDetalleResponsable('${escJsAttr(nombre)}','${tipo}')" title="Ver detalle línea por línea">
+      <span class="resp-bar-tipo">${etiqueta}</span>
+      <div class="resp-bar-pista"><div class="resp-bar-relleno" style="width:${pct}%;background:var(${colorVar})"></div></div>
+      <span class="resp-bar-valor">${c[tipo]}</span>
+    </div>`;
+  };
+  cont.innerHTML = nombres.map(nombre => {
+    const c = porResponsable[nombre];
+    return `<div class="resp-bar-grupo">
+      <div class="resp-bar-nombre">${nombre}</div>
+      ${filaBarra(nombre, c, 'INGRESO', '📥 Ingresos', '--verde')}
+      ${filaBarra(nombre, c, 'SALIDA', '📤 Salidas', '--rojo')}
+      ${filaBarra(nombre, c, 'TRASLADO', '🔄 Traslados', '--celeste')}
+    </div>`;
+  }).join('');
+  // Si había un detalle abierto (de un responsable+tipo), se refresca con los datos del mes
+  // que corresponda ahora (puede haber cambiado de mes, o simplemente haberse recargado).
+  if (responsableDetalleNombre && responsableDetalleTipo) mostrarDetalleResponsable(responsableDetalleNombre, responsableDetalleTipo);
+}
+
+let responsableDetalleNombre = null;
+let responsableDetalleTipo = null;
+
+function mostrarDetalleResponsable(nombre, tipo) {
+  responsableDetalleNombre = nombre;
+  responsableDetalleTipo = tipo;
+  const delMes = (movimientosHistorial || []).filter(m => mesDeFechaHistorial(m.fecha) === responsableMesSeleccionado
+    && ((m.responsable || '').trim() || 'Sin responsable') === nombre
+    && m.tipo === tipo);
+  responsableDetalleActual = delMes;
+  document.getElementById('responsableDetalleWrap').classList.remove('hidden');
+  document.getElementById('responsableDetalleTitulo').textContent = `${TIPO_TEXTO_CORTO[tipo] || tipo} de ${nombre} — ${nombreMesCorto(responsableMesSeleccionado)} (${delMes.length} movimiento${delMes.length === 1 ? '' : 's'})`;
+  document.getElementById('responsableDetalleTbody').innerHTML = delMes.length
+    ? delMes.map(m => `<tr><td>${m.fecha}</td><td>${m.codigo}</td><td>${m.cantidad}</td><td>${m.ubicacion_origen || ''}</td><td>${m.ubicacion_destino || ''}</td><td>${m.documento || ''}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="rep-vacio">Sin movimientos para este filtro.</td></tr>';
+}
+
+function ocultarDetalleResponsable() {
+  responsableDetalleNombre = null;
+  responsableDetalleTipo = null;
+  responsableDetalleActual = [];
+  const wrap = document.getElementById('responsableDetalleWrap');
+  if (wrap) wrap.classList.add('hidden');
+}
+
+function exportarDetalleResponsable() {
+  if (!responsableDetalleActual.length) { alert('No hay detalle para exportar — primero haga clic en una barra.'); return; }
+  const hoy = new Date().toISOString().split('T')[0];
+  exportarCSV(
+    ['FECHA', 'CODIGO', 'TIPO', 'CANTIDAD', 'UBICACION ORIGEN', 'UBICACION DESTINO', 'DOCUMENTO', 'RESPONSABLE'],
+    responsableDetalleActual.map(m => [m.fecha, m.codigo, m.tipo, m.cantidad, m.ubicacion_origen || '', m.ubicacion_destino || '', m.documento || '', m.responsable || '']),
+    'movimientos_por_responsable_' + hoy + '.csv'
+  );
 }
 
 // Exportar/Imprimir de Existencias trabajan sobre datosFiltrados (la vista actual de la
