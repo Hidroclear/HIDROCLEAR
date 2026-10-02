@@ -595,13 +595,37 @@
      descripción, así el alto total de la tabla ya no puede pasarse de los 100mm. El precio
      es que una descripción muy larga se corta con "…" en vez de partirse en varias líneas;
      si eso hace falta legible completo, se puede achicar más la letra o angostar Código. */
-  .receta150-tabla { width: 100%; border-collapse: collapse; flex: 1 1 auto; table-layout: fixed; }
+  /* IMPORTANTE (por qué 14 filas seguían saliendo cortadas incluso con el ajuste dinámico de
+     letra): calcularFuenteQueCabe() shrinkea tabla.style.fontSize, pero el padding vertical de
+     cada celda estaba en mm (unidad FIJA, no relativa a la letra) — así que por más que la
+     letra se achicara hasta el mínimo, cada fila seguía midiendo "texto chico + el mismo
+     padding de siempre", y con 14-15 filas (contando el encabezado) ese padding fijo por sí
+     solo ya sumaba más alto que el espacio disponible. Confirmado con Chrome real (Playwright):
+     incluso en el piso de 6px, la tabla seguía desbordando por ~40px. Con el padding en "em"
+     (relativo al tamaño de letra actual) y un line-height compacto, achicar la letra ahora
+     también achica el padding y el alto de línea, así el mecanismo de ajuste dinámico sí logra
+     que 14+ filas quepan de verdad, en vez de toparse con un piso artificial. */
+  .receta150-tabla { width: 100%; border-collapse: collapse; flex: 1 1 auto; table-layout: fixed; line-height: 1.15; }
   .receta150-tabla th, .receta150-tabla td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .receta150-tabla th:nth-child(1), .receta150-tabla td:nth-child(1) { width: 26%; }
   .receta150-tabla th:nth-child(2), .receta150-tabla td:nth-child(2) { width: 58%; }
   .receta150-tabla th:nth-child(3), .receta150-tabla td:nth-child(3) { width: 16%; }
-  .receta150-tabla th { border-bottom: 1.5px solid #000; text-align: left; padding: 1mm 2mm; font-weight: 700; }
-  .receta150-tabla td { border-bottom: 0.5px solid #999; padding: 0.8mm 2mm; }
+  /* IMPORTANTE (la razón real por la que 14 filas seguían saliendo cortadas, incluso con
+     calcularFuenteQueCabe() funcionando y llegando hasta el piso de 6px): esta app tiene una
+     regla GLOBAL "tbody td { font-size: 13px }" (pensada para las tablas normales del listado
+     de Inicio/Inventario/Reportes) que, por ser "tbody td" (dos etiquetas), tiene MENOS
+     especificidad en CSS que ".receta150-tabla td" (una clase + una etiqueta) PARA EL PADDING
+     (por eso el padding sí se aplicaba bien) — pero como ".receta150-tabla td" nunca declaraba
+     su propio "font-size", el texto de cada fila terminaba heredando ese "font-size: 13px"
+     global en vez del tamaño que calcularFuenteQueCabe() le ponía a la tabla (tabla.style.
+     fontSize). Es decir: la LETRA VISIBLE de cada fila se quedaba fija en 13px pasara lo que
+     pasara, así que achicar la tabla no achicaba nada realmente — confirmado con Chrome real
+     (Playwright): con 14 filas, aun en el piso de 6px, el texto medía 13px y la tabla seguía
+     desbordando por decenas de píxeles. Con "font-size: inherit" explícito aquí (que sí gana,
+     por especificidad, sobre la regla global), el texto por fin seguiremos el tamaño que le
+     pone la tabla, y el ajuste dinámico de letra funciona de verdad. */
+  .receta150-tabla th { border-bottom: 1.5px solid #000; text-align: left; padding: 0.3em 2mm; font-weight: 700; font-size: inherit; }
+  .receta150-tabla td { border-bottom: 0.5px solid #999; padding: 0.22em 2mm; font-size: inherit; }
   .receta150-tabla th:last-child, .receta150-tabla td:last-child { text-align: right; }
 
 
