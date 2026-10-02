@@ -48,7 +48,10 @@
   .sb-caret { margin-left: auto; font-size: 10px; transition: transform 0.15s; }
   .sb-caret.rotado { transform: rotate(90deg); }
   .sb-submenu { display: flex; flex-direction: column; gap: 2px; overflow: hidden; max-height: 0; transition: max-height 0.2s ease; }
-  .sb-submenu.expandido { max-height: 220px; }
+  /* 220px alcanzaba para 6 opciones; al agregar "Por Responsable" a Reportes (7 opciones) la
+     última (Recetas) quedaba cortada por este límite — reportado por Jimmy. Se sube con
+     margen de sobra para que cualquier submenú futuro con más opciones no vuelva a cortarse. */
+  .sb-submenu.expandido { max-height: 340px; }
   .sb-subitem { display: block; padding: 9px 12px 9px 42px; border-radius: 8px; color: #9fb3d6; font-size: 12.5px; font-weight: 500; cursor: pointer; border: none; border-left: 3px solid transparent; background: none; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
   .sb-subitem:hover { background: rgba(255,255,255,0.06); color: #fff; }
   .sb-subitem.activo { background: rgba(0,170,255,0.14); border-left: 3px solid var(--celeste); color: #fff; font-weight: 700; }
