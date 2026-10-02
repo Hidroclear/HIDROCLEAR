@@ -2696,12 +2696,31 @@ function renderConsultaStock(ids) {
 
   const inventarioAgrupado = agruparPorCodigoUbicacion(datosInventario);
 
-  const coincidencias = inventarioAgrupado.filter(d => {
+  let coincidencias = inventarioAgrupado.filter(d => {
     const coincideCodigo = !codigoFiltro || String(d.codigo).toLowerCase().includes(codigoFiltro) || (d.descripcion || '').toLowerCase().includes(codigoFiltro);
     const coincideUbicacion = !ubicacionFiltro || d.bodega === ubicacionFiltro;
     const coincideDesc = !descFiltro || (d.descripcion || '').toLowerCase().includes(descFiltro);
     return coincideCodigo && coincideUbicacion && coincideDesc;
   });
+
+  // Caso reportado por Jimmy (código 806010): un código puede llegar a 0 en TODAS sus
+  // ubicaciones y, poco después, desaparecer POR COMPLETO de "EXISTENCIAS" — no solo quedar
+  // en 0 — porque la exportación periódica de la macro de Excel (cada ~30 min, ver el
+  // comentario grande en ajustarStockPorMovimientos en el backend) reescribe esa hoja dejando
+  // solo las combinaciones con stock positivo. Cuando eso ya pasó, el código ya no tiene
+  // NINGUNA fila en datosInventario, así que "coincidencias" sale vacío aunque el código sí
+  // exista. Por eso, si se buscó por código (no por ubicación, que no aplica aquí porque un
+  // código sin ninguna fila en EXISTENCIAS no puede "pertenecer" a una ubicación concreta) y
+  // no hay ninguna coincidencia en el inventario, se busca igual en el catálogo maestro de
+  // códigos (CODIGOS, que no depende del stock) para seguir mostrando el código en 0 y no
+  // perder el acceso al Historial.
+  if (!coincidencias.length && codigoFiltro && !ubicacionFiltro) {
+    coincidencias = (todosCodigos || []).filter(c => {
+      const coincideCodigo = String(c.codigo).toLowerCase().includes(codigoFiltro) || (c.descripcion || '').toLowerCase().includes(codigoFiltro);
+      const coincideDesc = !descFiltro || (c.descripcion || '').toLowerCase().includes(descFiltro);
+      return coincideCodigo && coincideDesc;
+    }).map(c => ({ codigo: c.codigo, descripcion: c.descripcion, bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: c.categoria || '' }));
+  }
 
   // Cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila sigue
   // existiendo en "EXISTENCIAS" para no perder el historial de esa ubicación, pero mostrarla
