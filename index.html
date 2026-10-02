@@ -2722,6 +2722,33 @@ function renderConsultaStock(ids) {
     }).map(c => ({ codigo: c.codigo, descripcion: c.descripcion, bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: c.categoria || '' }));
   }
 
+  // Último recurso: el código tampoco está en el catálogo de CODIGOS (puede haberse borrado
+  // de ahí también, o nunca haber estado — con datos reales, a veces un código se registra
+  // directo en un movimiento sin pasarlo antes por el catálogo). La fuente definitiva de qué
+  // códigos han existido alguna vez es el historial completo de movimientos (TRAZABILIDAD
+  // TOTAL): si aparece ahí aunque sea una vez, se muestra en 0 para no perder el acceso al
+  // Historial — que es, al final, lo que Jimmy pidió poder consultar siempre.
+  // "Consulta de Códigos" es también la pantalla de Inicio y carga rápido a propósito, sin
+  // pedir el historial completo (eso puede tardar); por eso solo se pide aquí, como último
+  // recurso, cuando de verdad no se encontró nada más — y la consulta se vuelve a pintar sola
+  // en cuanto llegue, sin que el usuario tenga que volver a buscar.
+  if (!coincidencias.length && codigoFiltro && !ubicacionFiltro && !descFiltro) {
+    if (!datosReportesCargados) {
+      tabla.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+      placeholder.textContent = 'Buscando en el historial de movimientos…';
+      tbody.innerHTML = '';
+      cargarDatosReportes().then(() => renderConsultaStock(ids));
+      return;
+    }
+    const codigosEnHistorial = [...new Set(
+      (movimientosHistorial || [])
+        .filter(m => String(m.codigo).toLowerCase().includes(codigoFiltro))
+        .map(m => String(m.codigo).trim())
+    )];
+    coincidencias = codigosEnHistorial.map(cod => ({ codigo: cod, descripcion: '', bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: '' }));
+  }
+
   // Cuando una ubicación se queda en 0 (se sacó todo por Salida/Traslado), su fila sigue
   // existiendo en "EXISTENCIAS" para no perder el historial de esa ubicación, pero mostrarla
   // aquí junto a otras ubicaciones que sí tienen stock del mismo código solo confunde — se
