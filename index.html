@@ -3035,6 +3035,63 @@ function cerrarModalHistorialCodigo() {
   document.getElementById('modalHistorialCodigo').classList.remove('visible');
 }
 
+// ── Verifica que haya stock suficiente para sacar de una ubicación (Salida, o el origen de un
+// Traslado) ANTES de dejar agregar/modificar la línea — Jimmy reportó que el sistema dejaba
+// hacer una Salida de un código que ya estaba en cero (o con menos de lo pedido) en esa
+// ubicación, y eso generaba desajustes contra el stock físico real. Dos condiciones, AMBAS
+// deben cumplirse (si cualquiera falla, no alcanza):
+//   1) Que la ubicación ESPECÍFICA elegida tenga físicamente esa cantidad — no se puede sacar
+//      de una bodega lo que no tiene, aunque el código sí tenga stock en otra bodega.
+//   2) Que el código completo (sumando TODAS sus bodegas) tenga esa cantidad "Disponible"
+//      (Total − Reservado) — para no dejar sacar stock que ya está apartado para otro cliente,
+//      aunque la bodega elegida sí lo tenga físicamente.
+// También se descuentan las cantidades que YA están anotadas en la lista de este mismo lote
+// (movimientosPendientes) para el mismo código — sin esto, dos líneas de Salida del mismo
+// código en la misma sesión podrían sumar más de lo que en realidad hay, antes de que ninguna
+// de las dos se haya enviado todavía a la hoja. "indiceAExcluir" es el índice de la línea que
+// se está editando (si corresponde), para no restarse a sí misma.
+// IMPORTANTE: esta es solo la validación "amigable" del lado del navegador, con los datos que
+// ya están cargados en memoria — puede quedar desactualizada un par de minutos si otra persona
+// registró movimientos del mismo código desde otro equipo. La validación que de verdad importa
+// (la que no se puede saltar) corre en el Apps Script justo antes de escribir en la hoja, ver
+// validarStockSuficiente en Code_actualizado.gs.
+function validarStockDisponibleParaSacar(codigo, ubicacion, cantidad, indiceAExcluir) {
+  const claveCodigo = String(codigo).trim().toUpperCase();
+  const claveUbicacion = String(ubicacion).trim().toUpperCase();
+
+  const stockUbicacion = datosInventario
+    .filter(d => String(d.codigo).trim().toUpperCase() === claveCodigo && String(d.bodega).trim().toUpperCase() === claveUbicacion)
+    .reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
+  const stockTotalCodigo = datosInventario
+    .filter(d => String(d.codigo).trim().toUpperCase() === claveCodigo)
+    .reduce((sum, d) => sum + (Number(d.stock) || 0), 0);
+  const reservadoCodigo = reservasPorCodigo[String(codigo).trim()] || 0;
+
+  let yaUsadoEnUbicacion = 0;
+  let yaUsadoEnCodigoTotal = 0;
+  movimientosPendientes.forEach((it, idx) => {
+    if (indiceAExcluir !== null && indiceAExcluir !== undefined && idx === indiceAExcluir) return;
+    if (String(it.codigo).trim().toUpperCase() !== claveCodigo) return;
+    if (it.tipo !== 'SALIDA' && it.tipo !== 'TRASLADO') return;
+    const cant = Number(it.cantidad) || 0;
+    yaUsadoEnCodigoTotal += cant;
+    if (String(it.ubicacion).trim().toUpperCase() === claveUbicacion) yaUsadoEnUbicacion += cant;
+  });
+
+  const disponibleEnUbicacion = stockUbicacion - yaUsadoEnUbicacion;
+  const disponibleEnCodigo = stockTotalCodigo - reservadoCodigo - yaUsadoEnCodigoTotal;
+  const etiquetaTipo = tipoMovimientoActual === 'TRASLADO' ? 'traslado' : 'salida';
+
+  if (cantidad > disponibleEnUbicacion) {
+    const nota = yaUsadoEnUbicacion > 0 ? ` (ya se descontaron ${yaUsadoEnUbicacion} de otra línea en esta lista)` : '';
+    return { ok: false, mensaje: `No puede hacer ${etiquetaTipo} de ${codigo}: en ${ubicacion} hay ${disponibleEnUbicacion} unidad(es) disponible(s)${nota}, y está pidiendo ${cantidad}.` };
+  }
+  if (cantidad > disponibleEnCodigo) {
+    return { ok: false, mensaje: `No puede hacer ${etiquetaTipo} de ${codigo}: tiene ${reservadoCodigo} unidad(es) reservada(s) para otro cliente, así que solo hay ${disponibleEnCodigo} disponible(s) en total (sumando todas sus ubicaciones), y está pidiendo ${cantidad}.` };
+  }
+  return { ok: true };
+}
+
 // ── Validación de campos comunes según el tipo de movimiento activo ──
 function validarCamposMovimiento() {
   const codigo = document.getElementById('movCodigo').value;
@@ -3055,11 +3112,15 @@ function validarCamposMovimiento() {
     ubicacion = document.getElementById('movUbicacion').value;
     despacho = document.getElementById('movDespacho').value;
     if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar una ubicación' };
+    const chequeoStockSalida = validarStockDisponibleParaSacar(codigo, ubicacion, parseFloat(cantidad), indiceEdicionLista);
+    if (!chequeoStockSalida.ok) return chequeoStockSalida;
   } else if (tipoMovimientoActual === 'TRASLADO') {
     ubicacion = document.getElementById('movUbicacionOrigen').value;
     ubicacionDestino = document.getElementById('movUbicacionDestino').value;
     if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar ubicación origen' };
     if (!ubicacionDestino) return { ok: false, mensaje: 'Debe seleccionar ubicación destino' };
+    const chequeoStockTraslado = validarStockDisponibleParaSacar(codigo, ubicacion, parseFloat(cantidad), indiceEdicionLista);
+    if (!chequeoStockTraslado.ok) return chequeoStockTraslado;
   } else if (tipoMovimientoActual === 'RESERVA') {
     ubicacion = document.getElementById('movUbicacion').value;
     reservaCon = document.getElementById('movReservaCon').value;
