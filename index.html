@@ -482,6 +482,47 @@
   .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; gap: 5px; }
   .etqruta-icono-pie { height: 18px; width: 18px; flex-shrink: 0; }
 
+  /* Etiqueta de Reserva 100mm x 150mm — lo que antes hacía el macro de Excel
+     (IMPRIMIR_ETIQUETA_RESERVA) con 5 columnas rotadas (CLIENTE / nombre del cliente / N°
+     DOCUMENTO / FECHA / COMERCIAL). Mismo mecanismo ya probado que Rack/Receta 100x150mm: todo
+     el contenido se arma normal/horizontal, apilado en FILAS (una por columna final), dentro de
+     un lienzo de 150mm de ancho x 100mm de alto, y ese bloque completo se rota -90° con
+     position:absolute (ver el comentario grande junto a .etqcod-inner sobre por qué NO se usa
+     top/left:50% + translate(-50%,-50%) combinado con la rotación — eso fue la causa real del
+     bug de "2 hojas idénticas" con varias copias). Al rotar -90° el bloque completo, la fila de
+     ARRIBA del lienzo (CLIENTE) termina a la IZQUIERDA de la etiqueta ya impresa, y la de ABAJO
+     (COMERCIAL) a la derecha — por eso las filas van en ese orden exacto aquí abajo. */
+  .etqreserva-label {
+    width: 100mm; height: 150mm; box-sizing: border-box; border: 1px solid #000;
+    position: relative; overflow: hidden;
+    page-break-after: always; break-after: page; font-family: 'DM Sans', sans-serif; color: #000;
+  }
+  .etqreserva-label:last-child { page-break-after: auto; break-after: auto; }
+  .etqreserva-inner {
+    position: absolute; top: 50%; left: 50%; margin-top: -50mm; margin-left: -75mm;
+    width: 150mm; height: 100mm;
+    transform: rotate(-90deg);
+    display: flex; flex-direction: column;
+  }
+  .etqreserva-row {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    border-bottom: 1.5px solid #000; overflow: hidden; white-space: nowrap; padding: 0 3mm;
+  }
+  .etqreserva-row:last-child { border-bottom: none; }
+  .etqreserva-txt { font-weight: 700; }
+  /* Las proporciones de alto de cada fila (8 : 15.43 : 12.86 : 6 : 7.14) son las mismas que
+     usaba el macro de Excel para el ancho de sus columnas A a E. */
+  .etqreserva-row-cliente-label { flex: 8 0 0; }
+  .etqreserva-row-cliente-label .etqreserva-txt { font-size: 34px; font-weight: 900; }
+  .etqreserva-row-cliente-valor { flex: 15.43 0 0; }
+  .etqreserva-row-cliente-valor .etqreserva-txt { font-weight: 900; text-decoration: underline; text-decoration-thickness: 3px; }
+  .etqreserva-row-documento { flex: 12.86 0 0; }
+  .etqreserva-row-documento .etqreserva-txt { font-weight: 800; }
+  .etqreserva-row-fecha { flex: 6 0 0; }
+  .etqreserva-row-fecha .etqreserva-txt { font-weight: 800; text-decoration: underline; }
+  .etqreserva-row-comercial { flex: 7.14 0 0; }
+  .etqreserva-row-comercial .etqreserva-txt { font-weight: 800; text-decoration: underline; }
+
   /* Etiqueta de Rack 100mm x 150mm — la foto que enviaste (una vez girada) muestra que TODO
      el contenido (HIDROCLEAR, la ubicación, las flechas+código de barras y la leyenda) es en
      realidad UN SOLO bloque diseñado normal/horizontal y luego rotado -90° como unidad para
@@ -1524,6 +1565,32 @@
       <div class="reserva-modal-footer">
         <button class="btn-registrar" type="button" id="btnConfirmarAplicarReservas" onclick="confirmarAplicarReservas()">Confirmar y Aplicar</button>
         <button class="btn-cancelar-mov" type="button" onclick="cerrarModalConfirmarDocumentoReserva()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Etiqueta de Reserva — lo que antes hacía el macro de Excel (CMDREGISTRAR_Click ->
+     IMPRIMIR_ETIQUETA_RESERVA): al registrar una Reserva, pregunta si se quiere imprimir una
+     etiqueta de 100x150mm con Cliente/N° Documento/Fecha/Comercial. Ver abrirModalEtiquetaReserva. -->
+<div class="modal-overlay" id="modalEtiquetaReserva" onclick="if (event.target === this) cerrarModalEtiquetaReserva()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo">🏷️ Etiqueta de Reserva</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalEtiquetaReserva()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p id="etiquetaReservaResumen" style="margin:0 0 16px;font-size:13.5px;color:var(--azul)"></p>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>¿Cuántas copias desea imprimir?</label>
+        <input type="number" id="etiquetaReservaCopias" value="1" min="1" step="1">
+      </div>
+      <div class="reserva-modal-footer">
+        <button class="btn-registrar" type="button" id="btnImprimirEtiquetaReserva" onclick="confirmarImprimirEtiquetaReserva()">🖨️ Imprimir</button>
+        <button class="btn-cancelar-mov" type="button" onclick="cerrarModalEtiquetaReserva()">No, gracias</button>
       </div>
     </div>
   </div>
@@ -2598,6 +2665,7 @@ document.addEventListener('keydown', function(e) {
   cerrarModalDetalleReserva();
   cerrarModalHistorialCodigo();
   cerrarModalConsultaRapida();
+  cerrarModalEtiquetaReserva();
 });
 
 // ── Navegación con Enter en el formulario de movimientos ──
@@ -3357,6 +3425,21 @@ async function registrarListaMovimientos() {
     });
     const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
+      // Jimmy pidió recuperar lo que hacía el macro de Excel al registrar una Reserva: ofrecer
+      // imprimir una etiqueta (100x150mm) con los datos de la reserva (Cliente, N° Documento,
+      // Fecha, Comercial) — igual que CMDREGISTRAR_Click -> IMPRIMIR_ETIQUETA_RESERVA en el
+      // macro. Igual que ahí, la etiqueta es UNA por "lote" registrado (no una por línea/código):
+      // se toman los datos de la PRIMERA línea de la lista (todas comparten el mismo cliente/
+      // documento/comercial/fecha dentro de una misma reserva), capturados AQUÍ, antes de vaciar
+      // "movimientosPendientes" más abajo.
+      const datosReservaParaEtiqueta = (tipoMovimientoActual === 'RESERVA' && movimientosPendientes.length)
+        ? {
+            nombreCliente: movimientosPendientes[0].nombreCliente,
+            documento: movimientosPendientes[0].documento,
+            comercial: movimientosPendientes[0].comercial,
+            fecha: movimientosPendientes[0].fecha // "YYYY-MM-DD"
+          }
+        : null;
       // Actualiza el Resumen Mensual de forma optimista (si ya está abierto en esta sesión),
       // sin esperar ningún refresh — igual que pide el usuario ("dinámicos... según se van
       // procesando"). OJO: las líneas de RESERVA no cuentan aquí (nunca tocan TRAZABILIDAD
@@ -3386,6 +3469,7 @@ async function registrarListaMovimientos() {
       // vuelva a dibujar. Por eso se encadena un filtrarConsultaModal() cuando esa carga
       // termina.
       cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
+      if (datosReservaParaEtiqueta) abrirModalEtiquetaReserva(datosReservaParaEtiqueta);
     } else {
       alert('No se pudo registrar el lote de movimientos:\n' + (result.mensaje || 'Error desconocido') + '\nLos movimientos quedan en la lista para reintentar.');
     }
@@ -5766,6 +5850,112 @@ function imprimirEtiquetaReceta() {
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
 }
 
+/* ---------- ETIQUETA DE RESERVA 100mm x 150mm (lo que hacía IMPRIMIR_ETIQUETA_RESERVA en el
+   macro de Excel al registrar una Reserva) ---------- */
+
+// Datos (Cliente/Documento/Comercial/Fecha) de la reserva recién registrada, mientras el modal
+// de "¿Imprimir etiqueta?" está abierto — se limpia al cerrar el modal (se haya impreso o no).
+let etiquetaReservaPendiente = null;
+
+// Se abre automáticamente justo después de registrar una Reserva con éxito (ver
+// registrarListaMovimientos) — equivalente al "¿Desea imprimir etiqueta?" (MsgBox Sí/No) del
+// macro, pero como modal en vez de un cuadro del navegador, para poder pedir también la
+// cantidad de copias en la misma ventana.
+function abrirModalEtiquetaReserva(datos) {
+  etiquetaReservaPendiente = datos;
+  const [yy, mm, dd] = String(datos.fecha || '').split('-');
+  const fechaTexto = (yy && mm && dd) ? `${dd}/${mm}/${yy}` : (datos.fecha || '');
+  document.getElementById('etiquetaReservaResumen').textContent =
+    `Cliente: ${datos.nombreCliente || '—'} · N° Documento: ${datos.documento || '—'} · Fecha: ${fechaTexto}`;
+  document.getElementById('etiquetaReservaCopias').value = '1';
+  document.getElementById('modalEtiquetaReserva').classList.add('visible');
+}
+
+function cerrarModalEtiquetaReserva() {
+  document.getElementById('modalEtiquetaReserva').classList.remove('visible');
+  etiquetaReservaPendiente = null;
+}
+
+function confirmarImprimirEtiquetaReserva() {
+  if (!etiquetaReservaPendiente) { cerrarModalEtiquetaReserva(); return; }
+  const copias = parseInt(document.getElementById('etiquetaReservaCopias').value, 10);
+  if (!copias || copias <= 0) { alert('La cantidad de copias debe ser un número válido.'); return; }
+  const datos = etiquetaReservaPendiente;
+  cerrarModalEtiquetaReserva();
+  imprimirEtiquetaReserva(copias, datos);
+}
+
+// ¿La fila (ya con su tamaño de letra actual) se sale de ancho? Se mide con el ancho REAL ya
+// renderizado (scrollWidth vs. clientWidth) en vez de calcularlo a mano con caracteres — mismo
+// criterio que ya se usa para el alto de la tabla de Recetas (ver medirDesbordeTablaReceta), así
+// un nombre de cliente/comercial corto se ve bien grande y uno largo se achica en vez de
+// cortarse o encimarse con la fila de al lado.
+function medirDesbordeFilaReserva(fila) {
+  return fila.scrollWidth > fila.clientWidth + 0.5;
+}
+
+function ajustarFuenteFilaReserva(fila, texto, tamInicial, tamMinimo) {
+  let tam = tamInicial;
+  texto.style.fontSize = tam + 'px';
+  while (tam > tamMinimo && medirDesbordeFilaReserva(fila)) {
+    tam = Math.max(tamMinimo, tam - 0.5);
+    texto.style.fontSize = tam + 'px';
+  }
+  return tam;
+}
+
+function imprimirEtiquetaReserva(copias, datos) {
+  const [yy, mm, dd] = String(datos.fecha || '').split('-');
+  const fechaTexto = (yy && mm && dd) ? `${dd}/${mm}/${yy}` : (datos.fecha || '');
+  const clienteTexto = String(datos.nombreCliente || '').toUpperCase();
+  const documentoTexto = 'N° DOCUMENTO ' + String(datos.documento || '').toUpperCase();
+  const fechaFilaTexto = 'FECHA ' + fechaTexto;
+  const comercialTexto = 'COMERCIAL ' + String(datos.comercial || '').toUpperCase();
+
+  let html = '';
+  for (let n = 1; n <= copias; n++) {
+    html += `
+      <div class="etqreserva-label">
+        <div class="etqreserva-inner">
+          <div class="etqreserva-row etqreserva-row-cliente-label"><span class="etqreserva-txt">CLIENTE</span></div>
+          <div class="etqreserva-row etqreserva-row-cliente-valor"><span class="etqreserva-txt">${clienteTexto}</span></div>
+          <div class="etqreserva-row etqreserva-row-documento"><span class="etqreserva-txt">${documentoTexto}</span></div>
+          <div class="etqreserva-row etqreserva-row-fecha"><span class="etqreserva-txt">${fechaFilaTexto}</span></div>
+          <div class="etqreserva-row etqreserva-row-comercial"><span class="etqreserva-txt">${comercialTexto}</span></div>
+        </div>
+      </div>`;
+  }
+  const printArea = document.getElementById('printAreaEtiqueta');
+  printArea.innerHTML = html;
+
+  // Mismo resguardo contra el bug de "2 hojas idénticas" por un <style> de tamaño de página
+  // viejo que ya se explica junto a las otras funciones de imprimir etiquetas.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: 100mm 150mm; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+
+  // Con el bloque ya visible (recién ahora el navegador puede medir el ancho real ya
+  // renderizado de cada fila), se ajusta la letra de las filas con texto variable — el nombre
+  // del cliente y del comercial, y el N° de documento, pueden ser cortos o muy largos.
+  printArea.querySelectorAll('.etqreserva-label').forEach(label => {
+    const filaCliente = label.querySelector('.etqreserva-row-cliente-valor');
+    ajustarFuenteFilaReserva(filaCliente, filaCliente.querySelector('.etqreserva-txt'), 44, 9);
+    const filaDocumento = label.querySelector('.etqreserva-row-documento');
+    ajustarFuenteFilaReserva(filaDocumento, filaDocumento.querySelector('.etqreserva-txt'), 30, 10);
+    const filaFecha = label.querySelector('.etqreserva-row-fecha');
+    ajustarFuenteFilaReserva(filaFecha, filaFecha.querySelector('.etqreserva-txt'), 24, 9);
+    const filaComercial = label.querySelector('.etqreserva-row-comercial');
+    ajustarFuenteFilaReserva(filaComercial, filaComercial.querySelector('.etqreserva-txt'), 24, 9);
+  });
+
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
+}
+
 // ── Protección contra doble clic/doble tap en los botones de Imprimir ──
 // Se reportó "en todas las pantallas, siempre salen 2 copias idénticas". Ninguno de los
 // botones de imprimir (Solicitud, Pedido a Bodega, Etiquetas de código/ruta/rack/receta,
@@ -5783,7 +5973,7 @@ function imprimirEtiquetaReceta() {
   const nombresFunciones = [
     'imprimirSolicitud', 'imprimirPedidoBodega',
     'imprimirEtiquetas', 'imprimirEtiquetaCodigo50', 'imprimirEtiquetaRuta', 'imprimirEtiquetaRack',
-    'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta'
+    'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta', 'imprimirEtiquetaReserva'
   ];
   nombresFunciones.forEach(nombre => {
     const original = window[nombre];
