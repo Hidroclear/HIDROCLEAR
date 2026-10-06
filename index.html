@@ -3371,12 +3371,29 @@ function buscarCodigo(texto) {
   dropdown.classList.add('visible');
 }
 
+// IMPORTANTE: Jimmy reportó que "Ubicación Destino" en Traslado nunca se autorellenaba (ni con
+// la ubicación que ya tiene stock, ni con la última Primaria), aunque "Ubicación Saliente" sí
+// funcionaba bien. La causa: EXISTENCIAS (leerInventario, en el Apps Script) NO recorta espacios
+// de la bodega, pero UBICACIONES (leerUbicaciones) sí — así que una bodega escrita a mano con un
+// espacio de más al final en EXISTENCIAS (ej. "02-A-1-01 ") dejaba de coincidir, por comparación
+// exacta, con la misma bodega ya limpia en UBICACIONES ("02-A-1-01"). tipoDeUbicacion() entonces
+// no la reconocía como Primaria (caía al SECUNDARIA por defecto), y buscarUbicacionPrimariaParaTraslado
+// nunca encontraba nada que ofrecer. "Ubicación Saliente" no se nota afectada porque ahí tanto la
+// lista de opciones como el valor a preseleccionar salen de la MISMA fuente sin recortar
+// (datosInventario), así que coinciden entre sí aunque tengan el espacio de más. Confirmado
+// reproduciendo el caso exacto con datos "sucios" (ver debug_traslado_destino.js). La corrección:
+// comparar siempre recortando espacios y sin importar mayúsculas/minúsculas.
+function normalizarClaveUbicacion(valor) {
+  return String(valor || '').trim().toUpperCase();
+}
+
 // La hoja UBICACIONES marca una bodega como "PRIMARIA"; cualquier otro valor (o vacío) cuenta
 // como SECUNDARIA — mismo criterio que usa el reporte de Reabastos (ver
 // buscarPrimeraUbicacionPorTipo), para que "ubicación primaria" signifique lo mismo en toda
 // la app en vez de improvisar un criterio distinto aquí.
 function tipoDeUbicacion(bodega) {
-  const u = todasUbicaciones.find(x => x.ubicacion === bodega);
+  const claveBuscada = normalizarClaveUbicacion(bodega);
+  const u = todasUbicaciones.find(x => normalizarClaveUbicacion(x.ubicacion) === claveBuscada);
   return u && String(u.tipo || '').toUpperCase() === 'PRIMARIA' ? 'PRIMARIA' : 'SECUNDARIA';
 }
 
@@ -3390,7 +3407,10 @@ function tipoDeUbicacion(bodega) {
 async function buscarUbicacionPrimariaParaTraslado(codigo) {
   // 1) ¿Tiene alguna fila en Existencias en una bodega marcada Primaria ahora mismo? (sin
   // exigir stock > 0 — una Primaria en 0 es justo el caso típico que motiva el traslado).
-  const filaPrimariaActual = datosInventario.find(d => d.codigo === codigo && tipoDeUbicacion(d.bodega) === 'PRIMARIA');
+  // Comparación normalizada (recortando espacios y mayúsculas/minúsculas) por la misma razón
+  // que tipoDeUbicacion de arriba: EXISTENCIAS puede traer el código con espacios de más.
+  const claveCodigoBuscado = String(codigo).trim().toUpperCase();
+  const filaPrimariaActual = datosInventario.find(d => String(d.codigo).trim().toUpperCase() === claveCodigoBuscado && tipoDeUbicacion(d.bodega) === 'PRIMARIA');
   if (filaPrimariaActual) return filaPrimariaActual.bodega;
 
   // 2) Si no, se revisa su historial completo (se carga bajo demanda, una sola vez por sesión)
@@ -3467,7 +3487,15 @@ function seleccionarCodigo(codigo, descripcion) {
       const codigoAlPedir = codigo;
       buscarUbicacionPrimariaParaTraslado(codigo).then(primariaDestino => {
         if (primariaDestino && document.getElementById('movCodigo').value === codigoAlPedir) {
-          selDestino.value = primariaDestino;
+          // "primariaDestino" puede venir de EXISTENCIAS (que puede traer espacios de más, ver
+          // el comentario grande en tipoDeUbicacion), pero las <option> del select salen de
+          // UBICACIONES (ya recortadas) — asignar el valor "sucio" directo no selecciona nada
+          // (el navegador no encuentra una <option> con ese texto exacto). Se busca la opción
+          // que coincide normalizando espacios/mayúsculas, y se usa su valor tal cual aparece
+          // en el select.
+          const claveDestino = normalizarClaveUbicacion(primariaDestino);
+          const opcionCoincidente = todasUbicaciones.find(u => normalizarClaveUbicacion(u.ubicacion) === claveDestino);
+          selDestino.value = opcionCoincidente ? opcionCoincidente.ubicacion : primariaDestino;
         }
       });
     }
@@ -5398,11 +5426,14 @@ function buscarPrimeraUbicacionPorTipo(filasCodigo, tipo, requiereStock) {
   // En la hoja UBICACIONES solo se escribe "PRIMARIA" cuando aplica; si la columna viene
   // en blanco, esa ubicación se considera SECUNDARIA por defecto (igual que buscarUbicacion()
   // en el backend, que trata todo lo que no sea "PRIMARIA" como no-primaria).
+  // Clave normalizada (ver normalizarClaveUbicacion/tipoDeUbicacion): EXISTENCIAS puede traer
+  // la bodega con espacios de más que UBICACIONES no tiene, y sin normalizar esta combinación
+  // nunca encontraba la fila (mismo bug que afectaba "Ubicación Destino" en Traslado).
   const tiposUbic = {};
   todasUbicaciones.forEach(u => {
-    tiposUbic[u.ubicacion] = String(u.tipo || '').toUpperCase() === 'PRIMARIA' ? 'PRIMARIA' : 'SECUNDARIA';
+    tiposUbic[normalizarClaveUbicacion(u.ubicacion)] = String(u.tipo || '').toUpperCase() === 'PRIMARIA' ? 'PRIMARIA' : 'SECUNDARIA';
   });
-  const candidatas = filasCodigo.filter(f => tiposUbic[f.bodega] === tipo && (!requiereStock || f.stock > 0));
+  const candidatas = filasCodigo.filter(f => tiposUbic[normalizarClaveUbicacion(f.bodega)] === tipo && (!requiereStock || f.stock > 0));
   return candidatas.length ? candidatas[0] : null;
 }
 
