@@ -2631,6 +2631,45 @@ document.getElementById('formMovimiento').addEventListener('keydown', function(e
   enfocarSiguienteCampoMovimiento(el);
 });
 
+// ── Enter para elegir código del listado de sugerencias sin usar el mouse ──
+// Jimmy pidió: al escribir el código completo, si el listado de sugerencias muestra UNA sola
+// opción, Enter debe elegirla directamente (igual que si le hiciera clic); y si muestra VARIAS,
+// Enter debe elegir la PRIMERA de la lista — así no tiene que soltar el teclado para elegir con
+// el mouse. Se activa solo si el listado está visible con al menos un resultado (si todavía no
+// hay ningún resultado, por ejemplo con menos de 2 letras escritas, Enter no hace nada aquí).
+// Se usa la MISMA función para todos los buscadores de código de la app (Movimientos, las dos
+// Consultas de Stock, Conteo de Inventario, Recetas y las dos Etiquetas) porque todos comparten
+// el mismo listado desplegable (clase .codigo-item dentro de .codigo-dropdown.visible), así que
+// "elegir el primero" significa lo mismo en cualquiera de ellos.
+//
+// En el campo "movCodigoBuscar" del formulario de Movimiento esto se combina con el salto al
+// siguiente campo de arriba: este listener está puesto directamente sobre el campo, así que se
+// ejecuta ANTES de que el Enter burbujee hasta el listener de #formMovimiento — primero elige el
+// código (si hay una sugerencia visible) y después, el mismo Enter, salta al siguiente campo
+// (Cantidad, Ubicación, etc.), sin necesidad de presionar Enter dos veces.
+function elegirPrimeraSugerenciaConEnter(idCampoBuscador, idDropdown) {
+  const campo = document.getElementById(idCampoBuscador);
+  if (!campo) return;
+  campo.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    const dropdown = document.getElementById(idDropdown);
+    if (!dropdown || !dropdown.classList.contains('visible')) return; // sin sugerencias: Enter no hace nada aquí
+    const primerItem = dropdown.querySelector('.codigo-item');
+    if (!primerItem) return;
+    e.preventDefault();
+    primerItem.click(); // dispara el mismo onclick que si Jimmy le hiciera clic con el mouse
+  });
+}
+[
+  ['movCodigoBuscar', 'codigoDropdown'],
+  ['consultaModalBuscar', 'consultaModalDropdown'],
+  ['consultaRapidaBuscar', 'consultaRapidaDropdown'],
+  ['conteoCodigoBuscar', 'conteoCodigoDropdown'],
+  ['recetaCodigoBuscar', 'recetaCodigoDropdown'],
+  ['etqCodigoBuscar', 'etqCodigoDropdown'],
+  ['etq50CodigoBuscar', 'etq50CodigoDropdown'],
+].forEach(([idCampoBuscador, idDropdown]) => elegirPrimeraSugerenciaConEnter(idCampoBuscador, idDropdown));
+
 function buscarCodigoConsultaModal(texto) {
   const dropdown = document.getElementById('consultaModalDropdown');
   filtrarConsultaModal();
