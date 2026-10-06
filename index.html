@@ -126,6 +126,10 @@
   .codigo-dropdown.visible { display: block; }
   .codigo-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--gris); }
   .codigo-item:hover { background: #f0f5ff; }
+  /* Resaltado por teclado (flechas ↑/↓, ver habilitarNavegacionTecladoDropdown) — mismo fondo
+     que :hover para que se vea igual de "elegible", más un contorno para distinguirlo cuando el
+     mouse está sobre OTRA fila al mismo tiempo. */
+  .codigo-item.resaltado { background: #e4edff; outline: 2px solid var(--celeste); outline-offset: -2px; }
   .codigo-item .cod { font-weight: 600; color: var(--azul-medio); }
   .codigo-item .desc-cod { font-size: 11px; color: var(--texto-suave); }
   .btn-link-nuevo-codigo { align-self: flex-start; background: none; border: none; padding: 2px 0; margin-top: 2px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--azul-medio); cursor: pointer; text-decoration: underline; }
@@ -2699,33 +2703,69 @@ document.getElementById('formMovimiento').addEventListener('keydown', function(e
   enfocarSiguienteCampoMovimiento(el);
 });
 
-// ── Enter para elegir código del listado de sugerencias sin usar el mouse ──
-// Jimmy pidió: al escribir el código completo, si el listado de sugerencias muestra UNA sola
-// opción, Enter debe elegirla directamente (igual que si le hiciera clic); y si muestra VARIAS,
-// Enter debe elegir la PRIMERA de la lista — así no tiene que soltar el teclado para elegir con
-// el mouse. Se activa solo si el listado está visible con al menos un resultado (si todavía no
-// hay ningún resultado, por ejemplo con menos de 2 letras escritas, Enter no hace nada aquí).
-// Se usa la MISMA función para todos los buscadores de código de la app (Movimientos, las dos
-// Consultas de Stock, Conteo de Inventario, Recetas y las dos Etiquetas) porque todos comparten
-// el mismo listado desplegable (clase .codigo-item dentro de .codigo-dropdown.visible), así que
-// "elegir el primero" significa lo mismo en cualquiera de ellos.
+// ── Flechas ↑/↓ + Enter para elegir código del listado de sugerencias sin usar el mouse ──
+// Jimmy pidió primero que Enter eligiera la única sugerencia (o la primera, si había varias), y
+// después pidió además poder moverse por la lista con las flechas ↑/↓ y elegir con Enter la que
+// quedara resaltada — "según donde se detenga presiona enter y listo queda elegido". Con las
+// flechas ↓/↑ se resalta el siguiente/anterior resultado (si todavía no hay ninguno resaltado,
+// ↓ resalta el primero y ↑ resalta el último); Enter elige el resaltado, o si todavía no se
+// movió con las flechas, elige el primero (igual que antes). Al seguir escribiendo, el listado
+// se reconstruye de cero (ver buscarCodigo y similares) y el resaltado se reinicia, para no
+// quedar "pegado" a una posición que ya no corresponde a los nuevos resultados.
+// Se activa solo si el listado está visible con al menos un resultado (si todavía no hay ningún
+// resultado, por ejemplo con menos de 2 letras escritas, ni las flechas ni Enter hacen nada
+// aquí). Se usa la MISMA función para todos los buscadores de código de la app (Movimientos, las
+// dos Consultas de Stock, Conteo de Inventario, Recetas y las dos Etiquetas) porque todos
+// comparten el mismo listado desplegable (clase .codigo-item dentro de .codigo-dropdown.visible).
 //
-// En el campo "movCodigoBuscar" del formulario de Movimiento esto se combina con el salto al
+// En el campo "movCodigoBuscar" del formulario de Movimiento, Enter se combina con el salto al
 // siguiente campo de arriba: este listener está puesto directamente sobre el campo, así que se
 // ejecuta ANTES de que el Enter burbujee hasta el listener de #formMovimiento — primero elige el
 // código (si hay una sugerencia visible) y después, el mismo Enter, salta al siguiente campo
 // (Cantidad, Ubicación, etc.), sin necesidad de presionar Enter dos veces.
-function elegirPrimeraSugerenciaConEnter(idCampoBuscador, idDropdown) {
+function resaltarItemDropdown(dropdown, indice) {
+  const items = dropdown.querySelectorAll('.codigo-item');
+  items.forEach(it => it.classList.remove('resaltado'));
+  if (indice === null || indice < 0 || indice >= items.length) {
+    delete dropdown.dataset.indiceResaltado;
+    return;
+  }
+  items[indice].classList.add('resaltado');
+  if (items[indice].scrollIntoView) items[indice].scrollIntoView({ block: 'nearest' });
+  dropdown.dataset.indiceResaltado = String(indice);
+}
+
+function moverResaltadoDropdown(dropdown, delta) {
+  const items = dropdown.querySelectorAll('.codigo-item');
+  if (!items.length) return;
+  const actual = dropdown.dataset.indiceResaltado !== undefined ? parseInt(dropdown.dataset.indiceResaltado, 10) : -1;
+  const siguiente = actual === -1
+    ? (delta > 0 ? 0 : items.length - 1)
+    : Math.max(0, Math.min(items.length - 1, actual + delta));
+  resaltarItemDropdown(dropdown, siguiente);
+}
+
+function habilitarNavegacionTecladoDropdown(idCampoBuscador, idDropdown) {
   const campo = document.getElementById(idCampoBuscador);
   if (!campo) return;
-  campo.addEventListener('keydown', function(e) {
-    if (e.key !== 'Enter') return;
+  // Al escribir (nueva búsqueda), el listado se rearma de cero — se limpia el resaltado
+  // guardado para que no quede apuntando a una posición de la lista anterior.
+  campo.addEventListener('input', function() {
     const dropdown = document.getElementById(idDropdown);
-    if (!dropdown || !dropdown.classList.contains('visible')) return; // sin sugerencias: Enter no hace nada aquí
-    const primerItem = dropdown.querySelector('.codigo-item');
-    if (!primerItem) return;
+    if (dropdown) delete dropdown.dataset.indiceResaltado;
+  });
+  campo.addEventListener('keydown', function(e) {
+    const dropdown = document.getElementById(idDropdown);
+    if (!dropdown || !dropdown.classList.contains('visible')) return; // sin sugerencias: no hace nada aquí
+    if (e.key === 'ArrowDown') { e.preventDefault(); moverResaltadoDropdown(dropdown, 1); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); moverResaltadoDropdown(dropdown, -1); return; }
+    if (e.key !== 'Enter') return;
+    const items = dropdown.querySelectorAll('.codigo-item');
+    if (!items.length) return;
+    const indiceResaltado = dropdown.dataset.indiceResaltado !== undefined ? parseInt(dropdown.dataset.indiceResaltado, 10) : 0;
+    const item = items[indiceResaltado] || items[0];
     e.preventDefault();
-    primerItem.click(); // dispara el mismo onclick que si Jimmy le hiciera clic con el mouse
+    item.click(); // dispara el mismo onclick que si Jimmy le hiciera clic con el mouse
   });
 }
 [
@@ -2736,7 +2776,7 @@ function elegirPrimeraSugerenciaConEnter(idCampoBuscador, idDropdown) {
   ['recetaCodigoBuscar', 'recetaCodigoDropdown'],
   ['etqCodigoBuscar', 'etqCodigoDropdown'],
   ['etq50CodigoBuscar', 'etq50CodigoDropdown'],
-].forEach(([idCampoBuscador, idDropdown]) => elegirPrimeraSugerenciaConEnter(idCampoBuscador, idDropdown));
+].forEach(([idCampoBuscador, idDropdown]) => habilitarNavegacionTecladoDropdown(idCampoBuscador, idDropdown));
 
 function buscarCodigoConsultaModal(texto) {
   const dropdown = document.getElementById('consultaModalDropdown');
@@ -3561,13 +3601,19 @@ function seleccionarCodigo(codigo, descripcion) {
   document.getElementById('movCodigo').value = codigo;
   document.getElementById('movDescripcion').value = descripcion;
   document.getElementById('codigoDropdown').classList.remove('visible');
-  if (tipoMovimientoActual === 'SALIDA' || tipoMovimientoActual === 'TRASLADO') {
+  // Jimmy reportó: en Reserva, "Ubicación" mostraba la lista COMPLETA de ubicaciones (igual que
+  // Ingreso) en vez de solo las que ya tienen stock de ese código (como sí hacen Salida y el
+  // origen de Traslado) — "deberían ser como las demás opciones". Tiene sentido: reservar es
+  // apartar stock que YA existe físicamente en alguna bodega, igual que Salida, así que Reserva
+  // se agrega aquí (mismo criterio y misma preselección de la Primaria que Salida; usa el mismo
+  // <select> "movUbicacion").
+  if (tipoMovimientoActual === 'SALIDA' || tipoMovimientoActual === 'TRASLADO' || tipoMovimientoActual === 'RESERVA') {
     // Deduplicado con Set: un mismo código puede tener más de una fila en EXISTENCIAS para la
     // misma bodega — sin esto la ubicación aparecía repetida en la lista, y el autorrelleno de
     // más abajo fallaba porque "hay exactamente 1 bodega con stock" dejaba de cumplirse aunque
     // en realidad solo hubiera una bodega real.
     const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega))];
-    const selId = tipoMovimientoActual === 'SALIDA' ? 'movUbicacion' : 'movUbicacionOrigen';
+    const selId = tipoMovimientoActual === 'TRASLADO' ? 'movUbicacionOrigen' : 'movUbicacion';
     const sel = document.getElementById(selId);
     if (ubicacionesConStock.length > 0) {
       if (tipoMovimientoActual === 'TRASLADO') {
