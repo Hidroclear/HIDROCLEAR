@@ -319,6 +319,18 @@
   .print-tabla th { background: #0a2a5e; color: #fff; padding: 8px 12px; text-align: left; }
   .print-tabla td { padding: 8px 12px; border-bottom: 1px solid #e0eaf5; }
   .print-tabla tr:nth-child(even) td { background: #f5f9ff; }
+  /* Jimmy pidió (reporte de Conteo de Inventario): filas "tipo Excel" — menos altas y columnas
+     más anchas — porque con el estilo normal de .print-tabla (letra 13px, relleno 8px arriba y
+     abajo, Categoría envolviendo a 2-3 líneas) el reporte le salía en demasiadas hojas. Esta
+     clase SOLO se agrega al <table> del reporte de CONTEO (ver imprimirReporte) — los demás
+     reportes (Reabastos/Sugerido/Receta) siguen con el estilo normal de .print-tabla, que no fue
+     reportado como problema. Junto con esta clase, imprimirReporte() también pone esta hoja en
+     horizontal (ver #estiloPaginaReporteConteo) para que las columnas tengan más espacio de
+     sobra y envuelvan menos seguido a una segunda línea.
+  */
+  .print-tabla.print-tabla-compacta { font-size: 10.5px; }
+  .print-tabla.print-tabla-compacta th, .print-tabla.print-tabla-compacta td { padding: 2px 6px; }
+  .print-tabla.print-tabla-compacta th { font-size: 10.5px; }
   .print-firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
   .print-firma { text-align: center; }
   .print-firma-linea { border-top: 1.5px solid #333; padding-top: 8px; font-size: 12px; color: #555; }
@@ -5773,22 +5785,42 @@ function imprimirReporte() {
     filasHtml = reporteResultadosActuales.map(f => `<tr><td>${f.codigoComponente}</td><td>${f.nombreComponente}</td><td>${f.cantidadUnidad}</td><td>${f.cantidadNecesaria}</td></tr>`).join('');
   }
 
+  // Jimmy pidió específicamente para CONTEO que las filas salieran "tipo Excel" (menos altas,
+  // columnas más anchas) — ver el comentario junto a .print-tabla-compacta en el CSS. Se deja
+  // así, sin tocar el <table> de los otros 3 reportes que comparten imprimirReporte().
+  const claseTablaExtra = tipoReporteActual === 'CONTEO' ? ' print-tabla-compacta' : '';
+
   const printArea = document.getElementById('printAreaReporte');
   printArea.innerHTML = `
     <div class="print-header">
       <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
       <div class="print-titulo">${titulo}<br><span style="font-size:12px;font-weight:400">${hoy}</span></div>
     </div>
-    <table class="print-tabla"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${filasHtml}</tbody></table>
+    <table class="print-tabla${claseTablaExtra}"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${filasHtml}</tbody></table>
   `;
 
   ocultarTodasLasAreasDeImpresion();
   // Ver el comentario en imprimirSolicitud: limpia cualquier @page chico que haya quedado
   // pegado de una etiqueta impresa antes y cancelada.
   document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
+  // El reporte de Conteo de Inventario tiene 8 columnas (Ubicación, Código, Descripción,
+  // Categoría, Stock Sistema, Reservado, Conteo Físico, Observaciones) — para que les quepa
+  // espacio de sobra sin envolver tanto texto a una segunda línea, se imprime en horizontal
+  // (apaisado) solo para este reporte. Se limpia cualquier @page de un conteo anterior antes de
+  // decidir si hace falta uno nuevo, y se quita de nuevo después de imprimir para que el
+  // siguiente reporte (de otro tipo) no salga también en horizontal por error.
+  document.querySelectorAll('#estiloPaginaReporteConteo').forEach(el => el.remove());
+  let estiloPaginaConteo = null;
+  if (tipoReporteActual === 'CONTEO') {
+    estiloPaginaConteo = document.createElement('style');
+    estiloPaginaConteo.id = 'estiloPaginaReporteConteo';
+    estiloPaginaConteo.textContent = '@page { size: landscape; margin: 10mm; }';
+    document.head.appendChild(estiloPaginaConteo);
+  }
   printArea.style.display = 'block';
   window.print();
   printArea.style.display = 'none';
+  if (estiloPaginaConteo) estiloPaginaConteo.remove();
 }
 
 // Punto de partida para el tamaño de letra de la tabla — antes era el valor FINAL (una tabla
