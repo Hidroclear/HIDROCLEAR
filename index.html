@@ -331,6 +331,10 @@
   .print-tabla.print-tabla-compacta { font-size: 10.5px; }
   .print-tabla.print-tabla-compacta th, .print-tabla.print-tabla-compacta td { padding: 2px 6px; }
   .print-tabla.print-tabla-compacta th { font-size: 10.5px; }
+  /* Para reportes de más de una hoja impresa en un solo trabajo de impresión (ver Conteo
+     Cíclico, imprimirConteoCiclico) — fuerza que lo que sigue empiece en una página nueva, en
+     vez de seguir pegado al final de la tabla anterior. */
+  .print-salto-pagina { page-break-before: always; break-before: page; }
   .print-firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
   .print-firma { text-align: center; }
   .print-firma-linea { border-top: 1.5px solid #333; padding-top: 8px; font-size: 12px; color: #555; }
@@ -823,6 +827,7 @@
       <button class="sb-subitem" onclick="irAReporte('REABASTOS', this)">🔁 Reabastos</button>
       <button class="sb-subitem" onclick="irAReporte('SUGERIDO', this)">🛍️ Sugerido de Compras</button>
       <button class="sb-subitem" onclick="irAReporte('RECETA', this)">🧩 Recetas (Componentes)</button>
+      <button class="sb-subitem" onclick="irAReporte('CONTEO_CICLICO', this)">🔄 Conteo Cíclico</button>
     </div>
     <div class="sb-section-label">Solicitudes</div>
     <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
@@ -1470,6 +1475,41 @@
           </table>
         </div>
       </div>
+
+      <!-- CONTEO CÍCLICO: se sube el archivo de otro sistema (ej. B-Sides) y se compara, por
+           código, el stock TOTAL de ese archivo contra el stock TOTAL de HidroClear. Los
+           códigos que no coinciden se arman en dos hojas para imprimir (ver
+           imprimirConteoCiclico): una con las ubicaciones físicas a contar, y otra con el
+           resumen de diferencias por código. -->
+      <div class="rep-panel hidden" id="repConteoCiclico">
+        <div class="rep-filtros">
+          <div class="form-field">
+            <label>Archivo de otro sistema (Excel o CSV)</label>
+            <input type="file" id="conteoCiclicoArchivo" accept=".xlsx,.xls,.csv" onchange="procesarArchivoConteoCiclico(this.files[0])">
+          </div>
+          <button class="btn-limpiar" type="button" onclick="limpiarConteoCiclico()">✕ Limpiar</button>
+        </div>
+        <div id="conteoCiclicoEstado" class="rep-header" style="font-size:13.5px;padding:8px 0;color:var(--azul)"></div>
+        <div class="rep-acciones" id="conteoCiclicoAcciones" style="display:none">
+          <button class="btn-limpiar" type="button" onclick="imprimirConteoCiclico()">🖨️ Imprimir (las dos hojas)</button>
+        </div>
+
+        <div class="rep-tabla-wrap" id="conteoCiclicoWrapUbicaciones" style="display:none">
+          <div class="rep-header" style="font-size:14px;padding:12px 0 8px;font-weight:700">Hoja 1 — Ubicaciones a Contar</div>
+          <table>
+            <thead><tr><th>Ubicación</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Stock Sistema</th><th>Reservado</th><th>Conteo Físico</th><th>Observaciones</th></tr></thead>
+            <tbody id="conteoCiclicoUbicacionesTbody"></tbody>
+          </table>
+        </div>
+
+        <div class="rep-tabla-wrap" id="conteoCiclicoWrapResumen" style="display:none">
+          <div class="rep-header" style="font-size:14px;padding:12px 0 8px;font-weight:700">Hoja 2 — Resumen por Código</div>
+          <table>
+            <thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th>Stock Sistema</th><th>STOCK B-SIDES</th><th>Diferencia</th></tr></thead>
+            <tbody id="conteoCiclicoResumenTbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1733,6 +1773,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<!-- Para leer en el navegador el archivo Excel que se sube en "Conteo Cíclico" (ver
+     procesarArchivoConteoCiclico) — no hay forma de leer un .xlsx real sin una librería. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const SHEET_ID = '18ABHh-28OwyxIKTtehCgjFlbW1PG1B8zLR6sBXYCwJw';
 const GS_URL = 'https://script.google.com/macros/s/AKfycbxGchhv05q_aSHuwByPUmqct0ARI0GyPI0A1fYgI5gX-rp3o0EMbACihJqDaNKssmiE/exec';
@@ -1830,9 +1873,9 @@ let datosReportesCargados = false;
 let movimientosHistorial = [];
 let reservasDetalleReportes = [];
 let reporteResultadosActuales = [];
-let filtrosReporteListos = { RESUMEN: true, EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true };
-const PANEL_REPORTE = { RESUMEN: 'repResumen', RESPONSABLE: 'repResponsable', EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta' };
-const TITULO_REPORTE = { RESUMEN: '📅 Resumen Mensual de Movimientos', RESPONSABLE: '👤 Ingresos y Salidas por Responsable', EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)' };
+let filtrosReporteListos = { RESUMEN: true, EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true, CONTEO_CICLICO: true };
+const PANEL_REPORTE = { RESUMEN: 'repResumen', RESPONSABLE: 'repResponsable', EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta', CONTEO_CICLICO: 'repConteoCiclico' };
+const TITULO_REPORTE = { RESUMEN: '📅 Resumen Mensual de Movimientos', RESPONSABLE: '👤 Ingresos y Salidas por Responsable', EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)', CONTEO_CICLICO: '🔄 Conteo Cíclico (Diferencias de Inventario)' };
 let datosRecetas = [];
 let datosRecetasCargados = false;
 let datosRecetasError = false;
@@ -5601,6 +5644,244 @@ function renderTablaConteo(filas) {
   ).join('');
 }
 
+/* =========================================================
+   CONTEO CÍCLICO (Diferencias de Inventario)
+   Jimmy sube un archivo de otro sistema (ej. "B-Sides") con el stock que ellos tienen
+   registrado por código. Se compara, código por código, el stock TOTAL de ese archivo contra
+   el stock TOTAL de HidroClear (sumando todas las bodegas), y para los códigos que no
+   coinciden se arman dos hojas para imprimir: una con las ubicaciones físicas a ir a contar, y
+   otra con el resumen de diferencias por código. Reglas acordadas con Jimmy:
+    - Código que existe en HidroClear pero NO aparece en el archivo subido: se trata como que
+      el otro sistema tiene 0 (sale como diferencia si HidroClear tiene stock).
+    - Código que aparece en el archivo subido pero NO existe en el catálogo de HidroClear
+      (código nuevo): TAMBIÉN se contempla como diferencia (Stock Sistema = 0). No hay
+      ubicación física que listar en la Hoja 1 (el sistema no lo tiene registrado en ninguna
+      bodega), pero sí aparece en la Hoja 2 (resumen) para que lo revise.
+   ========================================================= */
+let conteoCiclicoFilasUbicaciones = [];
+let conteoCiclicoFilasResumen = [];
+
+function normalizarCodigoConteoCiclico(codigo) {
+  return String(codigo === null || codigo === undefined ? '' : codigo).trim().toUpperCase();
+}
+
+function quitarTildesConteoCiclico(texto) {
+  return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Agrupa datosInventario por código: descripción/categoría "de referencia", el stock TOTAL
+// sumando todas las bodegas, y el detalle de CADA ubicación donde el código está registrado
+// (incluyendo las que hoy muestran 0 — en un conteo cíclico interesa revisar cualquier
+// ubicación conocida del código, no solo las que ya muestran stock positivo, a diferencia del
+// reporte de Conteo de Inventario normal).
+function agruparInventarioPorCodigoParaConteoCiclico() {
+  const mapa = {};
+  datosInventario.forEach(d => {
+    const codigo = normalizarCodigoConteoCiclico(d.codigo);
+    if (!codigo) return;
+    if (!mapa[codigo]) {
+      mapa[codigo] = { codigoOriginal: d.codigo, descripcion: d.descripcion || '', categoria: d.categoria || '', stockTotal: 0, ubicaciones: [] };
+    }
+    mapa[codigo].stockTotal += (Number(d.stock) || 0);
+    mapa[codigo].ubicaciones.push({ bodega: d.bodega, stock: Number(d.stock) || 0 });
+  });
+  return mapa;
+}
+
+// Lee las columnas del archivo subido por el NOMBRE del encabezado (sin importar mayúsculas,
+// tildes, ni el orden exacto de las columnas) en vez de por posición fija — así, si el otro
+// sistema cambia el orden de las columnas en una exportación futura, no hay que tocar código.
+// Devuelve null si no se reconoce una columna de código o de stock (archivo con formato que no
+// se puede interpretar).
+function parsearFilasBSidesDesdeHoja(filasCrudas) {
+  if (!filasCrudas || !filasCrudas.length) return [];
+  const encabezados = filasCrudas[0].map(h => quitarTildesConteoCiclico(h).toLowerCase().trim());
+  const indiceColumna = (coincidencias) => encabezados.findIndex(h => coincidencias.some(c => h.includes(c)));
+  const idxCodigo = indiceColumna(['articulo', 'codigo']);
+  const idxDescripcion = indiceColumna(['descripcion']);
+  const idxCategoria = indiceColumna(['categoria']);
+  const idxStock = indiceColumna(['existencia', 'stock']);
+  if (idxCodigo === -1 || idxStock === -1) return null;
+
+  const filas = [];
+  for (let i = 1; i < filasCrudas.length; i++) {
+    const fila = filasCrudas[i];
+    const valorCodigo = fila ? fila[idxCodigo] : undefined;
+    if (valorCodigo === undefined || valorCodigo === null || valorCodigo === '') continue;
+    filas.push({
+      codigo: normalizarCodigoConteoCiclico(valorCodigo),
+      descripcion: idxDescripcion !== -1 ? (fila[idxDescripcion] || '') : '',
+      categoria: idxCategoria !== -1 ? (fila[idxCategoria] || '') : '',
+      stockBSides: Number(fila[idxStock]) || 0
+    });
+  }
+  return filas;
+}
+
+function procesarArchivoConteoCiclico(file) {
+  if (!file) return;
+  const estadoEl = document.getElementById('conteoCiclicoEstado');
+  estadoEl.textContent = '⏳ Leyendo el archivo...';
+  const lector = new FileReader();
+  lector.onerror = function() {
+    estadoEl.textContent = '⚠️ No se pudo leer el archivo. Intente de nuevo.';
+  };
+  lector.onload = function(e) {
+    try {
+      const datos = new Uint8Array(e.target.result);
+      const libro = XLSX.read(datos, { type: 'array' });
+      const primeraHoja = libro.Sheets[libro.SheetNames[0]];
+      const filasCrudas = XLSX.utils.sheet_to_json(primeraHoja, { header: 1, defval: '' });
+      const filasBSides = parsearFilasBSidesDesdeHoja(filasCrudas);
+      if (filasBSides === null) {
+        estadoEl.textContent = '⚠️ No se reconocieron las columnas de Código/Existencias en el archivo. Revise que la primera fila tenga los encabezados.';
+        return;
+      }
+      if (!filasBSides.length) {
+        estadoEl.textContent = '⚠️ El archivo no tiene filas de datos.';
+        return;
+      }
+      calcularComparacionConteoCiclico(filasBSides);
+      renderConteoCiclico();
+    } catch (err) {
+      console.error('Error procesando archivo de Conteo Cíclico:', err);
+      estadoEl.textContent = '⚠️ El archivo no se pudo procesar (¿es un Excel/CSV válido?).';
+    }
+  };
+  lector.readAsArrayBuffer(file);
+}
+
+function calcularComparacionConteoCiclico(filasBSides) {
+  const inventarioPorCodigo = agruparInventarioPorCodigoParaConteoCiclico();
+  const reservadoPorCodigoUbic = agruparReservasPorCodigoUbicacion();
+  const bSidesPorCodigo = {};
+  filasBSides.forEach(f => { bSidesPorCodigo[f.codigo] = f; });
+
+  const todosLosCodigos = new Set([...Object.keys(inventarioPorCodigo), ...Object.keys(bSidesPorCodigo)]);
+
+  const filasUbicaciones = [];
+  const filasResumen = [];
+
+  todosLosCodigos.forEach(codigo => {
+    const enApp = inventarioPorCodigo[codigo] || null;
+    const enBSides = bSidesPorCodigo[codigo] || null;
+    const stockApp = enApp ? enApp.stockTotal : 0;
+    const stockBSides = enBSides ? enBSides.stockBSides : 0;
+    if (stockApp === stockBSides) return; // sin diferencia, no interesa para el conteo cíclico
+
+    const descripcion = (enApp && enApp.descripcion) || (enBSides && enBSides.descripcion) || '';
+    const categoria = (enApp && enApp.categoria) || (enBSides && enBSides.categoria) || '';
+    const codigoMostrar = (enApp && enApp.codigoOriginal) || codigo;
+
+    filasResumen.push({
+      codigo: codigoMostrar, descripcion, categoria,
+      stockSistema: stockApp, stockBSides: stockBSides, diferencia: stockApp - stockBSides
+    });
+
+    if (enApp) {
+      enApp.ubicaciones.forEach(u => {
+        filasUbicaciones.push({
+          ubicacion: u.bodega, codigo: codigoMostrar, descripcion, categoria,
+          stock: u.stock, reservado: reservadoPorCodigoUbic[codigoMostrar + '|' + u.bodega] || 0
+        });
+      });
+    }
+  });
+
+  filasUbicaciones.sort((a, b) => String(a.ubicacion).localeCompare(String(b.ubicacion)) || String(a.codigo).localeCompare(String(b.codigo)));
+  filasResumen.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+
+  conteoCiclicoFilasUbicaciones = filasUbicaciones;
+  conteoCiclicoFilasResumen = filasResumen;
+}
+
+function renderConteoCiclico() {
+  const estadoEl = document.getElementById('conteoCiclicoEstado');
+  const tbodyUbicaciones = document.getElementById('conteoCiclicoUbicacionesTbody');
+  const tbodyResumen = document.getElementById('conteoCiclicoResumenTbody');
+  const wrapUbicaciones = document.getElementById('conteoCiclicoWrapUbicaciones');
+  const wrapResumen = document.getElementById('conteoCiclicoWrapResumen');
+  const acciones = document.getElementById('conteoCiclicoAcciones');
+
+  if (!conteoCiclicoFilasResumen.length) {
+    estadoEl.textContent = '✅ No se encontraron diferencias — el stock de HidroClear coincide con el archivo subido para todos los códigos.';
+    wrapUbicaciones.style.display = 'none';
+    wrapResumen.style.display = 'none';
+    acciones.style.display = 'none';
+    return;
+  }
+
+  estadoEl.textContent = `Se encontraron ${conteoCiclicoFilasResumen.length} código(s) con diferencia — ${conteoCiclicoFilasUbicaciones.length} ubicación(es) por contar.`;
+
+  tbodyUbicaciones.innerHTML = conteoCiclicoFilasUbicaciones.map(f =>
+    `<tr><td>${f.ubicacion}</td><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stock}</td><td>${f.reservado}</td><td></td><td></td></tr>`
+  ).join('') || '<tr><td colspan="8" class="rep-vacio">Ninguno de los códigos con diferencia está registrado en una ubicación de HidroClear.</td></tr>';
+
+  tbodyResumen.innerHTML = conteoCiclicoFilasResumen.map(f =>
+    `<tr><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stockSistema}</td><td>${f.stockBSides}</td><td>${f.diferencia}</td></tr>`
+  ).join('');
+
+  wrapUbicaciones.style.display = '';
+  wrapResumen.style.display = '';
+  acciones.style.display = '';
+}
+
+function limpiarConteoCiclico() {
+  conteoCiclicoFilasUbicaciones = [];
+  conteoCiclicoFilasResumen = [];
+  document.getElementById('conteoCiclicoArchivo').value = '';
+  document.getElementById('conteoCiclicoEstado').textContent = '';
+  document.getElementById('conteoCiclicoWrapUbicaciones').style.display = 'none';
+  document.getElementById('conteoCiclicoWrapResumen').style.display = 'none';
+  document.getElementById('conteoCiclicoAcciones').style.display = 'none';
+}
+
+// Imprime las DOS hojas en un solo trabajo de impresión: primero "Ubicaciones a Contar" (para
+// ir físicamente a cada punto) y luego, en una página nueva, el "Resumen por Código" (para ver
+// de un vistazo cuáles códigos están mal y por cuánto) — así Jimmy solo da Imprimir una vez.
+// Usa el mismo estilo compacto ("tipo Excel") y horizontal que ya pidió para Conteo de
+// Inventario, porque este reporte tiene el mismo problema de filas altas/columnas angostas.
+function imprimirConteoCiclico() {
+  if (!conteoCiclicoFilasResumen.length) { alert('Primero suba un archivo y genere la comparación.'); return; }
+  const hoy = new Date().toLocaleDateString('es-CR');
+
+  const filasUbicacionesHtml = conteoCiclicoFilasUbicaciones.map(f =>
+    `<tr><td>${f.ubicacion}</td><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stock}</td><td>${f.reservado}</td><td></td><td></td></tr>`
+  ).join('');
+  const filasResumenHtml = conteoCiclicoFilasResumen.map(f =>
+    `<tr><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stockSistema}</td><td>${f.stockBSides}</td><td>${f.diferencia}</td></tr>`
+  ).join('');
+
+  const printArea = document.getElementById('printAreaReporte');
+  printArea.innerHTML = `
+    <div class="print-header">
+      <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+      <div class="print-titulo">Conteo Cíclico — Ubicaciones a Contar<br><span style="font-size:12px;font-weight:400">${hoy}</span></div>
+    </div>
+    <table class="print-tabla print-tabla-compacta"><thead><tr><th>Ubicación</th><th>Código</th><th>Descripción</th><th>Categoría</th><th>Stock Sistema</th><th>Reservado</th><th>Conteo Físico</th><th>Observaciones</th></tr></thead><tbody>${filasUbicacionesHtml || '<tr><td colspan="8">Ninguna — todos los códigos con diferencia son nuevos (no registrados en HidroClear).</td></tr>'}</tbody></table>
+    <div class="print-header print-salto-pagina">
+      <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+      <div class="print-titulo">Conteo Cíclico — Resumen por Código<br><span style="font-size:12px;font-weight:400">${hoy}</span></div>
+    </div>
+    <table class="print-tabla print-tabla-compacta"><thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th>Stock Sistema</th><th>STOCK B-SIDES</th><th>Diferencia</th></tr></thead><tbody>${filasResumenHtml}</tbody></table>
+  `;
+
+  ocultarTodasLasAreasDeImpresion();
+  // Mismo cuidado que en imprimirReporte/imprimirSolicitud: limpia cualquier @page chico/
+  // horizontal que haya quedado pegado de una impresión anterior cancelada.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
+  document.querySelectorAll('#estiloPaginaReporteConteo').forEach(el => el.remove());
+  const estiloPaginaConteoCiclico = document.createElement('style');
+  estiloPaginaConteoCiclico.id = 'estiloPaginaReporteConteo';
+  estiloPaginaConteoCiclico.textContent = '@page { size: landscape; margin: 10mm; }';
+  document.head.appendChild(estiloPaginaConteoCiclico);
+
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+  estiloPaginaConteoCiclico.remove();
+}
+
 const MINIMO_STOCK_CATEGORIA_ESPECIAL = 'TUBOS Y ACCESORIOS PVC';
 
 function buscarPrimeraUbicacionPorTipo(filasCodigo, tipo, requiereStock) {
@@ -6051,7 +6332,8 @@ function imprimirEtiquetaReserva(copias, datos) {
   const nombresFunciones = [
     'imprimirSolicitud', 'imprimirPedidoBodega',
     'imprimirEtiquetas', 'imprimirEtiquetaCodigo50', 'imprimirEtiquetaRuta', 'imprimirEtiquetaRack',
-    'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta', 'imprimirEtiquetaReserva'
+    'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta', 'imprimirEtiquetaReserva',
+    'imprimirConteoCiclico'
   ];
   nombresFunciones.forEach(nombre => {
     const original = window[nombre];
