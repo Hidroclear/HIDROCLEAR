@@ -1487,6 +1487,15 @@
             <label>Archivo de otro sistema (Excel o CSV)</label>
             <input type="file" id="conteoCiclicoArchivo" accept=".xlsx,.xls,.csv" onchange="procesarArchivoConteoCiclico(this.files[0])">
           </div>
+          <div class="form-field">
+            <label>Categoría</label>
+            <select id="conteoCiclicoCategoria"><option value="">TODAS</option></select>
+          </div>
+          <div class="form-field">
+            <label>Diferencia mínima (unidades)</label>
+            <input type="number" id="conteoCiclicoDiferenciaMin" placeholder="— (todas)" min="0">
+          </div>
+          <button class="btn-registrar" type="button" onclick="generarConteoCiclico()">Generar</button>
           <button class="btn-limpiar" type="button" onclick="limpiarConteoCiclico()">✕ Limpiar</button>
         </div>
         <div id="conteoCiclicoEstado" class="rep-header" style="font-size:13.5px;padding:8px 0;color:var(--azul)"></div>
@@ -1873,7 +1882,7 @@ let datosReportesCargados = false;
 let movimientosHistorial = [];
 let reservasDetalleReportes = [];
 let reporteResultadosActuales = [];
-let filtrosReporteListos = { RESUMEN: true, EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true, CONTEO_CICLICO: true };
+let filtrosReporteListos = { RESUMEN: true, EXISTENCIAS: true, CONTEO: false, REABASTOS: false, SUGERIDO: false, RECETA: true, CONTEO_CICLICO: false };
 const PANEL_REPORTE = { RESUMEN: 'repResumen', RESPONSABLE: 'repResponsable', EXISTENCIAS: 'repExistencias', CONTEO: 'repConteo', REABASTOS: 'repReabastos', SUGERIDO: 'repSugerido', RECETA: 'repReceta', CONTEO_CICLICO: 'repConteoCiclico' };
 const TITULO_REPORTE = { RESUMEN: '📅 Resumen Mensual de Movimientos', RESPONSABLE: '👤 Ingresos y Salidas por Responsable', EXISTENCIAS: '📦 Existencias de Inventario', CONTEO: '🧮 Reporte de Conteo de Inventario', REABASTOS: '🔁 Reabastecimiento de Ubicaciones', SUGERIDO: '🛍️ Sugerido de Compras', RECETA: '🧩 Consulta de Recetas (Componentes)', CONTEO_CICLICO: '🔄 Conteo Cíclico (Diferencias de Inventario)' };
 let datosRecetas = [];
@@ -5048,6 +5057,8 @@ function prepararFiltrosReporte(tipo) {
     document.getElementById('reabastosCategoria').innerHTML = '<option value="">Seleccione...</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
   } else if (tipo === 'SUGERIDO') {
     document.getElementById('sugeridoCategoria').innerHTML = '<option value="">Seleccione...</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
+  } else if (tipo === 'CONTEO_CICLICO') {
+    document.getElementById('conteoCiclicoCategoria').innerHTML = '<option value="">TODAS</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
   }
   filtrosReporteListos[tipo] = true;
 }
@@ -5660,6 +5671,11 @@ function renderTablaConteo(filas) {
    ========================================================= */
 let conteoCiclicoFilasUbicaciones = [];
 let conteoCiclicoFilasResumen = [];
+// Guarda las filas YA LEÍDAS del archivo subido (sin filtrar) para poder recalcular con otros
+// filtros (Categoría / Diferencia mínima) sin que Jimmy tenga que volver a subir el archivo —
+// pidió explícitamente poder probar, por ejemplo, "diferencias mayores a 50" un día y "mayores
+// a 100" otro día, sobre el mismo archivo.
+let conteoCiclicoFilasBSidesCargadas = null;
 
 function normalizarCodigoConteoCiclico(codigo) {
   return String(codigo === null || codigo === undefined ? '' : codigo).trim().toUpperCase();
@@ -5741,8 +5757,8 @@ function procesarArchivoConteoCiclico(file) {
         estadoEl.textContent = '⚠️ El archivo no tiene filas de datos.';
         return;
       }
-      calcularComparacionConteoCiclico(filasBSides);
-      renderConteoCiclico();
+      conteoCiclicoFilasBSidesCargadas = filasBSides;
+      generarConteoCiclico();
     } catch (err) {
       console.error('Error procesando archivo de Conteo Cíclico:', err);
       estadoEl.textContent = '⚠️ El archivo no se pudo procesar (¿es un Excel/CSV válido?).';
@@ -5751,6 +5767,10 @@ function procesarArchivoConteoCiclico(file) {
   lector.readAsArrayBuffer(file);
 }
 
+// Calcula la comparación COMPLETA (sin filtrar) entre el archivo subido y el inventario de
+// HidroClear. Devuelve las dos listas en vez de asignarlas directamente a las variables
+// globales, para que generarConteoCiclico() pueda recalcular todo desde cero cada vez que Jimmy
+// cambie un filtro, sin tocar el archivo ya cargado.
 function calcularComparacionConteoCiclico(filasBSides) {
   const inventarioPorCodigo = agruparInventarioPorCodigoParaConteoCiclico();
   const reservadoPorCodigoUbic = agruparReservasPorCodigoUbicacion();
@@ -5791,11 +5811,43 @@ function calcularComparacionConteoCiclico(filasBSides) {
   filasUbicaciones.sort((a, b) => String(a.ubicacion).localeCompare(String(b.ubicacion)) || String(a.codigo).localeCompare(String(b.codigo)));
   filasResumen.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
 
-  conteoCiclicoFilasUbicaciones = filasUbicaciones;
-  conteoCiclicoFilasResumen = filasResumen;
+  return { filasUbicaciones, filasResumen };
 }
 
-function renderConteoCiclico() {
+// Recalcula la comparación completa desde el archivo ya cargado y aplica los dos filtros que
+// pidió Jimmy — Categoría y Diferencia mínima (unidades) — para reducir cuántas hojas salen al
+// imprimir. Los dos filtros se combinan (Y lógico). Se puede llamar cuantas veces se quiera sin
+// volver a subir el archivo: solo cambia los controles y vuelve a dar "Generar".
+function generarConteoCiclico() {
+  if (!conteoCiclicoFilasBSidesCargadas) {
+    document.getElementById('conteoCiclicoEstado').textContent = '⚠️ Primero suba el archivo de otro sistema (Excel o CSV).';
+    return;
+  }
+
+  const { filasUbicaciones: todasLasUbicaciones, filasResumen: todoElResumen } = calcularComparacionConteoCiclico(conteoCiclicoFilasBSidesCargadas);
+
+  const categoriaFiltro = (document.getElementById('conteoCiclicoCategoria').value || '').trim();
+  const diferenciaMinTexto = (document.getElementById('conteoCiclicoDiferenciaMin').value || '').trim();
+  const diferenciaMinima = diferenciaMinTexto === '' ? null : Number(diferenciaMinTexto);
+  const umbralValido = diferenciaMinima !== null && !isNaN(diferenciaMinima) && diferenciaMinima >= 0;
+
+  const filasResumen = todoElResumen.filter(f =>
+    (!categoriaFiltro || f.categoria === categoriaFiltro) &&
+    (!umbralValido || Math.abs(f.diferencia) >= diferenciaMinima)
+  );
+  const codigosQueQuedan = new Set(filasResumen.map(f => f.codigo));
+  const filasUbicaciones = todasLasUbicaciones.filter(f => codigosQueQuedan.has(f.codigo));
+
+  conteoCiclicoFilasUbicaciones = filasUbicaciones;
+  conteoCiclicoFilasResumen = filasResumen;
+
+  renderConteoCiclico({ categoriaFiltro, diferenciaMinima: umbralValido ? diferenciaMinima : null, totalSinFiltrar: todoElResumen.length });
+}
+
+// info (opcional) la pasa generarConteoCiclico() para poder mencionar en el mensaje de estado
+// qué filtros están activos y cuántos códigos había antes de filtrar — así Jimmy sabe que un
+// resultado vacío es porque el filtro fue muy estricto, no porque algo falló.
+function renderConteoCiclico(info) {
   const estadoEl = document.getElementById('conteoCiclicoEstado');
   const tbodyUbicaciones = document.getElementById('conteoCiclicoUbicacionesTbody');
   const tbodyResumen = document.getElementById('conteoCiclicoResumenTbody');
@@ -5803,15 +5855,24 @@ function renderConteoCiclico() {
   const wrapResumen = document.getElementById('conteoCiclicoWrapResumen');
   const acciones = document.getElementById('conteoCiclicoAcciones');
 
+  const partesFiltro = [];
+  if (info && info.categoriaFiltro) partesFiltro.push(`categoría "${info.categoriaFiltro}"`);
+  if (info && info.diferenciaMinima !== null && info.diferenciaMinima !== undefined) partesFiltro.push(`diferencia ≥ ${info.diferenciaMinima} unidad(es)`);
+  const sufijoFiltro = partesFiltro.length ? ` (filtrado por ${partesFiltro.join(' y ')})` : '';
+
   if (!conteoCiclicoFilasResumen.length) {
-    estadoEl.textContent = '✅ No se encontraron diferencias — el stock de HidroClear coincide con el archivo subido para todos los códigos.';
+    if (info && partesFiltro.length && info.totalSinFiltrar > 0) {
+      estadoEl.textContent = `No hay códigos que cumplan el filtro${sufijoFiltro} — había ${info.totalSinFiltrar} código(s) con diferencia en total. Pruebe con otro filtro.`;
+    } else {
+      estadoEl.textContent = '✅ No se encontraron diferencias — el stock de HidroClear coincide con el archivo subido para todos los códigos.';
+    }
     wrapUbicaciones.style.display = 'none';
     wrapResumen.style.display = 'none';
     acciones.style.display = 'none';
     return;
   }
 
-  estadoEl.textContent = `Se encontraron ${conteoCiclicoFilasResumen.length} código(s) con diferencia — ${conteoCiclicoFilasUbicaciones.length} ubicación(es) por contar.`;
+  estadoEl.textContent = `Se encontraron ${conteoCiclicoFilasResumen.length} código(s) con diferencia — ${conteoCiclicoFilasUbicaciones.length} ubicación(es) por contar${sufijoFiltro}.`;
 
   tbodyUbicaciones.innerHTML = conteoCiclicoFilasUbicaciones.map(f =>
     `<tr><td>${f.ubicacion}</td><td>${f.codigo}</td><td>${f.descripcion}</td><td>${f.categoria}</td><td>${f.stock}</td><td>${f.reservado}</td><td></td><td></td></tr>`
@@ -5829,7 +5890,10 @@ function renderConteoCiclico() {
 function limpiarConteoCiclico() {
   conteoCiclicoFilasUbicaciones = [];
   conteoCiclicoFilasResumen = [];
+  conteoCiclicoFilasBSidesCargadas = null;
   document.getElementById('conteoCiclicoArchivo').value = '';
+  document.getElementById('conteoCiclicoCategoria').value = '';
+  document.getElementById('conteoCiclicoDiferenciaMin').value = '';
   document.getElementById('conteoCiclicoEstado').textContent = '';
   document.getElementById('conteoCiclicoWrapUbicaciones').style.display = 'none';
   document.getElementById('conteoCiclicoWrapResumen').style.display = 'none';
