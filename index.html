@@ -1584,6 +1584,11 @@
       <div class="reserva-modal-footer">
         <button class="btn-registrar" type="button" id="btnAplicarReservaSeleccion" onclick="aplicarReservasSeleccionadas()">Aplicar Seleccionados</button>
         <button class="btn-eliminar-mov" type="button" id="btnCancelarReservaSeleccion" onclick="cancelarReservaSeleccionada()">Cancelar Reserva</button>
+        <!-- Jimmy pidió poder imprimir, para la reserva elegida arriba, una HOJA (no la
+             etiqueta de 100x150mm) con el detalle completo: los mismos datos de la etiqueta
+             (Cliente, N° Documento, Comercial, Fecha) más el Responsable, y la lista completa
+             de ítems que contiene esa reserva (ver imprimirHojaReserva). -->
+        <button class="btn-limpiar" type="button" onclick="imprimirHojaReserva()">🖨️ Imprimir Hoja</button>
         <button class="btn-cancelar-mov" type="button" onclick="cerrarModalAplicarReservas()">Cerrar</button>
       </div>
     </div>
@@ -6379,6 +6384,54 @@ function imprimirEtiquetaReserva(copias, datos) {
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
 }
 
+// ── Imprimir Hoja de Reserva (hoja completa tamaño carta/A4, NO la etiqueta de 100x150mm) ──
+// Jimmy pidió poder entrar a una reserva ya guardada (en "Aplicar Reservas", eligiendo su N°
+// de Documento de la lista de arriba) e imprimir una hoja con el detalle completo: los mismos
+// datos que ya trae la etiqueta (Cliente, N° Documento, Comercial, Fecha) más el Responsable y
+// el Tipo de Documento, y la lista COMPLETA de los ítems que contiene esa reserva (Código,
+// Descripción, Cantidad, Ubicación) — todos los ítems del documento, no solo los que estén
+// marcados con el check (esos checks son para "Aplicar"/"Cancelar", algo aparte).
+function imprimirHojaReserva() {
+  if (!itemsReservaActuales.length) { alert('Elija un documento de reserva de la lista para imprimir su hoja.'); return; }
+  const hoy = new Date().toLocaleDateString('es-CR');
+  // Todos los ítems de un mismo N° de Documento son de la MISMA reserva, así que comparten
+  // cliente/comercial/responsable/tipo de documento/fecha — se toman de la primera línea, igual
+  // que ya hace imprimirEtiquetaReserva con los datos del lote recién registrado. La fecha aquí
+  // ya viene en formato dd/MM/yyyy desde el backend (ver leerReservasDetalle), a diferencia de
+  // otras partes de la app que manejan "yyyy-MM-dd", así que no hace falta reformatearla.
+  const cab = itemsReservaActuales[0];
+  const filasHtml = itemsReservaActuales.map(it =>
+    `<tr><td>${it.codigo}</td><td>${it.descripcion}</td><td>${it.cantidad}</td><td>${it.ubicacion}</td></tr>`
+  ).join('');
+
+  const printArea = document.getElementById('printAreaReporte');
+  printArea.innerHTML = `
+    <div class="print-header">
+      <img src="logo.png" alt="HidroClear" style="height:50px;object-fit:contain;">
+      <div class="print-titulo">Hoja de Reserva<br><span style="font-size:12px;font-weight:400">${hoy}</span></div>
+    </div>
+    <div class="print-datos">
+      <div class="print-dato"><strong>Cliente</strong><span>${cab.nombre_cliente || '—'}</span></div>
+      <div class="print-dato"><strong>N° Documento</strong><span>${cab.documento || '—'}</span></div>
+      <div class="print-dato"><strong>Tipo de Documento</strong><span>${cab.reserva_con || '—'}</span></div>
+      <div class="print-dato"><strong>Comercial</strong><span>${cab.comercial || '—'}</span></div>
+      <div class="print-dato"><strong>Responsable</strong><span>${cab.responsable || '—'}</span></div>
+      <div class="print-dato"><strong>Fecha de Reserva</strong><span>${cab.fecha || '—'}</span></div>
+    </div>
+    <table class="print-tabla"><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación</th></tr></thead><tbody>${filasHtml}</tbody></table>
+  `;
+
+  ocultarTodasLasAreasDeImpresion();
+  // Por si quedó pegado el @page chico de una etiqueta cancelada, o el horizontal de Conteo de
+  // Inventario/Conteo Cíclico (ver el comentario en imprimirSolicitud e imprimirReporte) — esta
+  // hoja es tamaño normal (carta/A4), vertical, como la Solicitud de Materiales.
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
+  document.querySelectorAll('#estiloPaginaReporteConteo').forEach(el => el.remove());
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+}
+
 // ── Protección contra doble clic/doble tap en los botones de Imprimir ──
 // Se reportó "en todas las pantallas, siempre salen 2 copias idénticas". Ninguno de los
 // botones de imprimir (Solicitud, Pedido a Bodega, Etiquetas de código/ruta/rack/receta,
@@ -6397,7 +6450,7 @@ function imprimirEtiquetaReserva(copias, datos) {
     'imprimirSolicitud', 'imprimirPedidoBodega',
     'imprimirEtiquetas', 'imprimirEtiquetaCodigo50', 'imprimirEtiquetaRuta', 'imprimirEtiquetaRack',
     'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta', 'imprimirEtiquetaReserva',
-    'imprimirConteoCiclico'
+    'imprimirConteoCiclico', 'imprimirHojaReserva'
   ];
   nombresFunciones.forEach(nombre => {
     const original = window[nombre];
