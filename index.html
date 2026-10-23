@@ -1501,6 +1501,9 @@
         <div id="conteoCiclicoEstado" class="rep-header" style="font-size:13.5px;padding:8px 0;color:var(--azul)"></div>
         <div class="rep-acciones" id="conteoCiclicoAcciones" style="display:none">
           <button class="btn-limpiar" type="button" onclick="imprimirConteoCiclico()">🖨️ Imprimir (las dos hojas)</button>
+          <!-- Jimmy pidió poder exportar el mismo reporte a Excel (para mandarlo por correo),
+               aparte de solo poder imprimirlo — ver exportarConteoCiclicoExcel(). -->
+          <button class="btn-limpiar" type="button" onclick="exportarConteoCiclicoExcel()">📊 Exportar a Excel</button>
         </div>
 
         <div class="rep-tabla-wrap" id="conteoCiclicoWrapUbicaciones" style="display:none">
@@ -5949,6 +5952,38 @@ function imprimirConteoCiclico() {
   window.print();
   printArea.style.display = 'none';
   estiloPaginaConteoCiclico.remove();
+}
+
+// Exporta el reporte de Conteo Cíclico ya generado (con los filtros de Categoría/Diferencia
+// mínima que estén activos en ese momento — las MISMAS filas que se ven en pantalla y que
+// imprimirConteoCiclico() manda a imprimir) a un archivo .xlsx de verdad, con las mismas dos
+// hojas: "Ubicaciones a Contar" y "Resumen por Código" (con su columna "STOCK B-SIDES"). Jimmy
+// lo pidió para poder mandarlo por correo en vez de solo poder imprimirlo. Usa la misma
+// librería SheetJS (XLSX) que ya está cargada para LEER el archivo subido — aquí se usa al
+// revés, para ESCRIBIR uno — y XLSX.writeFile() dispara la descarga directo en el navegador,
+// sin pasar por el servidor.
+function exportarConteoCiclicoExcel() {
+  if (!conteoCiclicoFilasResumen.length) { alert('Primero suba un archivo y genere la comparación.'); return; }
+
+  const encabezadosUbicaciones = ['Ubicación', 'Código', 'Descripción', 'Categoría', 'Stock Sistema', 'Reservado', 'Conteo Físico', 'Observaciones'];
+  const filasUbicaciones = conteoCiclicoFilasUbicaciones.length
+    ? conteoCiclicoFilasUbicaciones.map(f => [f.ubicacion, f.codigo, f.descripcion, f.categoria, f.stock, f.reservado, '', ''])
+    : [['Ninguna — todos los códigos con diferencia son nuevos (no registrados en HidroClear).']];
+  const hojaUbicaciones = XLSX.utils.aoa_to_sheet([encabezadosUbicaciones, ...filasUbicaciones]);
+
+  const encabezadosResumen = ['Código', 'Descripción', 'Categoría', 'Stock Sistema', 'STOCK B-SIDES', 'Diferencia'];
+  const filasResumen = conteoCiclicoFilasResumen.map(f => [f.codigo, f.descripcion, f.categoria, f.stockSistema, f.stockBSides, f.diferencia]);
+  const hojaResumen = XLSX.utils.aoa_to_sheet([encabezadosResumen, ...filasResumen]);
+
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hojaUbicaciones, 'Ubicaciones a Contar');
+  XLSX.utils.book_append_sheet(libro, hojaResumen, 'Resumen por Código');
+
+  // Nombre de archivo con fecha en formato YYYY-MM-DD (a diferencia del dd/mm/yyyy que se usa
+  // en pantalla/impresión) porque las barras "/" de ese formato no se pueden usar en un nombre
+  // de archivo — Windows y macOS las interpretan como separador de carpetas.
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(libro, `ConteoCiclico_${hoyISO}.xlsx`);
 }
 
 const MINIMO_STOCK_CATEGORIA_ESPECIAL = 'TUBOS Y ACCESORIOS PVC';
