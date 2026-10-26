@@ -487,17 +487,26 @@
   .etqruta-label-col { flex: 0 0 30%; text-align: right; padding-right: 6px; font-weight: 600; font-size: 12px; }
   .etqruta-valor-col { flex: 1; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
   .etqruta-titulo { flex: 39 0 auto; font-size: 22px; font-weight: 900; }
-  .etqruta-cliente { flex: 82.5 0 auto; }
-  /* CLIENTE y OBS ya NO tienen un tamaño de letra fijo en CSS — se calculan en JS según la
-     cantidad de caracteres (ver tamanoFuenteClienteRuta/tamanoFuenteObsRuta) y se aplican con
-     style="font-size" en cada etiqueta, igual que ya se hace con el Código: un nombre/texto
-     corto se ve bien grande, y uno largo se va achicando en vez de cortarse. */
+  /* CLIENTE y OBS: a diferencia de antes (tamaño de letra calculado de antemano según la
+     cantidad de caracteres, con un tope máximo bastante modesto — Jimmy reportó que un nombre
+     corto como "RQL" igual salía chico porque ese tope no llenaba el espacio disponible), ahora
+     el tamaño se mide y ajusta en JS DESPUÉS de renderizar (ver ajustarFuenteAlturaFilaRuta en
+     imprimirEtiquetaRuta): empieza grande y se va achicando solo lo que haga falta según el
+     alto REAL que ocupa el texto, igual que ya se hace con Receta y con la etiqueta de Reserva.
+     Para que esa medición sea confiable, estas dos filas necesitan una altura FIJA (no basada
+     en su propio contenido): "flex: N 0 0" en vez de "flex: N 0 auto" les da exactamente su
+     parte proporcional del alto de la etiqueta sin importar el tamaño de letra, y
+     "min-height: 0" quita el mínimo automático que el navegador le pone a cualquier elemento
+     flex (si no, el texto grande podría forzar la fila a crecer en vez de recortarse). Así el
+     texto que no cabe queda recortado por el "overflow: hidden" de la fila mientras se mide,
+     en vez de empujar a las demás filas. */
+  .etqruta-cliente { flex: 82.5 0 0; min-height: 0; }
   .etqruta-cliente .etqruta-valor-col { font-weight: 900; text-decoration: underline; text-decoration-thickness: 3px; -webkit-text-stroke: 0.4px #000; white-space: normal; }
   .etqruta-factura { flex: 39.75 0 auto; }
   .etqruta-factura .etqruta-valor-col { font-weight: 700; font-size: 20px; white-space: nowrap; }
   .etqruta-bultos { flex: 64.5 0 auto; }
   .etqruta-bultos .etqruta-valor-col { font-weight: 900; font-size: 44px; -webkit-text-stroke: 0.6px #000; text-align: center; white-space: nowrap; }
-  .etqruta-obs { flex: 34.5 0 auto; }
+  .etqruta-obs { flex: 34.5 0 0; min-height: 0; }
   .etqruta-obs .etqruta-valor-col { font-weight: 700; white-space: normal; }
   .etqruta-pie { flex: 24.75 0 auto; font-size: 10px; font-weight: 700; gap: 5px; }
   .etqruta-icono-pie { height: 18px; width: 18px; flex-shrink: 0; }
@@ -4699,30 +4708,29 @@ function limpiarFormularioEtiquetaCodigo50() {
 
 /* ---------- RUTA 100mm x 100mm (cliente/factura/bultos, sin código de barras) ---------- */
 
-// Mientras más largo el nombre del cliente, más chica la letra — mismo criterio que ya se usa
-// para el Código en las etiquetas de Código: un nombre corto (la mayoría) se ve bien grande, y
-// uno largo se va achicando en vez de desbordar la fila. La fila de CLIENTE tiene bastante alto
-// disponible (puede acomodar el texto en 2 líneas si hace falta), así que los tamaños son
-// generosos.
-function tamanoFuenteClienteRuta(texto) {
-  const len = String(texto || '').length;
-  if (len <= 12) return 30;
-  if (len <= 18) return 26;
-  if (len <= 24) return 22;
-  if (len <= 32) return 19;
-  if (len <= 42) return 16;
-  return 14;
+// ¿La fila (ya con su tamaño de letra actual) se sale del ALTO disponible? A diferencia de
+// ajustarFuenteFilaReserva (mide ANCHO, porque ahí el texto es de una sola línea), CLIENTE y
+// OBS envuelven a varias líneas (white-space: normal en el CSS), así que lo que puede
+// desbordar es el ALTO — se mide con el alto REAL ya renderizado (scrollHeight vs.
+// clientHeight), el mismo criterio que ya usa medirDesbordeTablaReceta.
+function medirDesbordeAltoFilaRuta(fila) {
+  return fila.scrollHeight > fila.clientHeight + 0.5;
 }
 
-// Mismo criterio para Observaciones, pero con tamaños más chicos porque esa fila tiene bastante
-// menos alto disponible que la de CLIENTE.
-function tamanoFuenteObsRuta(texto) {
-  const len = String(texto || '').length;
-  if (len <= 15) return 18;
-  if (len <= 25) return 15;
-  if (len <= 40) return 13;
-  if (len <= 60) return 11;
-  return 9;
+// Reduce el tamaño de letra de "texto" de a poco, volviendo a medir el alto real cada vez,
+// hasta que quepa dentro de "fila" (o hasta "tamMinimo", para no dejarlo ilegible). Jimmy
+// reportó que con la tabla vieja (tamaño fijo según cantidad de caracteres) un nombre corto
+// como "RQL" igual salía con letra chica, porque el tope máximo de esa tabla era modesto y no
+// llenaba el espacio real disponible — con esto, un texto corto empieza grande de verdad y solo
+// se achica lo que haga falta según lo que realmente mida al imprimir.
+function ajustarFuenteAlturaFilaRuta(fila, elementoTexto, tamInicial, tamMinimo) {
+  let tam = tamInicial;
+  elementoTexto.style.fontSize = tam + 'px';
+  while (tam > tamMinimo && medirDesbordeAltoFilaRuta(fila)) {
+    tam = Math.max(tamMinimo, tam - 0.5);
+    elementoTexto.style.fontSize = tam + 'px';
+  }
+  return tam;
 }
 
 // El usuario pidió reemplazar la palabra "HIDROCLEAR" del pie de la etiqueta (ya está arriba,
@@ -4755,10 +4763,13 @@ function imprimirEtiquetaRuta() {
   const printArea = document.getElementById('printAreaEtiqueta');
   const clienteTexto = cliente.toUpperCase();
   const obsTexto = observaciones.toUpperCase();
-  const tamCliente = tamanoFuenteClienteRuta(clienteTexto);
-  const tamObs = tamanoFuenteObsRuta(obsTexto);
 
-  // Una etiqueta por bulto, numerada "n DE totalBultos" — igual que CMDIMPRIMIR100_100_Click
+  // Una etiqueta por bulto, numerada "n DE totalBultos" — igual que CMDIMPRIMIR100_100_Click.
+  // CLIENTE y OBS ya NO llevan un tamaño de letra calculado de antemano (ver el comentario
+  // grande junto a ajustarFuenteAlturaFilaRuta): se arman primero sin estilo de tamaño, y una
+  // vez que el bloque esté visible y el navegador ya haya medido el layout real, se ajusta la
+  // letra de cada una de las etiquetas por separado (si hay varios bultos, cada copia lleva el
+  // mismo texto, así que en la práctica todas terminan con el mismo tamaño).
   let html = '';
   for (let n = 1; n <= totalBultos; n++) {
     html += `
@@ -4766,7 +4777,7 @@ function imprimirEtiquetaRuta() {
         <div class="etqruta-row etqruta-full etqruta-titulo">HIDROCLEAR</div>
         <div class="etqruta-row etqruta-cliente">
           <div class="etqruta-label-col">CLIENTE:</div>
-          <div class="etqruta-valor-col" style="font-size:${tamCliente}px">${clienteTexto}</div>
+          <div class="etqruta-valor-col">${clienteTexto}</div>
         </div>
         <div class="etqruta-row etqruta-factura">
           <div class="etqruta-label-col">FACTURA:</div>
@@ -4778,7 +4789,7 @@ function imprimirEtiquetaRuta() {
         </div>
         <div class="etqruta-row etqruta-obs">
           <div class="etqruta-label-col">OBS:</div>
-          <div class="etqruta-valor-col" style="font-size:${tamObs}px">${obsTexto}</div>
+          <div class="etqruta-valor-col">${obsTexto}</div>
         </div>
         <div class="etqruta-row etqruta-full etqruta-pie">
           ${iconoFacebookSVG()}
@@ -4805,6 +4816,18 @@ function imprimirEtiquetaRuta() {
 
   ocultarTodasLasAreasDeImpresion();
   printArea.style.display = 'block';
+
+  // Con el bloque ya visible (recién ahora el navegador puede medir el alto real ya
+  // renderizado de cada fila), se ajusta la letra de CLIENTE y OBS en CADA etiqueta — empieza
+  // grande y se va achicando solo lo que haga falta, según el alto que realmente ocupe el
+  // texto, en vez de un tamaño fijo calculado de antemano por cantidad de caracteres.
+  printArea.querySelectorAll('.etqruta-label').forEach(label => {
+    const filaCliente = label.querySelector('.etqruta-cliente');
+    ajustarFuenteAlturaFilaRuta(filaCliente, filaCliente.querySelector('.etqruta-valor-col'), 66, 14);
+    const filaObs = label.querySelector('.etqruta-obs');
+    ajustarFuenteAlturaFilaRuta(filaObs, filaObs.querySelector('.etqruta-valor-col'), 34, 9);
+  });
+
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, () => {
     const msg = document.getElementById('rutaSuccessMsg');
     msg.textContent = '✅ ' + totalBultos + ' etiqueta(s) de ruta enviada(s) a imprimir.';
