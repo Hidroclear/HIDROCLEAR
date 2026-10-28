@@ -4718,11 +4718,15 @@ function medirDesbordeAltoFilaRuta(fila) {
 }
 
 // Reduce el tamaño de letra de "texto" de a poco, volviendo a medir el alto real cada vez,
-// hasta que quepa dentro de "fila" (o hasta "tamMinimo", para no dejarlo ilegible). Jimmy
-// reportó que con la tabla vieja (tamaño fijo según cantidad de caracteres) un nombre corto
-// como "RQL" igual salía con letra chica, porque el tope máximo de esa tabla era modesto y no
-// llenaba el espacio real disponible — con esto, un texto corto empieza grande de verdad y solo
-// se achica lo que haga falta según lo que realmente mida al imprimir.
+// hasta que quepa dentro de "fila" (o hasta "tamMinimo", que es solo un freno de seguridad
+// contra un bucle sin fin — NO un mínimo "para que se siga leyendo bien"). Jimmy fue bien
+// específico en dos pedidos seguidos sobre esto: primero que un nombre CORTO como "RQL" llenara
+// el espacio de verdad (ya resuelto, ver tamInicial más generoso en imprimirEtiquetaRuta), y
+// después que un nombre LARGO SIEMPRE saliera completo — "la idea es que la letra se ajuste...
+// para que salga el nombre total que se coloca" — es decir, que nunca se corte, aunque la letra
+// tenga que quedar bien chica. Por eso "tamMinimo" se deja deliberadamente bajo (ver las
+// llamadas más abajo): la prioridad es que el nombre completo quepa, no un tamaño de letra
+// "legible" fijo — si de verdad hace falta una letra chiquita para que quepa todo, se usa.
 function ajustarFuenteAlturaFilaRuta(fila, elementoTexto, tamInicial, tamMinimo) {
   let tam = tamInicial;
   elementoTexto.style.fontSize = tam + 'px';
@@ -4823,9 +4827,9 @@ function imprimirEtiquetaRuta() {
   // texto, en vez de un tamaño fijo calculado de antemano por cantidad de caracteres.
   printArea.querySelectorAll('.etqruta-label').forEach(label => {
     const filaCliente = label.querySelector('.etqruta-cliente');
-    ajustarFuenteAlturaFilaRuta(filaCliente, filaCliente.querySelector('.etqruta-valor-col'), 66, 14);
+    ajustarFuenteAlturaFilaRuta(filaCliente, filaCliente.querySelector('.etqruta-valor-col'), 66, 6);
     const filaObs = label.querySelector('.etqruta-obs');
-    ajustarFuenteAlturaFilaRuta(filaObs, filaObs.querySelector('.etqruta-valor-col'), 34, 9);
+    ajustarFuenteAlturaFilaRuta(filaObs, filaObs.querySelector('.etqruta-valor-col'), 34, 5);
   });
 
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, () => {
