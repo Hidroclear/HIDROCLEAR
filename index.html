@@ -4713,24 +4713,37 @@ function limpiarFormularioEtiquetaCodigo50() {
 // OBS envuelven a varias líneas (white-space: normal en el CSS), así que lo que puede
 // desbordar es el ALTO — se mide con el alto REAL ya renderizado (scrollHeight vs.
 // clientHeight), el mismo criterio que ya usa medirDesbordeTablaReceta.
-function medirDesbordeAltoFilaRuta(fila) {
-  return fila.scrollHeight > fila.clientHeight + 0.5;
+// Hay DOS formas distintas en que el texto puede desbordar, y hay que revisar las dos:
+// 1) ALTO de "fila": pasa con texto de VARIAS palabras que envuelve a más líneas de las que
+//    entran en la fila (ej. una observación larga) — el alto renderizado crece más que el
+//    disponible.
+// 2) ANCHO de "elementoTexto": pasa con una palabra SUELTA sin espacios (ej. un nombre de
+//    cliente de una sola palabra como "AQUASISTEMAS") que no tiene dónde partirse en una
+//    segunda línea — en vez de crecer en alto, se desborda de ANCHO dentro de su propia celda,
+//    y ahí el "overflow:hidden; text-overflow:ellipsis" del CSS la recorta a "AQU..." sin que
+//    el alto de la fila cambie en absoluto. Jimmy reportó justo este caso ("AQUASISTEMAS" salía
+//    como "AQUASI...") — el chequeo original solo miraba el alto y no lo detectaba.
+function medirDesbordeFilaRuta(fila, elementoTexto) {
+  const desbordaAlto = fila.scrollHeight > fila.clientHeight + 0.5;
+  const desbordaAncho = elementoTexto.scrollWidth > elementoTexto.clientWidth + 0.5;
+  return desbordaAlto || desbordaAncho;
 }
 
-// Reduce el tamaño de letra de "texto" de a poco, volviendo a medir el alto real cada vez,
-// hasta que quepa dentro de "fila" (o hasta "tamMinimo", que es solo un freno de seguridad
-// contra un bucle sin fin — NO un mínimo "para que se siga leyendo bien"). Jimmy fue bien
-// específico en dos pedidos seguidos sobre esto: primero que un nombre CORTO como "RQL" llenara
-// el espacio de verdad (ya resuelto, ver tamInicial más generoso en imprimirEtiquetaRuta), y
-// después que un nombre LARGO SIEMPRE saliera completo — "la idea es que la letra se ajuste...
-// para que salga el nombre total que se coloca" — es decir, que nunca se corte, aunque la letra
-// tenga que quedar bien chica. Por eso "tamMinimo" se deja deliberadamente bajo (ver las
-// llamadas más abajo): la prioridad es que el nombre completo quepa, no un tamaño de letra
-// "legible" fijo — si de verdad hace falta una letra chiquita para que quepa todo, se usa.
+// Reduce el tamaño de letra de "texto" de a poco, volviendo a medir el desborde real (alto Y
+// ancho, ver medirDesbordeFilaRuta) cada vez, hasta que quepa dentro de "fila" (o hasta
+// "tamMinimo", que es solo un freno de seguridad contra un bucle sin fin — NO un mínimo "para
+// que se siga leyendo bien"). Jimmy fue bien específico en varios pedidos seguidos sobre esto:
+// primero que un nombre CORTO como "RQL" llenara el espacio de verdad (ya resuelto, ver
+// tamInicial más generoso en imprimirEtiquetaRuta), después que un nombre LARGO SIEMPRE saliera
+// completo — "la idea es que la letra se ajuste... para que salga el nombre total que se
+// coloca" — es decir, que nunca se corte, aunque la letra tenga que quedar bien chica. Por eso
+// "tamMinimo" se deja deliberadamente bajo (ver las llamadas más abajo): la prioridad es que el
+// nombre completo quepa, no un tamaño de letra "legible" fijo — si de verdad hace falta una
+// letra chiquita para que quepa todo, se usa.
 function ajustarFuenteAlturaFilaRuta(fila, elementoTexto, tamInicial, tamMinimo) {
   let tam = tamInicial;
   elementoTexto.style.fontSize = tam + 'px';
-  while (tam > tamMinimo && medirDesbordeAltoFilaRuta(fila)) {
+  while (tam > tamMinimo && medirDesbordeFilaRuta(fila, elementoTexto)) {
     tam = Math.max(tamMinimo, tam - 0.5);
     elementoTexto.style.fontSize = tam + 'px';
   }
