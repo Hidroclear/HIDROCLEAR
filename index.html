@@ -2715,9 +2715,12 @@ async function cancelarReservaSeleccionada() {
       cambiarComercialReserva();
       await cargarReservasDetalle();
       await refrescarReservasPorCodigo();
-      // NUEVO: refresca la Consulta de Códigos si ya estaba abierta con una búsqueda activa
-      // (ver comentario igual en aplicarReservasSeleccionadas).
-      try { filtrarConsultaModal(); } catch (e) {}
+      // NUEVO: cancelar una reserva ahora es, en la práctica, un Traslado real de vuelta (ver
+      // comentario en CANCELAR_RESERVA_LOTE en Code_actualizado.gs) — refresca también el
+      // snapshot de inventario en segundo plano, igual que hace aplicarReservasSeleccionadas,
+      // para que Consulta de Códigos no se quede mostrando el stock de antes de devolver el
+      // material a su ubicación original.
+      cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
     } else {
       alert('No se pudo cancelar la reserva:\n' + (result.mensaje || 'Error desconocido'));
     }
@@ -3563,9 +3566,11 @@ async function registrarListaMovimientos() {
         : null;
       // Actualiza el Resumen Mensual de forma optimista (si ya está abierto en esta sesión),
       // sin esperar ningún refresh — igual que pide el usuario ("dinámicos... según se van
-      // procesando"). OJO: las líneas de RESERVA no cuentan aquí (nunca tocan TRAZABILIDAD
-      // TOTAL hasta que se aplican), y las SALIDAs que la receta genera automáticamente en el
-      // servidor (expandirRecetas) tampoco se ven reflejadas hasta el próximo refresh/login,
+      // procesando"). OJO: las líneas de RESERVA no cuentan aquí — el servidor SÍ genera un
+      // Traslado real por cada una (hacia RESERVA, ver registrarReservaConTraslado en
+      // Code_actualizado.gs), pero ese movimiento se calcula del lado del servidor y el
+      // cliente nunca recibe esa fila calculada, igual que las SALIDAs que la receta genera
+      // automáticamente en el servidor (expandirRecetas) tampoco se ven reflejadas hasta el próximo refresh/login,
       // porque el cliente nunca recibe esas filas calculadas del lado del servidor.
       movimientosPendientes.forEach(item => {
         if (item.tipo === 'RESERVA') return;
@@ -3631,6 +3636,17 @@ function normalizarClaveUbicacion(valor) {
   return String(valor || '').trim().toUpperCase();
 }
 
+// "RESERVA" es una ubicación especial que usa el sistema para apartar físicamente el material
+// de una reserva (ver Code_actualizado.gs: registrar una reserva ahora traslada el stock ahí de
+// verdad, en vez de solo anotarlo). Se excluye de los selectores donde la persona elige la
+// ubicación A MANO (Salida, Traslado origen/destino, Ingreso, y el origen de Reserva) para que
+// nadie saque o traslade por error material que ya está apartado para un cliente — solo el
+// propio sistema la usa, al registrar/aplicar/cancelar una reserva. No se excluye de las
+// consultas/reportes (ahí sí conviene verla, para saber cuánto hay reservado).
+function esUbicacionReservaSistema(ubicacion) {
+  return normalizarClaveUbicacion(ubicacion) === 'RESERVA';
+}
+
 // La hoja UBICACIONES marca una bodega como "PRIMARIA"; cualquier otro valor (o vacío) cuenta
 // como SECUNDARIA — mismo criterio que usa el reporte de Reabastos (ver
 // buscarPrimeraUbicacionPorTipo), para que "ubicación primaria" signifique lo mismo en toda
@@ -3693,7 +3709,7 @@ function seleccionarCodigo(codigo, descripcion) {
     // misma bodega — sin esto la ubicación aparecía repetida en la lista, y el autorrelleno de
     // más abajo fallaba porque "hay exactamente 1 bodega con stock" dejaba de cumplirse aunque
     // en realidad solo hubiera una bodega real.
-    const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega))];
+    const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0 && !esUbicacionReservaSistema(d.bodega)).map(d => d.bodega))];
     const selId = tipoMovimientoActual === 'TRASLADO' ? 'movUbicacionOrigen' : 'movUbicacion';
     const sel = document.getElementById(selId);
     if (ubicacionesConStock.length > 0) {
@@ -3755,7 +3771,7 @@ function seleccionarCodigo(codigo, descripcion) {
     // diferencia de Salida/Traslado, aquí NO se restringe la lista de ubicaciones del select
     // (un Ingreso puede ser justo para guardarlo en una bodega nueva que todavía no tiene
     // stock de este código), solo se preselecciona un valor por defecto.
-    const ubicacionesConStockIngreso = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0).map(d => d.bodega))];
+    const ubicacionesConStockIngreso = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0 && !esUbicacionReservaSistema(d.bodega)).map(d => d.bodega))];
     const selIngreso = document.getElementById('movUbicacion');
     if (ubicacionesConStockIngreso.length > 0) {
       const primariaIngreso = ubicacionesConStockIngreso.find(u => tipoDeUbicacion(u) === 'PRIMARIA');
