@@ -704,6 +704,16 @@
   .pendientes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .pendientes-titulo { font-size: 20px; font-weight: 700; color: var(--azul); }
   .btn-recargar { background: var(--azul); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  /* EDITOR DE RECETAS (modal) */
+  .modal-box.recep-box { max-width: 800px; max-height: 84vh; }
+  .recep-tabla { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+  .recep-tabla th { text-align: left; font-size: 11px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .5px; padding: 6px 6px; border-bottom: 2px solid var(--gris); }
+  .recep-tabla td { padding: 5px 6px; border-bottom: 1px solid var(--gris); vertical-align: middle; font-size: 13px; }
+  .recep-tabla input { width: 100%; padding: 8px; border: 1.5px solid var(--gris); border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+  .recep-tabla .recep-nombre { color: var(--texto-suave); }
+  .recep-tabla tr.recep-cero td { background: #fff9e6; }
+  .recep-quitar { background: none; border: none; color: var(--rojo); font-size: 17px; cursor: pointer; padding: 4px 8px; }
+  .recep-aviso0 { font-size: 12px; color: var(--texto-suave); margin-bottom: 10px; }
   /* IMPORTAR CÓDIGOS (pegar el reporte semanal) */
   .impcod-wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
   .impcod-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px; margin-bottom: 16px; }
@@ -1522,6 +1532,8 @@
           <button class="btn-limpiar" type="button" onclick="exportarReporteActual()">⬇️ Exportar CSV</button>
           <button class="btn-limpiar" type="button" onclick="imprimirReporte()">🖨️ Imprimir</button>
           <button class="btn-limpiar" type="button" onclick="imprimirEtiquetaReceta()">🏷️ Imprimir Etiqueta (100x150mm)</button>
+          <button class="btn-limpiar hidden" type="button" id="btnEditarReceta" onclick="abrirEditorReceta('EDITAR')">✏️ Editar receta</button>
+          <button class="btn-limpiar hidden" type="button" id="btnNuevaReceta" onclick="abrirEditorReceta('CREAR')">➕ Nueva receta</button>
         </div>
         <div id="recetaTituloProducto" class="rep-header" style="font-size:14px;padding:8px 0;"></div>
         <div class="rep-tabla-wrap">
@@ -1845,6 +1857,37 @@
   </div>
 </div>
 
+<!-- EDITOR DE RECETAS: edita o crea una receta (producto fabricado + sus componentes) directo en la
+     hoja RECETAS, sin pasar por Excel. Solo admin. Ver abrirEditorReceta / guardarEditorReceta. -->
+<div class="modal-overlay" id="modalEditarReceta" onclick="if (event.target === this) cerrarEditorReceta()">
+  <div class="modal-box recep-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo" id="recEdTitulo">✏️ Editar receta</div>
+      <div class="modal-header-marca">
+        <button class="modal-close" type="button" onclick="cerrarEditorReceta()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-field" style="margin-bottom:12px">
+        <label>Producto fabricado</label>
+        <div class="codigo-search-wrap">
+          <input type="text" id="recEdProducto" placeholder="Escriba código o nombre del producto..." oninput="buscarProductoEditorReceta(this.value)" autocomplete="off">
+          <div class="codigo-dropdown" id="recEdProductoDropdown"></div>
+        </div>
+        <div id="recEdNombre" style="font-size:13px;color:var(--texto-suave);margin-top:4px"></div>
+      </div>
+      <table class="recep-tabla">
+        <thead><tr><th style="width:34%">Código componente</th><th>Descripción</th><th style="width:16%">Cantidad por unidad</th><th style="width:40px"></th></tr></thead>
+        <tbody id="recEdTbody"></tbody>
+      </table>
+      <button class="btn-limpiar" type="button" onclick="agregarComponenteEditorReceta()">➕ Agregar componente</button>
+      <div class="recep-aviso0">Un componente con cantidad 0 se conserva en la receta pero no se descuenta al fabricar (aparece resaltado).</div>
+      <div class="modal-nuevo-codigo-msg" id="recEdMsg"></div>
+      <button class="btn-registrar" type="button" id="btnGuardarReceta" onclick="guardarEditorReceta()" style="margin-top:6px">Guardar receta</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <!-- Para leer en el navegador el archivo Excel que se sube en "Conteo Cíclico" (ver
      procesarArchivoConteoCiclico) — no hay forma de leer un .xlsx real sin una librería. -->
@@ -2017,6 +2060,8 @@ function mostrarApp() {
     document.getElementById('btnMovimientos').classList.remove('hidden');
     document.getElementById('btnReportes').classList.remove('hidden');
     document.getElementById('btnImportarCodigos').classList.remove('hidden');
+    document.getElementById('btnEditarReceta').classList.remove('hidden');
+    document.getElementById('btnNuevaReceta').classList.remove('hidden');
     // Antes esto solo se pedía hasta que el usuario entraba a Movimientos, así que la
     // primera vez que abría Ingreso/Salida se quedaba esperando esta carga (Responsable,
     // categorías, listas de Rack) además de todo lo demás — se sentía lento para empezar a
@@ -2915,6 +2960,7 @@ function habilitarNavegacionTecladoDropdown(idCampoBuscador, idDropdown) {
   ['consultaRapidaBuscar', 'consultaRapidaDropdown'],
   ['conteoCodigoBuscar', 'conteoCodigoDropdown'],
   ['recetaCodigoBuscar', 'recetaCodigoDropdown'],
+  ['recEdProducto', 'recEdProductoDropdown'],
   ['etqCodigoBuscar', 'etqCodigoDropdown'],
   ['etq50CodigoBuscar', 'etq50CodigoDropdown'],
 ].forEach(([idCampoBuscador, idDropdown]) => habilitarNavegacionTecladoDropdown(idCampoBuscador, idDropdown));
@@ -5911,6 +5957,206 @@ function renderTablaReceta(filas) {
   tbody.innerHTML = filas.map(f =>
     `<tr><td>${f.codigoComponente}</td><td>${f.nombreComponente}</td><td>${f.cantidadUnidad}</td><td>${f.cantidadNecesaria}</td></tr>`
   ).join('');
+}
+
+// ═══════════════════════════════════════
+// EDITOR DE RECETAS (solo admin)
+// ------------------------------------------------------
+// Jimmy pidió poder editar/crear recetas desde la app en vez de hacerlo en el Excel/Sheets. Se
+// edita en memoria (recEdComponentes) y al guardar se manda TODA la lista de componentes del
+// producto al backend (GUARDAR_RECETA), que reemplaza solo el bloque de ese producto en la hoja
+// RECETAS (ver guardarReceta en Code_actualizado.gs) y valida contra el catálogo de códigos.
+// ═══════════════════════════════════════
+let recEdModo = 'EDITAR';
+let recEdProductoCodigo = '';
+let recEdComponentes = [];
+
+function buscarEnCatalogoCodigo(codigo) {
+  const clave = String(codigo || '').trim().toUpperCase();
+  if (!clave) return null;
+  return todosCodigos.find(c => String(c.codigo).trim().toUpperCase() === clave) || null;
+}
+
+async function abrirEditorReceta(modo) {
+  const msgEl = document.getElementById('recEdMsg');
+  msgEl.textContent = '';
+  if (!datosRecetasCargados) {
+    await cargarDatosRecetas();
+    if (datosRecetasError || !datosRecetasCargados) { alert('No se pudo cargar el catálogo de recetas. Intente de nuevo en unos segundos.'); return; }
+  }
+  recEdModo = modo === 'CREAR' ? 'CREAR' : 'EDITAR';
+  const inputProd = document.getElementById('recEdProducto');
+  if (recEdModo === 'EDITAR') {
+    const codigo = document.getElementById('recetaCodigoBuscar').value.trim().toUpperCase();
+    const filas = datosRecetas.filter(r => String(r.codigoProducto).trim().toUpperCase() === codigo);
+    if (!codigo || !filas.length) {
+      alert('Primero busque la receta que quiere editar (escriba el código del producto y presione Buscar).');
+      return;
+    }
+    recEdProductoCodigo = filas[0].codigoProducto;
+    inputProd.value = filas[0].codigoProducto;
+    inputProd.readOnly = true;
+    document.getElementById('recEdNombre').textContent = filas[0].nombreProducto || '';
+    recEdComponentes = filas.map(r => ({ codigo: r.codigoComponente, nombre: r.nombreComponente, cantidad: r.cantidad }));
+    document.getElementById('recEdTitulo').textContent = '✏️ Editar receta';
+  } else {
+    recEdProductoCodigo = '';
+    inputProd.value = '';
+    inputProd.readOnly = false;
+    document.getElementById('recEdNombre').textContent = '';
+    recEdComponentes = [{ codigo: '', nombre: '', cantidad: 1 }];
+    document.getElementById('recEdTitulo').textContent = '➕ Nueva receta';
+  }
+  document.getElementById('recEdProductoDropdown').classList.remove('visible');
+  renderEditorReceta();
+  document.getElementById('modalEditarReceta').classList.add('visible');
+}
+
+function cerrarEditorReceta() {
+  document.getElementById('modalEditarReceta').classList.remove('visible');
+}
+
+function buscarProductoEditorReceta(texto) {
+  const dropdown = document.getElementById('recEdProductoDropdown');
+  recEdProductoCodigo = '';
+  document.getElementById('recEdNombre').textContent = '';
+  llenarDropdownCatalogoEditorReceta(dropdown, texto, c => {
+    recEdProductoCodigo = c.codigo;
+    document.getElementById('recEdProducto').value = c.codigo;
+    document.getElementById('recEdNombre').textContent = c.descripcion || '';
+  });
+}
+
+// Arma el desplegable de sugerencias con el catálogo (mismo estilo que los demás buscadores),
+// construido con DOM (no con HTML en texto) para que una descripción rara no rompa nada.
+function llenarDropdownCatalogoEditorReceta(dropdown, texto, alElegir) {
+  dropdown.innerHTML = '';
+  if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
+  const busq = texto.toLowerCase();
+  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || (c.descripcion || '').toLowerCase().includes(busq)).slice(0, 15);
+  if (!resultados.length) { dropdown.classList.remove('visible'); return; }
+  resultados.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'codigo-item';
+    const cod = document.createElement('div'); cod.className = 'cod'; cod.textContent = c.codigo;
+    const desc = document.createElement('div'); desc.className = 'desc-cod'; desc.textContent = c.descripcion || '';
+    item.appendChild(cod); item.appendChild(desc);
+    item.addEventListener('click', () => { dropdown.classList.remove('visible'); alElegir(c); });
+    dropdown.appendChild(item);
+  });
+  dropdown.classList.add('visible');
+}
+
+function renderEditorReceta() {
+  const tbody = document.getElementById('recEdTbody');
+  tbody.innerHTML = '';
+  recEdComponentes.forEach((comp, idx) => {
+    const tr = document.createElement('tr');
+    if (Number(comp.cantidad) === 0) tr.className = 'recep-cero';
+
+    const tdCod = document.createElement('td');
+    const wrap = document.createElement('div'); wrap.className = 'codigo-search-wrap';
+    const inCod = document.createElement('input');
+    inCod.type = 'text'; inCod.value = comp.codigo; inCod.placeholder = 'Código o nombre...'; inCod.autocomplete = 'off';
+    inCod.className = 'recep-in-codigo';
+    const dd = document.createElement('div'); dd.className = 'codigo-dropdown';
+    inCod.addEventListener('input', () => {
+      comp.codigo = inCod.value.trim();
+      const enCatalogo = buscarEnCatalogoCodigo(comp.codigo);
+      comp.nombre = enCatalogo ? (enCatalogo.descripcion || '') : '';
+      tdNom.textContent = comp.nombre;
+      llenarDropdownCatalogoEditorReceta(dd, inCod.value.trim(), c => {
+        comp.codigo = c.codigo; comp.nombre = c.descripcion || '';
+        inCod.value = c.codigo; tdNom.textContent = comp.nombre;
+      });
+    });
+    inCod.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && dd.classList.contains('visible')) {
+        const primero = dd.querySelector('.codigo-item');
+        if (primero) { e.preventDefault(); primero.click(); }
+      }
+    });
+    wrap.appendChild(inCod); wrap.appendChild(dd); tdCod.appendChild(wrap);
+
+    const tdNom = document.createElement('td');
+    tdNom.className = 'recep-nombre';
+    tdNom.textContent = comp.nombre || '';
+
+    const tdCant = document.createElement('td');
+    const inCant = document.createElement('input');
+    inCant.type = 'number'; inCant.min = '0'; inCant.step = 'any'; inCant.value = comp.cantidad;
+    inCant.className = 'recep-in-cantidad';
+    inCant.addEventListener('input', () => {
+      comp.cantidad = inCant.value === '' ? '' : Number(inCant.value);
+      tr.classList.toggle('recep-cero', inCant.value !== '' && Number(inCant.value) === 0);
+    });
+    tdCant.appendChild(inCant);
+
+    const tdQ = document.createElement('td');
+    const btnQ = document.createElement('button');
+    btnQ.type = 'button'; btnQ.className = 'recep-quitar'; btnQ.title = 'Quitar componente'; btnQ.textContent = '✕';
+    btnQ.addEventListener('click', () => { recEdComponentes.splice(idx, 1); renderEditorReceta(); });
+    tdQ.appendChild(btnQ);
+
+    tr.appendChild(tdCod); tr.appendChild(tdNom); tr.appendChild(tdCant); tr.appendChild(tdQ);
+    tbody.appendChild(tr);
+  });
+}
+
+function agregarComponenteEditorReceta() {
+  recEdComponentes.push({ codigo: '', nombre: '', cantidad: 1 });
+  renderEditorReceta();
+  const inputs = document.querySelectorAll('#recEdTbody .recep-in-codigo');
+  if (inputs.length && inputs[inputs.length - 1].focus) inputs[inputs.length - 1].focus();
+}
+
+async function guardarEditorReceta() {
+  const msgEl = document.getElementById('recEdMsg');
+  msgEl.style.color = 'var(--rojo)';
+  msgEl.textContent = '';
+  const producto = buscarEnCatalogoCodigo(recEdProductoCodigo || document.getElementById('recEdProducto').value);
+  if (!producto) { msgEl.textContent = 'Elija el producto fabricado de la lista de códigos.'; return; }
+  if (recEdModo === 'CREAR' && datosRecetas.some(r => String(r.codigoProducto).trim().toUpperCase() === producto.codigo.toUpperCase())) {
+    msgEl.textContent = 'Ese producto ya tiene una receta — búsquela y use "Editar receta".';
+    return;
+  }
+  if (!recEdComponentes.length) { msgEl.textContent = 'La receta debe tener al menos un componente.'; return; }
+  const vistos = new Set();
+  const componentes = [];
+  for (let i = 0; i < recEdComponentes.length; i++) {
+    const c = recEdComponentes[i];
+    const fila = 'Fila ' + (i + 1) + ': ';
+    if (!String(c.codigo || '').trim()) { msgEl.textContent = fila + 'falta el código del componente (o quite la fila).'; return; }
+    const enCat = buscarEnCatalogoCodigo(c.codigo);
+    if (!enCat) { msgEl.textContent = fila + 'el código "' + c.codigo + '" no existe en el catálogo.'; return; }
+    const clave = enCat.codigo.toUpperCase();
+    if (clave === producto.codigo.toUpperCase()) { msgEl.textContent = fila + 'el producto no puede ser componente de sí mismo.'; return; }
+    if (vistos.has(clave)) { msgEl.textContent = fila + 'el componente "' + enCat.codigo + '" está repetido.'; return; }
+    vistos.add(clave);
+    const cant = Number(c.cantidad);
+    if (c.cantidad === '' || isNaN(cant) || cant < 0) { msgEl.textContent = fila + 'la cantidad debe ser un número (0 o mayor).'; return; }
+    componentes.push({ codigo: enCat.codigo, nombre: enCat.descripcion || '', cantidad: cant });
+  }
+
+  const btn = document.getElementById('btnGuardarReceta');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      body: cuerpoConToken({ tipo_peticion: 'GUARDAR_RECETA', modo: recEdModo, codigoProducto: producto.codigo, nombreProducto: producto.descripcion || '', componentes })
+    });
+    const result = await leerRespuestaBackend(resp);
+    if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
+    // Se actualiza la receta en memoria con lo que el servidor realmente guardó.
+    const clavePro = producto.codigo.toUpperCase();
+    datosRecetas = datosRecetas.filter(r => String(r.codigoProducto).trim().toUpperCase() !== clavePro).concat(result.filas || []);
+    cerrarEditorReceta();
+    document.getElementById('recetaCodigoBuscar').value = producto.codigo;
+    generarReceta();
+  } catch (err) {
+    msgEl.textContent = 'No se pudo guardar: ' + err.message;
+  }
+  btn.disabled = false; btn.textContent = 'Guardar receta';
 }
 
 function limpiarFiltrosReceta() {
