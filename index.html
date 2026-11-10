@@ -3530,6 +3530,30 @@ function construirPayloadItem(item) {
   };
 }
 
+// Arma la entrada que se agrega al historial EN MEMORIA (movimientosHistorial) al registrar un
+// movimiento, con los MISMOS campos que devuelve leerMovimientosHistorial en el servidor. Jimmy
+// reportó que el Historial de un código mostraba "—" en Ubicación, Documento y Responsable para
+// los movimientos recién registrados: aquí solo se copiaban fecha, tipo, código y cantidad, así
+// que esas filas quedaban incompletas hasta recargar el historial desde el servidor (también
+// afectaba al reporte por Responsable, que cuenta por esos mismos nombres). Una RESERVA se
+// guarda como el TRASLADO real hacia RESERVA que genera el servidor (ver
+// registrarReservaConTraslado en Code_actualizado.gs).
+function construirEntradaHistorialEnMemoria(item) {
+  const esReserva = item.tipo === 'RESERVA';
+  return {
+    fecha: item.fecha, // "YYYY-MM-DD", igual que entrega el servidor
+    tipo: esReserva ? 'TRASLADO' : item.tipo,
+    codigo: item.codigo,
+    cantidad: item.cantidad,
+    ubicacion_origen: item.ubicacion || '',
+    ubicacion_destino: esReserva ? 'RESERVA' : (item.ubicacionDestino || ''),
+    despacho_con: esReserva ? (item.reservaCon || '') : (item.despacho || ''),
+    documento: item.documento || '',
+    proveedor: item.proveedor || '',
+    responsable: item.responsable || ''
+  };
+}
+
 // ── "Registrar Movimientos" / "Aplicar Reservas": envía TODOS los ítems de la lista a Google Sheets ──
 async function registrarListaMovimientos() {
   if (movimientosPendientes.length === 0) { alert('No hay movimientos en la lista para registrar'); return; }
@@ -3566,15 +3590,13 @@ async function registrarListaMovimientos() {
         : null;
       // Actualiza el Resumen Mensual de forma optimista (si ya está abierto en esta sesión),
       // sin esperar ningún refresh — igual que pide el usuario ("dinámicos... según se van
-      // procesando"). OJO: las líneas de RESERVA no cuentan aquí — el servidor SÍ genera un
-      // Traslado real por cada una (hacia RESERVA, ver registrarReservaConTraslado en
-      // Code_actualizado.gs), pero ese movimiento se calcula del lado del servidor y el
-      // cliente nunca recibe esa fila calculada, igual que las SALIDAs que la receta genera
-      // automáticamente en el servidor (expandirRecetas) tampoco se ven reflejadas hasta el próximo refresh/login,
+      // procesando"). Las líneas de RESERVA también se agregan (como el Traslado hacia RESERVA que
+      // el servidor genera de verdad, ver registrarReservaConTraslado en Code_actualizado.gs —
+      // ver construirEntradaHistorialEnMemoria). OJO: las SALIDAs que la receta genera
+      // automáticamente en el servidor (expandirRecetas) no se ven reflejadas hasta el próximo refresh/login,
       // porque el cliente nunca recibe esas filas calculadas del lado del servidor.
       movimientosPendientes.forEach(item => {
-        if (item.tipo === 'RESERVA') return;
-        movimientosHistorial.push({ fecha: item.fecha, tipo: item.tipo, codigo: item.codigo, cantidad: item.cantidad });
+        movimientosHistorial.push(construirEntradaHistorialEnMemoria(item));
       });
       renderResumenMensual();
       movimientosPendientes = [];
