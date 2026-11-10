@@ -704,6 +704,19 @@
   .pendientes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .pendientes-titulo { font-size: 20px; font-weight: 700; color: var(--azul); }
   .btn-recargar { background: var(--azul); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  /* IMPORTAR CÓDIGOS (pegar el reporte semanal) */
+  .impcod-wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .impcod-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px; margin-bottom: 16px; }
+  .impcod-ayuda { font-size: 13px; color: var(--texto-suave); margin-bottom: 12px; line-height: 1.5; }
+  .impcod-textarea { width: 100%; min-height: 150px; border: 1.5px solid var(--gris); border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; resize: vertical; white-space: pre; overflow: auto; }
+  .impcod-acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .impcod-acciones .btn-registrar, .impcod-acciones .btn-limpiar { margin-top: 0; }
+  .impcod-resumen { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .impcod-chip { padding: 8px 14px; border-radius: 8px; background: var(--gris); font-size: 13px; color: var(--texto); }
+  .impcod-chip strong { font-size: 16px; color: var(--azul); }
+  .impcod-chip.nuevo { background: #e6f9f1; } .impcod-chip.aviso { background: #fff6dc; }
+  .impcod-tabla-wrap { border: 1px solid var(--gris); border-radius: 10px; max-height: 40vh; overflow: auto; }
+  .impcod-msg { font-size: 13.5px; margin-top: 12px; min-height: 18px; }
   .pedido-card { background: #fff; border: 1.5px solid #e0eaf5; border-radius: 12px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
   .pedido-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #f5f9ff; border-bottom: 1px solid #e0eaf5; flex-wrap: wrap; gap: 8px; }
   .pedido-card-info { display: flex; gap: 20px; flex-wrap: wrap; }
@@ -838,6 +851,7 @@
       <button class="sb-subitem" onclick="irAReporte('RECETA', this)">🧩 Recetas (Componentes)</button>
       <button class="sb-subitem" onclick="irAReporte('CONTEO_CICLICO', this)">🔄 Conteo Cíclico</button>
     </div>
+    <button class="sb-item hidden" id="btnImportarCodigos" onclick="mostrarSeccion('importarcodigos', this)"><span class="ic">📥</span> Importar Códigos</button>
     <div class="sb-section-label">Solicitudes</div>
     <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
     <button class="sb-item hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes', this)"><span class="ic">📬</span> Pedidos Pendientes</button>
@@ -1062,6 +1076,39 @@
     <button class="btn-enviar-pedido" onclick="enviarPedido()" id="btnEnviarPedido">✅ Enviar Pedido</button>
     <button class="btn-imprimir hidden" onclick="imprimirSolicitud()" id="btnImprimir">🖨️ Imprimir Solicitud</button>
     <div class="msg-pedido" id="msgPedido"></div>
+  </div>
+</div>
+
+<!-- SECCIÓN IMPORTAR CÓDIGOS: se pega el reporte semanal de CÓDIGOS (Excel) y solo se agregan
+     al catálogo (hoja CODIGOS) los que todavía no existen. Ver procesarReporteCodigos. -->
+<div id="seccionImportarCodigos" class="hidden">
+  <div class="impcod-wrap">
+    <div class="impcod-card">
+      <div class="pendientes-titulo" style="margin-bottom:8px">📥 Importar Códigos Nuevos</div>
+      <div class="impcod-ayuda">
+        En Excel seleccione las columnas <strong>Artículo | Descripción | Categoría | Existencias</strong> del reporte
+        (con el encabezado), cópielas y péguelas aquí abajo. Solo se agregan los códigos que todavía
+        no están en el catálogo; los que ya existen no se tocan. La columna Existencias se ignora.
+      </div>
+      <textarea class="impcod-textarea" id="impCodTexto" placeholder="Pegue aquí el reporte (Ctrl+V)..." oninput="limpiarVistaPreviaImportarCodigos()" spellcheck="false"></textarea>
+      <div class="impcod-acciones">
+        <button class="btn-registrar" type="button" id="btnRevisarImportarCodigos" onclick="revisarImportarCodigos()">🔍 Revisar</button>
+        <button class="btn-limpiar" type="button" onclick="limpiarImportarCodigos()">Limpiar</button>
+      </div>
+      <div class="impcod-msg" id="impCodMsg"></div>
+    </div>
+    <div class="impcod-card hidden" id="impCodPreviaCard">
+      <div class="impcod-resumen" id="impCodResumen"></div>
+      <div class="impcod-tabla-wrap">
+        <table>
+          <thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th></tr></thead>
+          <tbody id="impCodTbody"></tbody>
+        </table>
+      </div>
+      <div class="impcod-acciones">
+        <button class="btn-registrar" type="button" id="btnConfirmarImportarCodigos" onclick="confirmarImportarCodigos()">✅ Agregar códigos nuevos</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1969,6 +2016,7 @@ function mostrarApp() {
   if (usuarioActivo.rol === 'admin') {
     document.getElementById('btnMovimientos').classList.remove('hidden');
     document.getElementById('btnReportes').classList.remove('hidden');
+    document.getElementById('btnImportarCodigos').classList.remove('hidden');
     // Antes esto solo se pedía hasta que el usuario entraba a Movimientos, así que la
     // primera vez que abría Ingreso/Salida se quedaba esperando esta carga (Responsable,
     // categorías, listas de Rack) además de todo lo demás — se sentía lento para empezar a
@@ -2025,7 +2073,12 @@ const tokenGuardado = sessionStorage.getItem('hc_token');
 if (sesionGuardada && tokenGuardado) {
   usuarioActivo = JSON.parse(sesionGuardada);
   sesionToken = tokenGuardado;
-  mostrarApp();
+  // Se difiere hasta que termine de cargar TODO el script: mostrarApp() (para un admin) llama a
+  // cargarListasRack(), que usa variables "let" declaradas más abajo en este mismo script. Si se
+  // llamaba aquí mismo, al recargar la página (F5) con la sesión abierta daba "Cannot access
+  // 'listasRackCargaPromise' before initialization" y el resto del script (menús, secciones) no
+  // llegaba a ejecutarse.
+  setTimeout(mostrarApp, 0);
 }
 
 const TITULOS_SECCION = {
@@ -2033,6 +2086,7 @@ const TITULOS_SECCION = {
   movimientos: ['HidroClear / Operación',    'Movimientos'],
   etiquetas:   ['HidroClear / Operación',    'Imprimir Etiquetas'],
   reportes:    ['HidroClear / Reportes',     'Reportes'],
+  importarcodigos: ['HidroClear / Operación', 'Importar Códigos'],
   pedidos:     ['HidroClear / Solicitudes',  'Solicitud de Materiales'],
   pendientes:  ['HidroClear / Solicitudes',  'Pedidos Pendientes']
 };
@@ -2048,6 +2102,7 @@ function mostrarSeccion(seccion, el) {
   document.getElementById('seccionPendientes').classList.add('hidden');
   document.getElementById('seccionEtiquetas').classList.add('hidden');
   document.getElementById('seccionReportes').classList.add('hidden');
+  document.getElementById('seccionImportarCodigos').classList.add('hidden');
 
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('activo'));
   if (el) el.classList.add('activo');
@@ -2077,6 +2132,8 @@ function mostrarSeccion(seccion, el) {
   } else if (seccion === 'pedidos') {
     document.getElementById('seccionPedidos').classList.remove('hidden');
     inicializarPedidos();
+  } else if (seccion === 'importarcodigos') {
+    document.getElementById('seccionImportarCodigos').classList.remove('hidden');
   } else if (seccion === 'pendientes') {
     document.getElementById('seccionPendientes').classList.remove('hidden');
     cargarPedidosPendientes();
@@ -3384,7 +3441,11 @@ function limpiarCamposItemMovimiento() {
   document.getElementById('movCodigo').value = '';
   document.getElementById('movDescripcion').value = '';
   document.getElementById('movCantidad').value = '';
-  document.getElementById('movNombreCliente').value = '';
+  // OJO: "Nombre del cliente" (Reserva) ya NO se limpia aquí — Jimmy reportó que se borraba al
+  // presionar "Ingresar" y tenía que volver a escribirlo en cada línea, siendo el mismo cliente
+  // para todas las líneas de una misma reserva. Igual que Proveedor/Despacho/Reserva Con/N°
+  // Documento, se mantiene entre líneas y se borra al terminar el lote (ver
+  // registrarListaMovimientos) o con limpiarCamposCompletoMovimiento.
   if (document.getElementById('movUbicacion')) document.getElementById('movUbicacion').value = '';
   if (document.getElementById('movUbicacionOrigen')) document.getElementById('movUbicacionOrigen').value = '';
   if (document.getElementById('movUbicacionDestino')) document.getElementById('movUbicacionDestino').value = '';
@@ -3398,6 +3459,7 @@ function limpiarCamposCompletoMovimiento() {
   document.getElementById('movDocumento').value = '';
   document.getElementById('movProveedor').value = '';
   document.getElementById('movReservaCon').value = '';
+  document.getElementById('movNombreCliente').value = '';
   if (document.getElementById('movDespacho')) document.getElementById('movDespacho').value = '';
 }
 
@@ -3601,6 +3663,9 @@ async function registrarListaMovimientos() {
       renderResumenMensual();
       movimientosPendientes = [];
       indiceEdicionLista = null;
+      // La reserva ya quedó registrada completa: se limpia el cliente para que la próxima reserva
+      // (normalmente de OTRO cliente) no arrastre el nombre anterior por descuido.
+      document.getElementById('movNombreCliente').value = '';
       renderListaMovimientos();
       document.getElementById('successMsg').style.display = 'block';
       // NUEVO: refresca en segundo plano el snapshot de inventario (datosInventario) que usa
@@ -3888,6 +3953,180 @@ async function guardarNuevoCodigo() {
   }
   btn.disabled = false;
   btn.textContent = 'Guardar Código';
+}
+
+// ═══════════════════════════════════════
+// IMPORTAR CÓDIGOS: pegar el reporte semanal (Artículo | Descripción | Categoría | Existencias)
+// ------------------------------------------------------
+// Jimmy lo hacía a mano en el Google Sheets una vez por semana. Aquí pega las celdas copiadas
+// de Excel, la app muestra una vista previa (nuevos vs. ya existentes) y, al confirmar, agrega
+// SOLO los códigos que no estén ya en la hoja CODIGOS (nunca modifica los que ya existen).
+// La columna Existencias se ignora: el stock se maneja con los movimientos, no con este reporte.
+// ═══════════════════════════════════════
+
+let importarCodigosNuevos = [];
+
+function normalizarEncabezadoReporte(texto) {
+  return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+}
+
+// Convierte el texto pegado en { filas, invalidas, repetidas }.
+// - Separa por tabulador (así copia Excel). Si no hay ningún tabulador, intenta con ";".
+// - Si la primera fila trae encabezado (Artículo/Código, Descripción, Categoría) lo usa para ubicar
+//   las columnas, aunque vengan en otro orden; si no hay encabezado, asume A=Código, B=Descripción,
+//   C=Categoría.
+// - El código se pasa a mayúsculas; los repetidos dentro del mismo pegado se descartan (gana el 1º).
+function parsearReporteCodigos(texto) {
+  const lineas = String(texto || '').split(/\r?\n/).filter(l => l.trim() !== '');
+  const separador = lineas.some(l => l.indexOf('\t') > -1) ? '\t' : (lineas.some(l => l.indexOf(';') > -1) ? ';' : '\t');
+  // Excel envuelve entre comillas (y duplica las comillas internas) solo las celdas que traen
+  // comillas, p. ej. una pulgada: 1 1/2" -> "1 1/2""". Se desenvuelve únicamente ese caso, para
+  // no comerse una comilla legítima al final de una descripción normal.
+  const limpiarCelda = c => {
+    c = c.trim();
+    if (c.length >= 2 && c[0] === '"' && c[c.length - 1] === '"') c = c.slice(1, -1).replace(/""/g, '"');
+    return c.trim();
+  };
+  const celdas = lineas.map(l => l.split(separador).map(limpiarCelda));
+  let idxCodigo = 0, idxDesc = 1, idxCat = 2;
+  if (celdas.length) {
+    const cab = celdas[0].map(normalizarEncabezadoReporte);
+    const iCod = cab.findIndex(c => c === 'articulo' || c === 'codigo' || c === 'item');
+    if (iCod > -1) {
+      idxCodigo = iCod;
+      const iDesc = cab.findIndex(c => c.indexOf('descrip') === 0);
+      const iCat = cab.findIndex(c => c.indexOf('categor') === 0);
+      if (iDesc > -1) idxDesc = iDesc;
+      if (iCat > -1) idxCat = iCat;
+      celdas.shift();
+    }
+  }
+  const vistos = new Set();
+  const filas = [];
+  let invalidas = 0, repetidas = 0;
+  celdas.forEach(c => {
+    const codigo = String(c[idxCodigo] || '').trim().toUpperCase();
+    if (!codigo) { invalidas++; return; }
+    if (vistos.has(codigo)) { repetidas++; return; }
+    vistos.add(codigo);
+    filas.push({ codigo, descripcion: String(c[idxDesc] || '').trim(), categoria: String(c[idxCat] || '').trim() });
+  });
+  return { filas, invalidas, repetidas };
+}
+
+function limpiarVistaPreviaImportarCodigos() {
+  importarCodigosNuevos = [];
+  document.getElementById('impCodPreviaCard').classList.add('hidden');
+}
+
+function limpiarImportarCodigos() {
+  document.getElementById('impCodTexto').value = '';
+  document.getElementById('impCodMsg').textContent = '';
+  limpiarVistaPreviaImportarCodigos();
+}
+
+async function revisarImportarCodigos() {
+  const msgEl = document.getElementById('impCodMsg');
+  msgEl.style.color = 'var(--rojo)';
+  msgEl.textContent = '';
+  limpiarVistaPreviaImportarCodigos();
+  const parsed = parsearReporteCodigos(document.getElementById('impCodTexto').value);
+  if (!parsed.filas.length) {
+    msgEl.textContent = 'No encontré códigos en lo pegado. Copie las celdas del reporte en Excel (con el encabezado) y péguelas aquí.';
+    return;
+  }
+  const btn = document.getElementById('btnRevisarImportarCodigos');
+  btn.disabled = true;
+  btn.textContent = 'Revisando...';
+  // Se compara contra la hoja CODIGOS recién leída (no contra lo que se cargó al entrar), para
+  // que la vista previa sea fiel aunque alguien más haya agregado códigos mientras tanto.
+  let catalogo = datosCodigos;
+  try {
+    const resp = await fetch(conToken(GS_URL + '?tipo=CODIGOS&_=' + Date.now()));
+    const r = await leerRespuestaBackend(resp);
+    if (r.status === 'ok') { catalogo = r.datos || []; datosCodigos = catalogo; }
+  } catch (e) { /* si falla, se usa el catálogo ya cargado; el servidor vuelve a validar al guardar */ }
+  btn.disabled = false;
+  btn.textContent = '🔍 Revisar';
+
+  const existentes = new Set(catalogo.map(c => String(c.codigo || '').trim().toUpperCase()));
+  const nuevos = parsed.filas.filter(f => !existentes.has(f.codigo));
+  const yaExisten = parsed.filas.length - nuevos.length;
+  importarCodigosNuevos = nuevos;
+
+  const resumen = document.getElementById('impCodResumen');
+  resumen.innerHTML = '';
+  const chip = (clase, numero, texto) => {
+    const d = document.createElement('div');
+    d.className = 'impcod-chip ' + clase;
+    const s = document.createElement('strong');
+    s.textContent = numero;
+    d.appendChild(s);
+    d.appendChild(document.createTextNode(' ' + texto));
+    resumen.appendChild(d);
+  };
+  chip('nuevo', nuevos.length, nuevos.length === 1 ? 'código nuevo' : 'códigos nuevos');
+  chip('', yaExisten, 'ya existían (no se tocan)');
+  if (parsed.repetidas) chip('aviso', parsed.repetidas, 'repetidos en lo pegado (se ignoran)');
+  if (parsed.invalidas) chip('aviso', parsed.invalidas, 'filas sin código (se ignoran)');
+
+  const tbody = document.getElementById('impCodTbody');
+  tbody.innerHTML = '';
+  nuevos.forEach(f => {
+    const tr = document.createElement('tr');
+    [f.codigo, f.descripcion, f.categoria].forEach(v => {
+      const td = document.createElement('td');
+      td.textContent = v;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  document.getElementById('impCodPreviaCard').classList.remove('hidden');
+  const btnConf = document.getElementById('btnConfirmarImportarCodigos');
+  btnConf.disabled = nuevos.length === 0;
+  btnConf.textContent = nuevos.length ? '✅ Agregar ' + nuevos.length + (nuevos.length === 1 ? ' código nuevo' : ' códigos nuevos') : 'No hay códigos nuevos';
+  if (!nuevos.length) {
+    msgEl.style.color = 'var(--texto-suave)';
+    msgEl.textContent = 'Todos los códigos pegados ya están en el catálogo — no hay nada que agregar.';
+  }
+}
+
+async function confirmarImportarCodigos() {
+  if (!importarCodigosNuevos.length) return;
+  const msgEl = document.getElementById('impCodMsg');
+  const btn = document.getElementById('btnConfirmarImportarCodigos');
+  msgEl.style.color = 'var(--texto-suave)';
+  msgEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  try {
+    const resp = await fetch(GS_URL, {
+      method: 'POST',
+      body: cuerpoConToken({ tipo_peticion: 'AGREGAR_CODIGOS_LOTE', items: importarCodigosNuevos })
+    });
+    const result = await leerRespuestaBackend(resp);
+    if (result.status !== 'ok') throw new Error(result.mensaje || 'Error desconocido');
+    // Las respuestas ok() del backend traen sus campos al nivel de arriba (sin "datos").
+    const agregados = result.agregados || [];
+    const yaExistian = result.yaExistian || 0;
+
+    // Se agregan al instante al catálogo en memoria (igual que guardarNuevoCodigo).
+    agregados.forEach(a => datosCodigos.push({ codigo: a.codigo, descripcion: a.descripcion, categoria: a.categoria }));
+    todosCodigos = obtenerCodigosUnicos();
+    todosProductosPedido = todosCodigos;
+    todosProductosEtiqueta = todosCodigos;
+
+    document.getElementById('impCodTexto').value = '';
+    limpiarVistaPreviaImportarCodigos();
+    msgEl.style.color = 'var(--verde)';
+    msgEl.textContent = '✔ Listo: se agregaron ' + agregados.length + (agregados.length === 1 ? ' código nuevo' : ' códigos nuevos') +
+      (yaExistian ? ' (' + yaExistian + ' ya existían y se dejaron igual)' : '') + '.';
+  } catch (err) {
+    msgEl.style.color = 'var(--rojo)';
+    msgEl.textContent = 'No se pudo guardar: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = '✅ Agregar ' + importarCodigosNuevos.length + (importarCodigosNuevos.length === 1 ? ' código nuevo' : ' códigos nuevos');
+  }
 }
 
 // ═══════════════════════════════════════
