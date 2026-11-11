@@ -2969,10 +2969,10 @@ function habilitarNavegacionTecladoDropdown(idCampoBuscador, idDropdown) {
 
 function buscarCodigoConsultaModal(texto) {
   const dropdown = document.getElementById('consultaModalDropdown');
-  filtrarConsultaModal();
+  programarFiltroConsulta(filtrarConsultaModal);
   if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
   const busq = texto.toLowerCase();
-  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  const resultados = buscarEnCatalogoRapido(busq, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
   dropdown.innerHTML = resultados.map(c =>
     `<div class="codigo-item" onclick="seleccionarCodigoConsultaModal('${escJsAttr(c.codigo)}','${escJsAttr(c.descripcion)}')">
@@ -3023,6 +3023,56 @@ async function actualizarConsultaCodigos() {
 // combinan en una sola fila con el stock sumado, para que la consulta siempre refleje el stock
 // real aunque la hoja tenga esa inconsistencia. No modifica datosInventario, solo lo agrupa para
 // pintar/calcular.
+// ── Rendimiento de la Consulta de Códigos ──
+// Jimmy reportó que al escribir un código en la consulta cada letra tardaba hasta ~5 segundos en
+// aparecer. Causa: en CADA tecla se reagrupaba todo el inventario y, por cada código coincidente
+// que se iba a pintar, se recorría otra vez TODO el inventario para sumar su stock total
+// (coincidencias × inventario). Con 1 o 2 letras coinciden miles de códigos, así que eso eran
+// decenas de millones de operaciones y miles de filas de tabla por tecla. Ahora: (1) el
+// agrupado del inventario y el stock total por código se calculan UNA vez y se reutilizan hasta
+// que cambie el inventario, (2) la búsqueda en el catálogo usa textos ya en minúsculas
+// guardados, (3) la tabla pinta como máximo MAX_FILAS_CONSULTA filas (con un aviso y un botón
+// "Mostrar todos"), y (4) mientras se escribe, la tabla se redibuja cuando la persona hace una
+// pausa de un instante, no en cada tecla.
+const MAX_FILAS_CONSULTA = 300;
+const comparadorConsulta = new Intl.Collator();
+let cacheInventarioAgrupado = { ref: null, largo: -1, agrupado: [], totalPorCodigo: new Map() };
+function obtenerInventarioAgrupado() {
+  if (cacheInventarioAgrupado.ref !== datosInventario || cacheInventarioAgrupado.largo !== datosInventario.length) {
+    const agrupado = agruparPorCodigoUbicacion(datosInventario);
+    const totalPorCodigo = new Map();
+    agrupado.forEach(x => {
+      const clave = String(x.codigo).trim().toUpperCase();
+      totalPorCodigo.set(clave, (totalPorCodigo.get(clave) || 0) + (Number(x.stock) || 0));
+    });
+    cacheInventarioAgrupado = { ref: datosInventario, largo: datosInventario.length, agrupado, totalPorCodigo };
+  }
+  return cacheInventarioAgrupado;
+}
+
+let cacheClavesCatalogo = { ref: null, largo: -1, claves: [] };
+function buscarEnCatalogoRapido(textoMinusculas, maximo) {
+  if (cacheClavesCatalogo.ref !== todosCodigos || cacheClavesCatalogo.largo !== todosCodigos.length) {
+    cacheClavesCatalogo = { ref: todosCodigos, largo: todosCodigos.length, claves: todosCodigos.map(c => String(c.codigo).toLowerCase() + '\u0001' + String(c.descripcion || '').toLowerCase()) };
+  }
+  const res = [];
+  const claves = cacheClavesCatalogo.claves;
+  for (let i = 0; i < claves.length; i++) {
+    if (claves[i].includes(textoMinusculas)) { res.push(todosCodigos[i]); if (maximo && res.length >= maximo) break; }
+  }
+  return res;
+}
+
+let temporizadorConsulta = null;
+function programarFiltroConsulta(funcionFiltrar) {
+  clearTimeout(temporizadorConsulta);
+  temporizadorConsulta = setTimeout(funcionFiltrar, 150);
+}
+const idsConsultaPorTbody = {};
+function mostrarTodoConsulta(idTbody) {
+  if (idsConsultaPorTbody[idTbody]) renderConsultaStock(idsConsultaPorTbody[idTbody], true);
+}
+
 function agruparPorCodigoUbicacion(lista) {
   const mapa = new Map();
   lista.forEach(d => {
@@ -3041,7 +3091,8 @@ function agruparPorCodigoUbicacion(lista) {
 // Salidas/Traslados/Reservas (ids consultaRapida...). "ids" trae los ids de campos/tabla de
 // la pantalla que llama, para no duplicar esta lógica (y el riesgo de que las dos versiones
 // se desincronicen) en dos partes distintas.
-function renderConsultaStock(ids) {
+function renderConsultaStock(ids, mostrarTodo) {
+  idsConsultaPorTbody[ids.tbody] = ids;
   const tabla = document.getElementById(ids.tabla);
   const tbody = document.getElementById(ids.tbody);
   const placeholder = document.getElementById(ids.placeholder);
@@ -3057,7 +3108,7 @@ function renderConsultaStock(ids) {
     return;
   }
 
-  const inventarioAgrupado = agruparPorCodigoUbicacion(datosInventario);
+  const { agrupado: inventarioAgrupado, totalPorCodigo } = obtenerInventarioAgrupado();
 
   const coincidencias = inventarioAgrupado.filter(d => {
     const coincideCodigo = !codigoFiltro || String(d.codigo).toLowerCase().includes(codigoFiltro) || (d.descripcion || '').toLowerCase().includes(codigoFiltro);
@@ -3086,10 +3137,10 @@ function renderConsultaStock(ids) {
   // depende del stock) y se agrega cualquier código que coincida y que no haya aparecido ya,
   // para seguir mostrándolo en 0 y no perder el acceso al Historial.
   if (codigoFiltro && !ubicacionFiltro) {
-    (todosCodigos || []).forEach(c => {
+    buscarEnCatalogoRapido(codigoFiltro).forEach(c => {
       const clave = String(c.codigo).trim().toUpperCase();
       if (codigosYaIncluidos.has(clave)) return; // ya tiene fila real (con o sin stock)
-      const coincideCodigo = String(c.codigo).toLowerCase().includes(codigoFiltro) || (c.descripcion || '').toLowerCase().includes(codigoFiltro);
+      const coincideCodigo = true; // ya filtrado por buscarEnCatalogoRapido
       const coincideDesc = !descFiltro || (c.descripcion || '').toLowerCase().includes(descFiltro);
       if (!coincideCodigo || !coincideDesc) return;
       coincidencias.push({ codigo: c.codigo, descripcion: c.descripcion, bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: c.categoria || '' });
@@ -3154,7 +3205,7 @@ function renderConsultaStock(ids) {
       filas.push({ ...filasDelCodigo[0], stock: 0 });
     }
   });
-  filas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.bodega).localeCompare(String(b.bodega)));
+  filas.sort((a, b) => comparadorConsulta.compare(String(a.codigo), String(b.codigo)) || comparadorConsulta.compare(String(a.bodega), String(b.bodega)));
 
   if (!filas.length) {
     tabla.classList.add('hidden');
@@ -3172,14 +3223,16 @@ function renderConsultaStock(ids) {
   // esa primera línea queda marcada como "fila-reservada" (doble clic abre el detalle: quién
   // la reservó, con qué documento).
   let codigoAnterior = null;
-  tbody.innerHTML = filas.map(d => {
+  const totalFilas = filas.length;
+  const filasAPintar = (mostrarTodo || totalFilas <= MAX_FILAS_CONSULTA) ? filas : filas.slice(0, MAX_FILAS_CONSULTA);
+  tbody.innerHTML = filasAPintar.map(d => {
     const claveCodigo = String(d.codigo).trim().toUpperCase();
     const esPrimeraLineaDelCodigo = claveCodigo !== codigoAnterior;
     codigoAnterior = claveCodigo;
     let celdasCodigo = '<td></td><td></td><td></td>';
     let reservado = 0;
     if (esPrimeraLineaDelCodigo) {
-      const stockTotal = inventarioAgrupado.filter(x => String(x.codigo).trim().toUpperCase() === claveCodigo).reduce((sum, x) => sum + (Number(x.stock) || 0), 0);
+      const stockTotal = totalPorCodigo.get(claveCodigo) || 0;
       reservado = reservasPorCodigo[String(d.codigo).trim()] || 0;
       const disponible = stockTotal - reservado;
       const celdaReservado = reservado > 0
@@ -3206,6 +3259,9 @@ function renderConsultaStock(ids) {
       ${celdasCodigo}
     </tr>`;
   }).join('');
+  if (filasAPintar.length < totalFilas) {
+    tbody.insertAdjacentHTML('beforeend', `<tr class="fila-aviso-limite"><td colspan="7" style="text-align:center;padding:12px;color:var(--texto-suave)">Mostrando las primeras ${filasAPintar.length} de ${totalFilas} filas — siga escribiendo para acotar la búsqueda. <button type="button" class="btn-limpiar" style="margin-left:8px" onclick="mostrarTodoConsulta('${ids.tbody}')">Mostrar todas (${totalFilas})</button></td></tr>`);
+  }
 }
 
 function filtrarConsultaModal() {
@@ -3242,10 +3298,10 @@ function filtrarConsultaRapida() {
 
 function buscarCodigoConsultaRapida(texto) {
   const dropdown = document.getElementById('consultaRapidaDropdown');
-  filtrarConsultaRapida();
+  programarFiltroConsulta(filtrarConsultaRapida);
   if (!texto || texto.length < 2) { dropdown.classList.remove('visible'); return; }
   const busq = texto.toLowerCase();
-  const resultados = todosCodigos.filter(c => c.codigo.toLowerCase().includes(busq) || c.descripcion.toLowerCase().includes(busq)).slice(0, 15);
+  const resultados = buscarEnCatalogoRapido(busq, 15);
   if (resultados.length === 0) { dropdown.classList.remove('visible'); return; }
   dropdown.innerHTML = resultados.map(c =>
     `<div class="codigo-item" onclick="seleccionarCodigoConsultaRapida('${escJsAttr(c.codigo)}','${escJsAttr(c.descripcion)}')">
