@@ -2488,7 +2488,9 @@ function seleccionarMovimiento(tipo) {
   // registra las reservas NUEVAS que se acaban de "Ingresar" al cuadro de lista; el de
   // arriba consume/aplica reservas YA existentes (equivalente a la ventana de la macro).
   const labelBtnLista = tipo === 'RESERVA' ? 'Registrar Reservas' : 'Registrar Movimientos';
-  document.getElementById('btnRegistrarLista').textContent = labelBtnLista;
+  // Si todavía hay un registro esperando respuesta, el botón sigue deshabilitado y debe seguir
+  // diciéndolo (no volver a "Registrar Movimientos" estando gris sin explicación).
+  document.getElementById('btnRegistrarLista').textContent = registroListaEnCurso ? TEXTO_BTN_REGISTRANDO : labelBtnLista;
   document.getElementById('btnAplicarReservas').classList.toggle('hidden', tipo !== 'RESERVA');
 
   if (tipo === 'INGRESO') {
@@ -3663,11 +3665,25 @@ function construirEntradaHistorialEnMemoria(item) {
 }
 
 // ── "Registrar Movimientos" / "Aplicar Reservas": envía TODOS los ítems de la lista a Google Sheets ──
+// true mientras hay un "Registrar Movimientos" esperando respuesta del servidor. Antes, si el
+// servidor tardaba mucho y la persona cambiaba de tipo de movimiento (seleccionarMovimiento)
+// mientras tanto, el botón se quedaba DESHABILITADO (gris) pero con el texto normal "Registrar
+// Movimientos" — parecía roto sin explicación — y, si la respuesta vieja llegaba después, vaciaba
+// la lista NUEVA que la persona ya había armado. Ver registrarListaMovimientos.
+let registroListaEnCurso = false;
+const TEXTO_BTN_REGISTRANDO = 'Registrando...';
+
 async function registrarListaMovimientos() {
+  if (registroListaEnCurso) { alert('Todavía hay un registro en curso esperando respuesta del servidor. Espere a que termine antes de registrar otra vez (así no se duplican movimientos).'); return; }
   if (movimientosPendientes.length === 0) { alert('No hay movimientos en la lista para registrar'); return; }
   const btn = document.getElementById('btnRegistrarLista');
+  // La lista que se está enviando: si mientras tanto la persona cambia de tipo de movimiento y arma
+  // otra lista, la respuesta de ESTE envío no debe vaciar la lista nueva (ver más abajo).
+  const loteEnviado = movimientosPendientes;
+  registroListaEnCurso = true;
   btn.disabled = true;
-  btn.textContent = 'Registrando...';
+  btn.textContent = TEXTO_BTN_REGISTRANDO;
+  const avisoLento = setTimeout(() => { if (registroListaEnCurso) btn.textContent = 'Registrando... (el servidor está tardando, no cierre ni recargue)'; }, 25000);
   // Se manda toda la lista en una sola petición (lote) para que el Apps Script la
   // escriba de una sola vez en la hoja, en lugar de una llamada por cada movimiento.
   try {
@@ -3676,7 +3692,7 @@ async function registrarListaMovimientos() {
       headers: { 'Content-Type': 'text/plain' },
       body: cuerpoConToken({
         tipo_peticion: 'MOVIMIENTOS_LOTE',
-        items: movimientosPendientes.map(construirPayloadItem)
+        items: loteEnviado.map(construirPayloadItem)
       })
     });
     const result = await leerRespuestaBackend(resp);
@@ -3688,12 +3704,12 @@ async function registrarListaMovimientos() {
       // se toman los datos de la PRIMERA línea de la lista (todas comparten el mismo cliente/
       // documento/comercial/fecha dentro de una misma reserva), capturados AQUÍ, antes de vaciar
       // "movimientosPendientes" más abajo.
-      const datosReservaParaEtiqueta = (tipoMovimientoActual === 'RESERVA' && movimientosPendientes.length)
+      const datosReservaParaEtiqueta = (loteEnviado[0] && loteEnviado[0].tipo === 'RESERVA')
         ? {
-            nombreCliente: movimientosPendientes[0].nombreCliente,
-            documento: movimientosPendientes[0].documento,
-            comercial: movimientosPendientes[0].comercial,
-            fecha: movimientosPendientes[0].fecha // "YYYY-MM-DD"
+            nombreCliente: loteEnviado[0].nombreCliente,
+            documento: loteEnviado[0].documento,
+            comercial: loteEnviado[0].comercial,
+            fecha: loteEnviado[0].fecha // "YYYY-MM-DD"
           }
         : null;
       // Actualiza el Resumen Mensual de forma optimista (si ya está abierto en esta sesión),
@@ -3703,16 +3719,20 @@ async function registrarListaMovimientos() {
       // ver construirEntradaHistorialEnMemoria). OJO: las SALIDAs que la receta genera
       // automáticamente en el servidor (expandirRecetas) no se ven reflejadas hasta el próximo refresh/login,
       // porque el cliente nunca recibe esas filas calculadas del lado del servidor.
-      movimientosPendientes.forEach(item => {
+      loteEnviado.forEach(item => {
         movimientosHistorial.push(construirEntradaHistorialEnMemoria(item));
       });
       renderResumenMensual();
-      movimientosPendientes = [];
-      indiceEdicionLista = null;
-      // La reserva ya quedó registrada completa: se limpia el cliente para que la próxima reserva
-      // (normalmente de OTRO cliente) no arrastre el nombre anterior por descuido.
-      document.getElementById('movNombreCliente').value = '';
-      renderListaMovimientos();
+      // Solo se vacía la lista si sigue siendo la MISMA que se envió; si la persona ya armó otra
+      // lista nueva mientras esperaba la respuesta, esa no se toca.
+      if (movimientosPendientes === loteEnviado) {
+        movimientosPendientes = [];
+        indiceEdicionLista = null;
+        // La reserva ya quedó registrada completa: se limpia el cliente para que la próxima reserva
+        // (normalmente de OTRO cliente) no arrastre el nombre anterior por descuido.
+        document.getElementById('movNombreCliente').value = '';
+        renderListaMovimientos();
+      }
       document.getElementById('successMsg').style.display = 'block';
       // NUEVO: refresca en segundo plano el snapshot de inventario (datosInventario) que usa
       // Consulta de Códigos. Antes, registrar un movimiento actualizaba EXISTENCIAS en el
@@ -3735,6 +3755,8 @@ async function registrarListaMovimientos() {
   } catch (err) {
     alert('Error de conexión al registrar los movimientos. Quedan en la lista para reintentar.\n' + err.message);
   }
+  clearTimeout(avisoLento);
+  registroListaEnCurso = false;
   btn.disabled = false;
   btn.textContent = tipoMovimientoActual === 'RESERVA' ? 'Registrar Reservas' : 'Registrar Movimientos';
 }
