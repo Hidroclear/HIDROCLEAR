@@ -2815,7 +2815,11 @@ async function cancelarReservaSeleccionada() {
   const marcados = checksReservaMarcados();
   if (marcados.length === 0) { alert('Debe marcar al menos un ítem para cancelar.'); return; }
   if (!confirm(`¿Desea cancelar ${marcados.length} reserva(s) marcada(s)? El material vuelve a estar disponible.`)) return;
-  const filas = marcados.map(chk => itemsReservaActuales[Number(chk.dataset.idx)].fila);
+  const itemsMarcadosCancelar = marcados.map(chk => itemsReservaActuales[Number(chk.dataset.idx)]);
+  const filas = itemsMarcadosCancelar.map(it => it.fila);
+  // El servidor verifica que cada fila siga siendo ESA reserva (código/documento/cantidad/ubicación)
+  // antes de cancelar, por si el número de fila quedó desactualizado.
+  const itemsVerificar = itemsMarcadosCancelar.map(it => ({ fila: it.fila, codigo: it.codigo, documento: it.documento, cantidad: it.cantidad, ubicacion: it.ubicacion }));
   const btn = document.getElementById('btnCancelarReservaSeleccion');
   btn.disabled = true;
   btn.textContent = 'Cancelando...';
@@ -2823,7 +2827,7 @@ async function cancelarReservaSeleccionada() {
     const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: cuerpoConToken({ tipo_peticion: 'CANCELAR_RESERVA_LOTE', filas })
+      body: cuerpoConToken({ tipo_peticion: 'CANCELAR_RESERVA_LOTE', filas, items: itemsVerificar })
     });
     const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
@@ -2846,6 +2850,7 @@ async function cancelarReservaSeleccionada() {
       cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
     } else {
       alert('No se pudo cancelar la reserva:\n' + (result.mensaje || 'Error desconocido'));
+      try { await cargarReservasDetalle(); } catch (e) {}
     }
   } catch (err) {
     alert('Error de conexión al cancelar la reserva.\n' + err.message);
