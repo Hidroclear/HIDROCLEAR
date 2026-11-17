@@ -2224,7 +2224,16 @@ function obtenerCodigosUnicos() {
   return Array.from(mapa.values());
 }
 
+// Estado de la carga del inventario, para que la Consulta de Códigos no confunda "todavía estoy
+// cargando" (o "la carga falló") con "ese código no existe": antes, en esos casos buscaba el código
+// en todo el historial de movimientos — lentísimo — y los ceros se veían como si fueran reales.
+let cargaDatosEnCurso = false;
+let errorCargaDatos = '';
+// Resultados de la búsqueda ligera en el historial (ver buscarCodigoEnHistorial), por texto buscado.
+let cacheBusquedaHistorial = new Map();
+
 async function cargarDatos() {
+  cargaDatosEnCurso = true;
   const btn = document.getElementById('btnRefresh');
   btn.disabled = true;
   btn.textContent = '↻ Cargando...';
@@ -2277,11 +2286,18 @@ async function cargarDatos() {
     renderTabla();
     ultimaActualizacionDatos = new Date();
     actualizarLiveIndicador();
+    errorCargaDatos = '';
+    cacheBusquedaHistorial = new Map();
   } catch (err) {
+    errorCargaDatos = err.message || 'Error desconocido';
     document.getElementById('contenidoTabla').innerHTML = `<div class="error-msg"><strong>Error al cargar:</strong> ${err.message}</div>`;
   }
+  cargaDatosEnCurso = false;
   btn.disabled = false;
   btn.textContent = '↻ Actualizar';
+  // Si la Consulta ya estaba mostrando "Cargando…" o un aviso, se vuelve a pintar con lo que llegó.
+  try { filtrarConsultaModal(); } catch (e) {}
+  try { filtrarConsultaRapida(); } catch (e) {}
 }
 
 function actualizarFiltros() {
@@ -2811,7 +2827,10 @@ async function cancelarReservaSeleccionada() {
     });
     const result = await leerRespuestaBackend(resp);
     if (result.status === 'ok') {
-      alert(`${filas.length} reserva(s) cancelada(s).`);
+      const sinDevolver = Array.isArray(result.sin_devolver) ? result.sin_devolver : [];
+      alert(`${filas.length} reserva(s) cancelada(s).` + (sinDevolver.length > 0
+        ? '\n\nNota: ' + sinDevolver.map(x => x.codigo + ' (' + x.cantidad + ')').join(', ') + ' era una reserva antigua que nunca movió el material a RESERVA, así que no había nada que devolver; el stock sigue donde estaba.'
+        : ''));
       // NUEVO: mismo motivo que en aplicarReservasSeleccionadas — quita de inmediato, en
       // memoria, las reservas recién canceladas para que la fila desaparezca al instante,
       // sin esperar el round-trip al servidor.
@@ -3091,6 +3110,40 @@ function agruparPorCodigoUbicacion(lista) {
 // Salidas/Traslados/Reservas (ids consultaRapida...). "ids" trae los ids de campos/tabla de
 // la pantalla que llama, para no duplicar esta lógica (y el riesgo de que las dos versiones
 // se desincronicen) en dos partes distintas.
+// Busca un código en el historial de movimientos SIN descargar todo el historial: pide al servidor
+// (CODIGOS_EN_HISTORIAL) solo los códigos que coinciden. Si el historial completo ya estaba
+// cargado en memoria (Reportes) se usa ese. Si el servidor todavía no tiene el endpoint nuevo (el
+// Apps Script no se ha actualizado) o falla, se recurre al método anterior UNA sola vez. Siempre
+// deja un resultado (aunque sea vacío) en cacheBusquedaHistorial para que la consulta no se quede
+// reintentando sin parar.
+async function buscarCodigoEnHistorial(codigoMinusculas) {
+  const desdeMemoria = () => {
+    const vistos = new Set(); const lista = [];
+    (movimientosHistorial || []).forEach(m => {
+      const clave = String(m.codigo).trim().toUpperCase();
+      if (vistos.has(clave) || !String(m.codigo).toLowerCase().includes(codigoMinusculas)) return;
+      vistos.add(clave); lista.push({ codigo: String(m.codigo).trim(), descripcion: '' });
+    });
+    return lista;
+  };
+  let lista = null;
+  if (datosReportesCargados) {
+    lista = desdeMemoria();
+  } else {
+    try {
+      const resp = await fetch(conToken(GS_URL + '?tipo=CODIGOS_EN_HISTORIAL&q=' + encodeURIComponent(codigoMinusculas)));
+      const json = await leerRespuestaBackend(resp);
+      if (json.status === 'ok' && json.tipo === 'CODIGOS_EN_HISTORIAL' && Array.isArray(json.datos)) lista = json.datos;
+    } catch (err) { console.error('Búsqueda ligera en historial falló:', err); }
+    if (lista === null) {
+      await cargarDatosReportes();
+      lista = datosReportesCargados ? desdeMemoria() : [];
+    }
+  }
+  cacheBusquedaHistorial.set(codigoMinusculas, lista);
+  return lista;
+}
+
 function renderConsultaStock(ids, mostrarTodo) {
   idsConsultaPorTbody[ids.tbody] = ids;
   const tabla = document.getElementById(ids.tabla);
@@ -3108,6 +3161,15 @@ function renderConsultaStock(ids, mostrarTodo) {
     return;
   }
 
+  // Si las existencias no se pudieron cargar, decirlo claramente (antes se veían ceros y parecía que
+  // no había stock). Mientras todavía cargan, solo se avisa si no hay nada que mostrar aún.
+  if (errorCargaDatos && !cargaDatosEnCurso) {
+    tabla.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    placeholder.textContent = '⚠️ No se pudieron cargar las existencias (' + errorCargaDatos + '). Presione ↻ Actualizar para reintentar.';
+    tbody.innerHTML = '';
+    return;
+  }
   const { agrupado: inventarioAgrupado, totalPorCodigo } = obtenerInventarioAgrupado();
 
   const coincidencias = inventarioAgrupado.filter(d => {
@@ -3166,19 +3228,32 @@ function renderConsultaStock(ids, mostrarTodo) {
   // recurso — y la consulta se vuelve a pintar sola en cuanto llegue, sin que el usuario tenga
   // que volver a buscar.
   if (!coincidencias.length && codigoFiltro && !ubicacionFiltro && !descFiltro) {
-    if (!datosReportesCargados) {
+    // Si el inventario todavía se está cargando, "no aparece" no significa "no existe": se espera a
+    // que termine (cargarDatos vuelve a pintar la consulta al final) en vez de ir al historial.
+    if (cargaDatosEnCurso) {
       tabla.classList.add('hidden');
       placeholder.classList.remove('hidden');
-      placeholder.textContent = 'Buscando en el historial de movimientos…';
+      placeholder.textContent = '⏳ Cargando existencias…';
       tbody.innerHTML = '';
-      cargarDatosReportes().then(() => renderConsultaStock(ids));
       return;
     }
-    (movimientosHistorial || []).forEach(m => {
+    const enHistorial = cacheBusquedaHistorial.get(codigoFiltro);
+    if (enHistorial === undefined) {
+      tabla.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+      placeholder.textContent = 'Buscando "' + codigoFiltro.toUpperCase() + '" en el historial de movimientos…';
+      tbody.innerHTML = '';
+      // Una sola búsqueda por texto (cacheBusquedaHistorial guarda también los fallos, para no
+      // repetirla en bucle); al terminar, solo se repinta si la persona sigue buscando lo mismo.
+      buscarCodigoEnHistorial(codigoFiltro).then(() => {
+        if (document.getElementById(ids.buscar).value.trim().toLowerCase() === codigoFiltro) renderConsultaStock(ids);
+      });
+      return;
+    }
+    enHistorial.forEach(m => {
       const clave = String(m.codigo).trim().toUpperCase();
       if (codigosYaIncluidos.has(clave)) return;
-      if (!String(m.codigo).toLowerCase().includes(codigoFiltro)) return;
-      coincidencias.push({ codigo: String(m.codigo).trim(), descripcion: '', bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: '' });
+      coincidencias.push({ codigo: String(m.codigo).trim(), descripcion: m.descripcion || '', bodega: 'Sin stock en ninguna ubicación', stock: 0, categoria: '' });
       codigosYaIncluidos.add(clave);
     });
   }
