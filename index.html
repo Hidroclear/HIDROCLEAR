@@ -744,6 +744,17 @@
   .impcod-chip.nuevo { background: #e6f9f1; } .impcod-chip.aviso { background: #fff6dc; }
   .impcod-tabla-wrap { border: 1px solid var(--gris); border-radius: 10px; max-height: 40vh; overflow: auto; }
   .impcod-msg { font-size: 13.5px; margin-top: 12px; min-height: 18px; }
+  /* Pantalla Usuarios (solo administrador) */
+  .usr-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .usr-tab { border: 1.5px solid var(--gris); background: #fff; color: var(--texto); padding: 8px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .usr-tab.activo { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .usr-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .usr-tabla th { background: #0a2a5e; color: #fff; text-align: left; padding: 9px 12px; position: sticky; top: 0; }
+  .usr-tabla td { padding: 8px 12px; border-bottom: 1px solid #e0eaf5; }
+  .usr-tabla td.usr-acc { white-space: nowrap; text-align: right; }
+  .usr-btn { border: none; background: var(--gris); color: var(--azul); padding: 6px 11px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-left: 6px; }
+  .usr-btn.peligro { color: #c0392b; }
+  .usr-msg-ok { color: #1e8449; } .usr-msg-err { color: #c0392b; }
   .pedido-card { background: #fff; border: 1.5px solid #e0eaf5; border-radius: 12px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
   .pedido-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #f5f9ff; border-bottom: 1px solid #e0eaf5; flex-wrap: wrap; gap: 8px; }
   .pedido-card-info { display: flex; gap: 20px; flex-wrap: wrap; }
@@ -879,6 +890,7 @@
       <button class="sb-subitem" onclick="irAReporte('CONTEO_CICLICO', this)">🔄 Conteo Cíclico</button>
     </div>
     <button class="sb-item hidden" id="btnImportarCodigos" onclick="mostrarSeccion('importarcodigos', this)"><span class="ic">📥</span> Importar Códigos</button>
+    <button class="sb-item hidden" id="btnUsuariosAdmin" onclick="mostrarSeccion('usuarios', this)"><span class="ic">👥</span> Usuarios</button>
     <div class="sb-section-label">Solicitudes</div>
     <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
     <button class="sb-item hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes', this)"><span class="ic">📬</span> Pedidos Pendientes</button>
@@ -1134,6 +1146,66 @@
       </div>
       <div class="impcod-acciones">
         <button class="btn-registrar" type="button" id="btnConfirmarImportarCodigos" onclick="confirmarImportarCodigos()">✅ Agregar códigos nuevos</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECCIÓN USUARIOS (solo administrador): cuentas de acceso y listas de nombres, sin tocar la hoja de
+     Google. Ver cargarUsuariosAdmin. -->
+<div id="seccionUsuarios" class="hidden">
+  <div class="impcod-wrap">
+    <div class="impcod-card">
+      <div class="pendientes-titulo" style="margin-bottom:8px">👥 Usuarios y listas de nombres</div>
+      <div class="impcod-ayuda" id="usrAyuda"></div>
+      <div class="usr-tabs">
+        <button type="button" class="usr-tab activo" data-tab="cuentas" onclick="cambiarTabUsuarios('cuentas')">Cuentas de acceso</button>
+        <button type="button" class="usr-tab" data-tab="responsables" onclick="cambiarTabUsuarios('responsables')">Responsables (Movimientos)</button>
+        <button type="button" class="usr-tab" data-tab="tecnicos" onclick="cambiarTabUsuarios('tecnicos')">Técnicos sin cuenta</button>
+        <button type="button" class="usr-tab" data-tab="comerciales" onclick="cambiarTabUsuarios('comerciales')">Comerciales sin cuenta</button>
+      </div>
+      <div class="impcod-acciones" style="margin-top:0;margin-bottom:12px">
+        <button class="btn-registrar" type="button" onclick="abrirModalUsuarioAdmin(null)">➕ Agregar</button>
+        <button class="btn-limpiar" type="button" onclick="cargarUsuariosAdmin(true)">↻ Actualizar</button>
+      </div>
+      <div class="impcod-tabla-wrap">
+        <table class="usr-tabla"><thead id="usrThead"></thead><tbody id="usrTbody"></tbody></table>
+      </div>
+      <div class="impcod-msg" id="usrMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: crear/editar cuenta o nombre de lista (pantalla Usuarios) -->
+<div class="modal-overlay" id="modalUsuarioAdmin" onclick="if (event.target === this) cerrarModalUsuarioAdmin()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo" id="usrModalTitulo">Usuario</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalUsuarioAdmin()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-field" style="margin-bottom:12px"><label>Nombre</label><input type="text" id="usrNombre" maxlength="80" autocomplete="off"></div>
+      <div id="usrCamposCuenta">
+        <div class="form-field" style="margin-bottom:12px"><label>Usuario (para iniciar sesión, sin espacios)</label><input type="text" id="usrUsuario" maxlength="40" autocomplete="off"></div>
+        <div class="form-field" style="margin-bottom:12px"><label>Perfil</label>
+          <select id="usrRol">
+            <option value="admin">Administrador</option>
+            <option value="bodega">Bodega</option>
+            <option value="tecnico">Técnico</option>
+            <option value="comercial">Comercial</option>
+            <option value="consulta">Consulta</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin-bottom:12px"><label id="usrPassLabel">Contraseña</label><input type="password" id="usrPassword" maxlength="60" autocomplete="new-password"></div>
+        <div class="form-field" style="margin-bottom:12px"><label>Correo (opcional)</label><input type="email" id="usrCorreo" maxlength="80" autocomplete="off"></div>
+      </div>
+      <div class="impcod-msg usr-msg-err" id="usrModalMsg" style="margin-top:0"></div>
+      <div class="reserva-modal-footer">
+        <button class="btn-registrar" type="button" id="btnGuardarUsuarioAdmin" onclick="guardarUsuarioAdmin()">💾 Guardar</button>
+        <button class="btn-cancelar-mov" type="button" onclick="cerrarModalUsuarioAdmin()">Cancelar</button>
       </div>
     </div>
   </div>
@@ -2117,6 +2189,7 @@ function mostrarApp() {
     document.getElementById('btnMovimientos').classList.remove('hidden');
     document.getElementById('btnReportes').classList.remove('hidden');
     document.getElementById('btnImportarCodigos').classList.remove('hidden');
+    document.getElementById('btnUsuariosAdmin').classList.remove('hidden');
     document.getElementById('btnEditarReceta').classList.remove('hidden');
     document.getElementById('btnNuevaReceta').classList.remove('hidden');
     // Antes esto solo se pedía hasta que el usuario entraba a Movimientos, así que la
@@ -2189,6 +2262,7 @@ const TITULOS_SECCION = {
   etiquetas:   ['HidroClear / Operación',    'Imprimir Etiquetas'],
   reportes:    ['HidroClear / Reportes',     'Reportes'],
   importarcodigos: ['HidroClear / Operación', 'Importar Códigos'],
+  usuarios:    ['HidroClear / Administración', 'Usuarios'],
   pedidos:     ['HidroClear / Solicitudes',  'Solicitud de Materiales'],
   pendientes:  ['HidroClear / Solicitudes',  'Pedidos Pendientes']
 };
@@ -2205,6 +2279,7 @@ function mostrarSeccion(seccion, el) {
   document.getElementById('seccionEtiquetas').classList.add('hidden');
   document.getElementById('seccionReportes').classList.add('hidden');
   document.getElementById('seccionImportarCodigos').classList.add('hidden');
+  document.getElementById('seccionUsuarios').classList.add('hidden');
 
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('activo'));
   if (el) el.classList.add('activo');
@@ -2234,6 +2309,9 @@ function mostrarSeccion(seccion, el) {
   } else if (seccion === 'pedidos') {
     document.getElementById('seccionPedidos').classList.remove('hidden');
     inicializarPedidos();
+  } else if (seccion === 'usuarios') {
+    document.getElementById('seccionUsuarios').classList.remove('hidden');
+    cargarUsuariosAdmin();
   } else if (seccion === 'importarcodigos') {
     document.getElementById('seccionImportarCodigos').classList.remove('hidden');
   } else if (seccion === 'pendientes') {
@@ -4417,6 +4495,184 @@ async function confirmarImportarCodigos() {
 }
 
 // ═══════════════════════════════════════
+// ADMINISTRACIÓN DE USUARIOS Y LISTAS DE NOMBRES (solo administrador)
+// ═══════════════════════════════════════
+let usuariosAdminDatos = { cuentas: [], responsables: [], tecnicos: [], comerciales: [] };
+let usrTabActual = 'cuentas';
+let usrEditando = null; // { tab, item|null }
+const USR_ROL_TEXTO = { admin: 'Administrador', bodega: 'Bodega', tecnico: 'Técnico', comercial: 'Comercial', consulta: 'Consulta' };
+const USR_AYUDA = {
+  cuentas: 'Personas que pueden iniciar sesión. Aquí creas usuarios, cambias nombre, usuario o perfil, pones una contraseña nueva y quitas el acceso. Por seguridad la contraseña actual nunca se muestra: solo se puede escribir una nueva. Al editar o eliminar a alguien, se le cierra la sesión y debe ingresar de nuevo. Las cuentas con perfil Técnico o Comercial aparecen solas en Solicitud de materiales y en Comercial de Reservas.',
+  responsables: 'Nombres que aparecen en el desplegable "Responsable" al registrar Ingresos, Salidas, Traslados y Reservas.',
+  tecnicos: 'Técnicos que NO tienen cuenta pero deben aparecer en Solicitud de materiales. (Los técnicos con cuenta ya salen solos.)',
+  comerciales: 'Comerciales que NO tienen cuenta pero deben aparecer en Solicitud de materiales y en "Comercial" de Reservas. (Los comerciales con cuenta ya salen solos.)'
+};
+
+function escHtmlUsr(t) {
+  return String(t === undefined || t === null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function mensajeUsuariosAdmin(texto, esError) {
+  const el = document.getElementById('usrMsg');
+  el.textContent = texto || '';
+  el.className = 'impcod-msg ' + (esError ? 'usr-msg-err' : 'usr-msg-ok');
+}
+
+async function cargarUsuariosAdmin() {
+  mensajeUsuariosAdmin('Cargando…', false);
+  try {
+    const resp = await fetch(conToken(GS_URL + '?tipo=USUARIOS_ADMIN&t=' + Date.now()));
+    const json = await leerRespuestaBackend(resp);
+    if (json.status !== 'ok') throw new Error(json.mensaje || 'Error desconocido');
+    usuariosAdminDatos = { cuentas: json.cuentas || [], responsables: json.responsables || [], tecnicos: json.tecnicos || [], comerciales: json.comerciales || [] };
+    mensajeUsuariosAdmin('', false);
+  } catch (err) {
+    mensajeUsuariosAdmin('No se pudo cargar la lista: ' + err.message + '. Si acaba de actualizar la app, confirme que el Apps Script también se actualizó (nueva versión).', true);
+  }
+  renderUsuariosAdmin();
+}
+
+function cambiarTabUsuarios(tab) {
+  usrTabActual = tab;
+  renderUsuariosAdmin();
+}
+
+function renderUsuariosAdmin() {
+  document.querySelectorAll('.usr-tab').forEach(b => b.classList.toggle('activo', b.dataset.tab === usrTabActual));
+  document.getElementById('usrAyuda').textContent = USR_AYUDA[usrTabActual];
+  const thead = document.getElementById('usrThead');
+  const tbody = document.getElementById('usrTbody');
+  const lista = usuariosAdminDatos[usrTabActual] || [];
+  const botones = i => `<td class="usr-acc"><button class="usr-btn" type="button" onclick="abrirModalUsuarioAdmin(${i})">✏️ Editar</button><button class="usr-btn peligro" type="button" onclick="eliminarUsuarioAdmin(${i})">🗑️ Eliminar</button></td>`;
+  if (usrTabActual === 'cuentas') {
+    thead.innerHTML = '<tr><th>Nombre</th><th>Usuario</th><th>Perfil</th><th>Correo</th><th></th></tr>';
+    tbody.innerHTML = lista.length
+      ? lista.map((c, i) => `<tr><td>${escHtmlUsr(c.nombre)}</td><td>${escHtmlUsr(c.usuario)}</td><td>${escHtmlUsr(USR_ROL_TEXTO[c.rol] || c.rol)}</td><td>${escHtmlUsr(c.correo)}</td>${botones(i)}</tr>`).join('')
+      : '<tr><td colspan="5" style="color:#999;padding:16px">No hay cuentas.</td></tr>';
+  } else {
+    thead.innerHTML = '<tr><th>Nombre</th><th></th></tr>';
+    tbody.innerHTML = lista.length
+      ? lista.map((n, i) => `<tr><td>${escHtmlUsr(n.nombre)}</td>${botones(i)}</tr>`).join('')
+      : '<tr><td colspan="2" style="color:#999;padding:16px">La lista está vacía.</td></tr>';
+  }
+}
+
+function abrirModalUsuarioAdmin(idx) {
+  const item = idx === null ? null : (usuariosAdminDatos[usrTabActual] || [])[idx];
+  usrEditando = { tab: usrTabActual, item: item || null };
+  const esCuenta = usrTabActual === 'cuentas';
+  document.getElementById('usrCamposCuenta').style.display = esCuenta ? '' : 'none';
+  const nombreLista = { cuentas: 'cuenta', responsables: 'responsable', tecnicos: 'técnico', comerciales: 'comercial' }[usrTabActual];
+  document.getElementById('usrModalTitulo').textContent = (item ? 'Editar ' : 'Agregar ') + nombreLista;
+  document.getElementById('usrNombre').value = item ? item.nombre : '';
+  if (esCuenta) {
+    document.getElementById('usrUsuario').value = item ? item.usuario : '';
+    document.getElementById('usrRol').value = item ? (item.rol || 'bodega') : 'bodega';
+    document.getElementById('usrPassword').value = '';
+    document.getElementById('usrPassLabel').textContent = item ? 'Contraseña nueva (déjela vacía para no cambiarla)' : 'Contraseña (mínimo 4 caracteres)';
+    document.getElementById('usrCorreo').value = item ? (item.correo || '') : '';
+  }
+  document.getElementById('usrModalMsg').textContent = '';
+  document.getElementById('modalUsuarioAdmin').classList.add('visible');
+  document.getElementById('usrNombre').focus();
+}
+
+function cerrarModalUsuarioAdmin() {
+  document.getElementById('modalUsuarioAdmin').classList.remove('visible');
+  usrEditando = null;
+}
+
+// Después de cualquier cambio se invalida lo que el resto de la app tiene en memoria.
+function refrescarListasTrasCambioUsuarios() {
+  nombresPedidoCargados = false;
+  try { listasRackCargadas = false; listasRackCargaPromise = null; cargarListasRack(); } catch (e) {}
+}
+
+async function enviarCambioUsuarioAdmin(tipoPeticion, extra) {
+  const resp = await fetch(GS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: cuerpoConToken(Object.assign({ tipo_peticion: tipoPeticion }, extra))
+  });
+  return leerRespuestaBackend(resp);
+}
+
+async function guardarUsuarioAdmin() {
+  if (!usrEditando) return;
+  const { tab, item } = usrEditando;
+  const btn = document.getElementById('btnGuardarUsuarioAdmin');
+  const msg = document.getElementById('usrModalMsg');
+  const nombre = document.getElementById('usrNombre').value.trim();
+  if (!nombre) { msg.textContent = 'Escriba el nombre.'; return; }
+  let tipoPeticion, extra;
+  if (tab === 'cuentas') {
+    const usuario = document.getElementById('usrUsuario').value.trim();
+    const password = document.getElementById('usrPassword').value;
+    if (!usuario) { msg.textContent = 'Escriba el usuario.'; return; }
+    if (/\s/.test(usuario)) { msg.textContent = 'El usuario no puede llevar espacios.'; return; }
+    if (!item && password.length < 4) { msg.textContent = 'La contraseña debe tener al menos 4 caracteres.'; return; }
+    if (item && password !== '' && password.length < 4) { msg.textContent = 'La contraseña nueva debe tener al menos 4 caracteres.'; return; }
+    tipoPeticion = 'GUARDAR_CUENTA';
+    extra = { nombre, usuario, rol: document.getElementById('usrRol').value, password, correo: document.getElementById('usrCorreo').value.trim() };
+    if (item) { extra.fila = item.fila; extra.usuario_original = item.usuario; }
+  } else {
+    const lista = { responsables: 'RESPONSABLE', tecnicos: 'TECNICO', comerciales: 'COMERCIAL' }[tab];
+    tipoPeticion = 'GUARDAR_NOMBRE_LISTA';
+    extra = { lista, nombre };
+    if (item) { extra.fila = item.fila; extra.nombre_original = item.nombre; }
+  }
+  btn.disabled = true; btn.textContent = 'Guardando...'; msg.textContent = '';
+  try {
+    const result = await enviarCambioUsuarioAdmin(tipoPeticion, extra);
+    if (result.status === 'ok') {
+      if (tab === 'cuentas') usuariosAdminDatos.cuentas = result.cuentas || usuariosAdminDatos.cuentas;
+      else usuariosAdminDatos[tab] = result.nombres || usuariosAdminDatos[tab];
+      cerrarModalUsuarioAdmin();
+      renderUsuariosAdmin();
+      mensajeUsuariosAdmin('✅ Guardado.', false);
+      refrescarListasTrasCambioUsuarios();
+    } else {
+      msg.textContent = result.mensaje || 'No se pudo guardar.';
+    }
+  } catch (err) {
+    msg.textContent = 'Error de conexión: ' + err.message;
+  }
+  btn.disabled = false; btn.textContent = '💾 Guardar';
+}
+
+async function eliminarUsuarioAdmin(idx) {
+  const tab = usrTabActual;
+  const item = (usuariosAdminDatos[tab] || [])[idx];
+  if (!item) return;
+  const texto = tab === 'cuentas'
+    ? `¿Eliminar la cuenta de ${item.nombre} (${item.usuario})? Ya no podrá ingresar y se le cerrará la sesión si la tiene abierta.`
+    : `¿Quitar a ${item.nombre} de esta lista?`;
+  if (!confirm(texto)) return;
+  let tipoPeticion, extra;
+  if (tab === 'cuentas') {
+    tipoPeticion = 'ELIMINAR_CUENTA'; extra = { fila: item.fila, usuario: item.usuario };
+  } else {
+    tipoPeticion = 'ELIMINAR_NOMBRE_LISTA';
+    extra = { lista: { responsables: 'RESPONSABLE', tecnicos: 'TECNICO', comerciales: 'COMERCIAL' }[tab], fila: item.fila, nombre: item.nombre };
+  }
+  mensajeUsuariosAdmin('Eliminando…', false);
+  try {
+    const result = await enviarCambioUsuarioAdmin(tipoPeticion, extra);
+    if (result.status === 'ok') {
+      if (tab === 'cuentas') usuariosAdminDatos.cuentas = result.cuentas || usuariosAdminDatos.cuentas;
+      else usuariosAdminDatos[tab] = result.nombres || usuariosAdminDatos[tab];
+      renderUsuariosAdmin();
+      mensajeUsuariosAdmin('✅ Eliminado.', false);
+      refrescarListasTrasCambioUsuarios();
+    } else {
+      mensajeUsuariosAdmin(result.mensaje || 'No se pudo eliminar.', true);
+    }
+  } catch (err) {
+    mensajeUsuariosAdmin('Error de conexión: ' + err.message, true);
+  }
+}
+
+// ═══════════════════════════════════════
 // MÓDULO PEDIDOS
 // ═══════════════════════════════════════
 
@@ -4912,28 +5168,34 @@ function imprimirPedidoBodega(fecha, tecnico, cliente, idx) {
 
 async function cargarNombresPedido() {
   const sel = document.getElementById('pedidoResponsable');
-  const rol = usuarioActivo.rol; // 'tecnico' o 'comercial'
-  const tipo = rol === 'comercial' ? 'COMERCIAL' : 'TECNICO';
+  const rol = usuarioActivo.rol;
+  // Técnico ve técnicos, comercial ve comerciales; admin/bodega (que pueden hacer la solicitud a
+  // nombre de otra persona) ven los dos grupos.
+  const tipo = rol === 'comercial' ? 'COMERCIAL' : (rol === 'tecnico' ? 'TECNICO' : 'TODOS');
   sel.innerHTML = '<option value="">— Seleccione su nombre —</option>';
+  const agregarOpcion = (n) => {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = n;
+    sel.appendChild(opt);
+  };
+  let nombres = [];
   try {
     const resp = await fetch(conToken(GS_URL + '?tipo=USUARIOS_PEDIDO&perfil=' + tipo + '&t=' + Date.now()));
     const json = await leerRespuestaBackend(resp);
-    if (json.status === 'ok' && json.datos.length > 0) {
-      json.datos.forEach(n => {
-        const opt = document.createElement('option');
-        opt.value = n;
-        opt.textContent = n;
-        sel.appendChild(opt);
-      });
-    }
-    nombresPedidoCargados = true;
+    if (json.status === 'ok' && Array.isArray(json.datos)) nombres = json.datos;
   } catch(err) {
-    // Si falla, poner el nombre del usuario
-    const opt = document.createElement('option');
-    opt.value = usuarioActivo.nombre;
-    opt.textContent = usuarioActivo.nombre;
-    sel.appendChild(opt);
+    console.error('No se pudo cargar la lista de nombres de Solicitud de materiales:', err);
+  }
+  nombres.forEach(agregarOpcion);
+  // Si la lista llegó vacía o falló, al menos se ofrece el nombre de quien inició sesión (para no
+  // dejar la solicitud bloqueada) y NO se marca como cargada, así vuelve a intentarlo la próxima vez.
+  if (nombres.length === 0) {
+    if (!nombres.includes(usuarioActivo.nombre)) agregarOpcion(usuarioActivo.nombre);
     sel.value = usuarioActivo.nombre;
+    nombresPedidoCargados = false;
+  } else {
+    nombresPedidoCargados = true;
   }
 }
 
