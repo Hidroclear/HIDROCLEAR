@@ -5056,6 +5056,7 @@ function renderPedidosPendientes() {
   }).join('');
 }
 
+let entregaPedidoEnCurso = false;
 async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJson) {
   // Recoger cantidades editadas por el usuario
   const items = [];
@@ -5088,9 +5089,15 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
                        String(hoy.getMonth()+1).padStart(2,'0') + '/' +
                        hoy.getFullYear();
 
+  if (entregaPedidoEnCurso) return; // doble clic: ya se está entregando
+  entregaPedidoEnCurso = true;
+  const botonesEntrega = document.querySelectorAll('.btn-completar-pedido');
+  botonesEntrega.forEach(b => { b.disabled = true; });
   try {
-    // Enviar cada item a TRAZABILIDAD como SALIDA
-    await fetch(GS_URL, {
+    // El servidor descuenta el stock, registra la Salida en el historial de cada código y marca la
+    // solicitud como ENTREGADA, todo en esta misma petición.
+    const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
+    const resp = await fetch(GS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: cuerpoConToken({
@@ -5100,18 +5107,31 @@ async function entregarPedido(gIdx, consecutivo, fecha, tecnico, cliente, filasJ
         responsable: tecnico,
         cliente,
         items,
-        // Las filas a marcar como ENTREGADA van en la misma petición: el Apps Script
-        // las marca todas en la misma ejecución, sin una llamada de red por fila.
-        filas: JSON.parse(filasJson.replace(/&quot;/g, '"'))
+        filas
       })
     });
-
-    const filas = JSON.parse(filasJson.replace(/&quot;/g, '"'));
+    const result = await leerRespuestaBackend(resp);
+    if (result.status !== 'ok') {
+      alert('No se pudo entregar la solicitud:\n' + (result.mensaje || 'Error desconocido'));
+      return;
+    }
     todosPedidos.forEach(p => { if (filas.includes(p.fila)) p.estado = 'ENTREGADA'; });
+    // Refleja de inmediato las Salidas en el historial en memoria (si ya estaba cargado) y refresca el
+    // inventario de fondo, igual que al registrar movimientos.
+    const hoyISO = new Date().toISOString().split('T')[0];
+    (result.salidas || []).forEach(sa => {
+      movimientosHistorial.push({ fecha: hoyISO, tipo: 'SALIDA', codigo: sa.codigo, cantidad: sa.cantidad, ubicacion_origen: sa.ubicacion || '', ubicacion_destino: '', despacho_con: 'BOLETA SALIDA', documento: sa.documento || '', proveedor: '', responsable: sa.responsable || '' });
+    });
     renderPedidosPendientes();
-
+    cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
+    if ((result.sin_ubicacion || []).length > 0) {
+      alert('Solicitud entregada, pero estos códigos no tenían stock en ninguna ubicación, así que su Salida quedó registrada sin ubicación y NO se descontó stock:\n' + result.sin_ubicacion.join(', ') + '\nRevise sus existencias.');
+    }
   } catch(err) {
-    alert('Error al entregar pedido.');
+    alert('Error al entregar pedido. Revise su conexión e intente de nuevo.\n' + err.message);
+  } finally {
+    entregaPedidoEnCurso = false;
+    document.querySelectorAll('.btn-completar-pedido').forEach(b => { b.disabled = false; });
   }
 }
 
