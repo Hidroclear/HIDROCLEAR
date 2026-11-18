@@ -565,7 +565,7 @@
   .etqinc-falta-fila { display: flex; align-items: flex-end; height: 14mm; }
   .etqinc-falta-txt { width: 27mm; flex-shrink: 0; font-weight: 800; font-size: 26px; line-height: 1; padding-bottom: 1mm; }
   .etqinc-sangria { margin-left: 27mm; }
-  .etqinc-linea { flex: 1; border-bottom: 1.5px solid #000; height: 0; }
+  .etqinc-linea { flex: 1; min-width: 0; border-bottom: 1.5px solid #000; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: 24px; line-height: 1.2; padding-bottom: 0.5mm; }
   .etqinc-pie { height: 10mm; display: flex; align-items: flex-end; font-weight: 800; font-size: 22px; white-space: nowrap; overflow: hidden; }
   .etqinc-pie-valor { font-weight: 700; margin-left: 3mm; border-bottom: 1.5px solid #000; flex: 1; overflow: hidden; }
 
@@ -1766,7 +1766,13 @@
       </div>
     </div>
     <div class="modal-body">
-      <p style="margin:0 0 16px;font-size:13.5px;color:var(--azul)">El traslado a INCOMPLETO quedó registrado. ¿Desea imprimir la etiqueta (100 x 100 mm)? Lo que falta se anota a mano.</p>
+      <p style="margin:0 0 16px;font-size:13.5px;color:var(--azul)">El traslado a INCOMPLETO quedó registrado. ¿Desea imprimir la etiqueta (100 x 100 mm)?</p>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Falta (código o parte que se sacó)</label>
+        <input type="text" id="etiquetaIncompletoFalta1" maxlength="60" autocomplete="off" placeholder="Renglón 1">
+        <input type="text" id="etiquetaIncompletoFalta2" maxlength="60" autocomplete="off" placeholder="Renglón 2 (opcional)" style="margin-top:6px">
+        <input type="text" id="etiquetaIncompletoFalta3" maxlength="60" autocomplete="off" placeholder="Renglón 3 (opcional)" style="margin-top:6px">
+      </div>
       <div class="form-field" style="margin-bottom:14px">
         <label>Fecha (la del día de impresión)</label>
         <input type="text" id="etiquetaIncompletoFecha" readonly>
@@ -7231,6 +7237,7 @@ function abrirModalEtiquetaIncompleto() {
   document.getElementById('etiquetaIncompletoFecha').value = fechaHoyTextoEtiqueta();
   document.getElementById('etiquetaIncompletoHechoPor').value = (usuarioActivo && usuarioActivo.nombre) || '';
   document.getElementById('etiquetaIncompletoCopias').value = '1';
+  [1, 2, 3].forEach(n => { document.getElementById('etiquetaIncompletoFalta' + n).value = ''; });
   const dl = document.getElementById('listaHechoPorIncompleto');
   const selResp = document.getElementById('movResponsable');
   const nombres = selResp ? [...selResp.options].map(o => o.value).filter(v => v) : [];
@@ -7246,23 +7253,28 @@ function confirmarImprimirEtiquetaIncompleto() {
   const copias = parseInt(document.getElementById('etiquetaIncompletoCopias').value, 10);
   if (!copias || copias <= 0) { alert('La cantidad de copias debe ser un número válido.'); return; }
   const hechoPor = document.getElementById('etiquetaIncompletoHechoPor').value.trim();
+  const falta = [1, 2, 3].map(n => document.getElementById('etiquetaIncompletoFalta' + n).value.trim());
   cerrarModalEtiquetaIncompleto();
-  imprimirEtiquetaIncompleto(copias, hechoPor);
+  imprimirEtiquetaIncompleto(copias, hechoPor, falta);
 }
 
-function imprimirEtiquetaIncompleto(copias, hechoPor) {
+function imprimirEtiquetaIncompleto(copias, hechoPor, falta) {
   // La fecha se toma AQUÍ, al imprimir (no al abrir el cuadro), para que sea la del día de impresión.
   const fechaTexto = fechaHoyTextoEtiqueta();
-  const nombre = String(hechoPor || '').toUpperCase().replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const escapar = t => String(t || '').toUpperCase().replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const nombre = escapar(hechoPor);
+  // Los 3 renglones de "FALTA" (lo que se escribió en el cuadro); los que se dejan vacíos quedan
+  // como renglón en blanco, por si aún se quiere anotar algo a mano.
+  const lineasFalta = [0, 1, 2].map(i => escapar((falta || [])[i]));
   let html = '';
   for (let n = 1; n <= copias; n++) {
     html += `
       <div class="etqinc-label">
         <div class="etqinc-titulo">INCOMPLETO</div>
         <div class="etqinc-falta">
-          <div class="etqinc-falta-fila"><span class="etqinc-falta-txt">FALTA:</span><span class="etqinc-linea"></span></div>
-          <div class="etqinc-falta-fila etqinc-sangria"><span class="etqinc-linea"></span></div>
-          <div class="etqinc-falta-fila etqinc-sangria"><span class="etqinc-linea"></span></div>
+          <div class="etqinc-falta-fila"><span class="etqinc-falta-txt">FALTA:</span><span class="etqinc-linea"><span class="etqinc-linea-txt">${lineasFalta[0]}</span></span></div>
+          <div class="etqinc-falta-fila etqinc-sangria"><span class="etqinc-linea"><span class="etqinc-linea-txt">${lineasFalta[1]}</span></span></div>
+          <div class="etqinc-falta-fila etqinc-sangria"><span class="etqinc-linea"><span class="etqinc-linea-txt">${lineasFalta[2]}</span></span></div>
         </div>
         <div class="etqinc-pie"><span>FECHA:</span><span class="etqinc-pie-valor">${fechaTexto}</span></div>
         <div class="etqinc-pie"><span>HECHO POR:</span><span class="etqinc-pie-valor etqinc-hechopor"><span class="etqinc-hechopor-txt">${nombre}</span></span></div>
@@ -7283,6 +7295,10 @@ function imprimirEtiquetaIncompleto(copias, hechoPor) {
   // Un nombre largo se achica para que quepa en su renglón, en vez de cortarse.
   printArea.querySelectorAll('.etqinc-hechopor').forEach(fila => {
     ajustarFuenteFilaReserva(fila, fila.querySelector('.etqinc-hechopor-txt'), 22, 9);
+  });
+  // Igual para cada renglón de "FALTA": si el texto es largo, se achica en vez de cortarse.
+  printArea.querySelectorAll('.etqinc-linea').forEach(fila => {
+    ajustarFuenteFilaReserva(fila, fila.querySelector('.etqinc-linea-txt'), 24, 9);
   });
 
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
