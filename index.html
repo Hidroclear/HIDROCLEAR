@@ -552,6 +552,23 @@
   .etqreserva-row-comercial { flex: 7.14 0 0; }
   .etqreserva-row-comercial .etqreserva-txt { font-weight: 800; text-decoration: underline; }
 
+  /* Etiqueta INCOMPLETO 100mm x 100mm (cuadrada, sin rotar): título, "FALTA:" con 3 renglones para
+     anotar a mano la parte que se sacó, FECHA y HECHO POR. */
+  .etqinc-label {
+    width: 100mm; height: 100mm; box-sizing: border-box; border: 1px solid #000; padding: 5mm 6mm;
+    display: flex; flex-direction: column; overflow: hidden; font-family: 'DM Sans', sans-serif; color: #000;
+    page-break-after: always; break-after: page;
+  }
+  .etqinc-label:last-child { page-break-after: auto; break-after: auto; }
+  .etqinc-titulo { height: 20mm; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 46px; letter-spacing: 1px; border-bottom: 2px solid #000; }
+  .etqinc-falta { flex: 1 1 0; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .etqinc-falta-fila { display: flex; align-items: flex-end; height: 14mm; }
+  .etqinc-falta-txt { width: 27mm; flex-shrink: 0; font-weight: 800; font-size: 26px; line-height: 1; padding-bottom: 1mm; }
+  .etqinc-sangria { margin-left: 27mm; }
+  .etqinc-linea { flex: 1; border-bottom: 1.5px solid #000; height: 0; }
+  .etqinc-pie { height: 10mm; display: flex; align-items: flex-end; font-weight: 800; font-size: 22px; white-space: nowrap; overflow: hidden; }
+  .etqinc-pie-valor { font-weight: 700; margin-left: 3mm; border-bottom: 1.5px solid #000; flex: 1; overflow: hidden; }
+
   /* Etiqueta de Rack 100mm x 150mm — la foto que enviaste (una vez girada) muestra que TODO
      el contenido (HIDROCLEAR, la ubicación, las flechas+código de barras y la leyenda) es en
      realidad UN SOLO bloque diseñado normal/horizontal y luego rotado -90° como unidad para
@@ -1737,6 +1754,40 @@
   </div>
 </div>
 
+<!-- MODAL: Etiqueta INCOMPLETO (100x100mm) — se abre al registrar un Traslado hacia la ubicación
+     INCOMPLETO. Ver abrirModalEtiquetaIncompleto. -->
+<div class="modal-overlay" id="modalEtiquetaIncompleto" onclick="if (event.target === this) cerrarModalEtiquetaIncompleto()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-titulo">🏷️ Etiqueta INCOMPLETO</div>
+      <div class="modal-header-marca">
+        <img src="logo.png" alt="HidroClear" class="modal-header-logo">
+        <button class="modal-close" type="button" onclick="cerrarModalEtiquetaIncompleto()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p style="margin:0 0 16px;font-size:13.5px;color:var(--azul)">El traslado a INCOMPLETO quedó registrado. ¿Desea imprimir la etiqueta (100 x 100 mm)? Lo que falta se anota a mano.</p>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Fecha (la del día de impresión)</label>
+        <input type="text" id="etiquetaIncompletoFecha" readonly>
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Hecho por</label>
+        <input type="text" id="etiquetaIncompletoHechoPor" list="listaHechoPorIncompleto" autocomplete="off">
+        <datalist id="listaHechoPorIncompleto"></datalist>
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>¿Cuántas copias desea imprimir?</label>
+        <input type="number" id="etiquetaIncompletoCopias" value="1" min="1" step="1">
+      </div>
+      <div class="reserva-modal-footer">
+        <button class="btn-registrar" type="button" id="btnImprimirEtiquetaIncompleto" onclick="confirmarImprimirEtiquetaIncompleto()">🖨️ Imprimir</button>
+        <button class="btn-cancelar-mov" type="button" onclick="cerrarModalEtiquetaIncompleto()">No, gracias</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Consulta Rápida de Stock — la MISMA Consulta de Códigos de "Inicio" (comparten el
      motor de cálculo, ver renderConsultaStock), pero como ventana emergente para poder
      abrirla desde Ingresos/Salidas/Traslados/Reservas sin salir de ese formulario. Usa sus
@@ -2428,15 +2479,20 @@ function llenarSelectUbicaciones() {
   // llama cada vez que se cambia entre Ingreso/Salida/Traslado/Reservas (ver
   // seleccionarMovimiento), así que el += aquí era la causa de la demora al cambiar de pantalla.
   const opcionesUbicaciones = todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
+  // En Salida, la ubicación INCOMPLETO no se ofrece (ver esUbicacionIncompleto).
+  const opcionesSalida = todasUbicaciones.filter(u => !esUbicacionIncompleto(u.ubicacion)).map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
   ['movUbicacion','movUbicacionOrigen','movUbicacionDestino'].forEach(id => {
     const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + opcionesUbicaciones;
+    sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + ((id === 'movUbicacion' && tipoMovimientoActual === 'SALIDA') ? opcionesSalida : opcionesUbicaciones);
   });
+  // La ubicación especial RESERVA no se ofrece como filtro en la Consulta: ahí lo reservado se ve
+  // en la columna "Reservado", no como una ubicación más.
+  const opcionesConsulta = todasUbicaciones.filter(u => !esUbicacionReservaSistema(u.ubicacion)).map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
   ['consultaModalUbicacion', 'consultaRapidaUbicacion'].forEach(id => {
     const selConsulta = document.getElementById(id);
     if (!selConsulta) return;
     const valorActual = selConsulta.value;
-    selConsulta.innerHTML = '<option value="">Todas</option>' + opcionesUbicaciones;
+    selConsulta.innerHTML = '<option value="">Todas</option>' + opcionesConsulta;
     selConsulta.value = valorActual;
   });
 }
@@ -3277,12 +3333,21 @@ function renderConsultaStock(ids, mostrarTodo) {
   });
   const filas = [];
   Object.values(porCodigo).forEach(filasDelCodigo => {
-    const conStock = filasDelCodigo.filter(d => d.stock > 0);
+    // Jimmy pidió NO mostrar la fila de la ubicación RESERVA en la Consulta: lo reservado ya se ve
+    // en la columna "Reservado" (y con doble clic el detalle). El Stock Total sigue incluyendo lo
+    // que está en RESERVA, así Total − Reservado = Disponible sigue cuadrando.
+    const visibles = filasDelCodigo.filter(d => !esUbicacionReservaSistema(d.bodega));
+    const conStock = visibles.filter(d => d.stock > 0);
     if (conStock.length > 0) {
       filas.push(...conStock);
-    } else {
+    } else if (visibles.length > 0) {
       // Agotado en todas las ubicaciones coincidentes: una sola línea representativa en 0.
-      filas.push({ ...filasDelCodigo[0], stock: 0 });
+      filas.push({ ...visibles[0], stock: 0 });
+    } else {
+      // Todo lo que tiene este código está en RESERVA: se sigue mostrando el código (con su Stock
+      // Total/Reservado/Disponible), sin la fila de la ubicación RESERVA.
+      const hayEnReserva = filasDelCodigo.some(d => d.stock > 0);
+      filas.push({ ...filasDelCodigo[0], stock: 0, bodega: hayEnReserva ? 'Todo el stock está reservado' : 'Sin stock en ninguna ubicación' });
     }
   });
   filas.sort((a, b) => comparadorConsulta.compare(String(a.codigo), String(b.codigo)) || comparadorConsulta.compare(String(a.bodega), String(b.bodega)));
@@ -3584,6 +3649,7 @@ function validarCamposMovimiento() {
     ubicacion = document.getElementById('movUbicacion').value;
     despacho = document.getElementById('movDespacho').value;
     if (!ubicacion) return { ok: false, mensaje: 'Debe seleccionar una ubicación' };
+    if (esUbicacionIncompleto(ubicacion)) return { ok: false, mensaje: 'No se puede hacer una Salida desde INCOMPLETO. Si necesita moverlo, use un Traslado.' };
     const chequeoStockSalida = validarStockDisponibleParaSacar(codigo, ubicacion, parseFloat(cantidad), indiceEdicionLista);
     if (!chequeoStockSalida.ok) return chequeoStockSalida;
   } else if (tipoMovimientoActual === 'TRASLADO') {
@@ -3858,6 +3924,9 @@ async function registrarListaMovimientos() {
       loteEnviado.forEach(item => {
         movimientosHistorial.push(construirEntradaHistorialEnMemoria(item));
       });
+      // ¿El lote trae algún Traslado HACIA INCOMPLETO? Entonces, al terminar, se ofrece imprimir la
+      // etiqueta "INCOMPLETO" (ver abrirModalEtiquetaIncompleto).
+      const hayTrasladoAIncompleto = loteEnviado.some(it => it.tipo === 'TRASLADO' && esUbicacionIncompleto(it.ubicacionDestino));
       renderResumenMensual();
       // Solo se vacía la lista si sigue siendo la MISMA que se envió; si la persona ya armó otra
       // lista nueva mientras esperaba la respuesta, esa no se toca.
@@ -3885,6 +3954,7 @@ async function registrarListaMovimientos() {
       // termina.
       cargarDatos().then(function() { try { filtrarConsultaModal(); } catch (e) {} }).catch(function() {});
       if (datosReservaParaEtiqueta) abrirModalEtiquetaReserva(datosReservaParaEtiqueta);
+      if (hayTrasladoAIncompleto) abrirModalEtiquetaIncompleto();
     } else {
       alert('No se pudo registrar el lote de movimientos:\n' + (result.mensaje || 'Error desconocido') + '\nLos movimientos quedan en la lista para reintentar.');
     }
@@ -3936,6 +4006,13 @@ function normalizarClaveUbicacion(valor) {
 // consultas/reportes (ahí sí conviene verla, para saber cuánto hay reservado).
 function esUbicacionReservaSistema(ubicacion) {
   return normalizarClaveUbicacion(ubicacion) === 'RESERVA';
+}
+
+// "INCOMPLETO" es la ubicación donde se deja el equipo al que se le sacó una parte. Jimmy pidió
+// que NO se pueda elegir en una Salida (para no sacar por error un equipo incompleto), pero que
+// sí se vea en Traslados (origen y destino) y en la Consulta.
+function esUbicacionIncompleto(ubicacion) {
+  return normalizarClaveUbicacion(ubicacion) === 'INCOMPLETO';
 }
 
 // La hoja UBICACIONES marca una bodega como "PRIMARIA"; cualquier otro valor (o vacío) cuenta
@@ -4000,7 +4077,7 @@ function seleccionarCodigo(codigo, descripcion) {
     // misma bodega — sin esto la ubicación aparecía repetida en la lista, y el autorrelleno de
     // más abajo fallaba porque "hay exactamente 1 bodega con stock" dejaba de cumplirse aunque
     // en realidad solo hubiera una bodega real.
-    const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0 && !esUbicacionReservaSistema(d.bodega)).map(d => d.bodega))];
+    const ubicacionesConStock = [...new Set(datosInventario.filter(d => d.codigo === codigo && d.stock > 0 && !esUbicacionReservaSistema(d.bodega) && !(tipoMovimientoActual === 'SALIDA' && esUbicacionIncompleto(d.bodega))).map(d => d.bodega))];
     const selId = tipoMovimientoActual === 'TRASLADO' ? 'movUbicacionOrigen' : 'movUbicacion';
     const sel = document.getElementById(selId);
     if (ubicacionesConStock.length > 0) {
@@ -4029,7 +4106,7 @@ function seleccionarCodigo(codigo, descripcion) {
         }
       }
     } else {
-      sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
+      sel.innerHTML = '<option value="">Seleccione ubicación...</option>' + todasUbicaciones.filter(u => !(tipoMovimientoActual === 'SALIDA' && esUbicacionIncompleto(u.ubicacion))).map(u => `<option value="${u.ubicacion}">${u.ubicacion}</option>`).join('');
     }
     if (tipoMovimientoActual === 'TRASLADO') {
       // "Ubicación Destino": NO se restringe la lista (puede ser cualquier bodega, incluso una
@@ -7140,6 +7217,77 @@ function imprimirEtiquetaReserva(copias, datos) {
   imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
 }
 
+// ── Etiqueta INCOMPLETO (100mm x 100mm) ──
+// Se ofrece al terminar de registrar un lote que trae un Traslado hacia la ubicación INCOMPLETO.
+// El contenido a mano es "FALTA:" (código o parte que se sacó del equipo). La fecha es SIEMPRE la
+// del día en que se imprime, y "Hecho por" arranca con el usuario que inició sesión pero se puede
+// cambiar (también se puede elegir de la lista de responsables).
+function fechaHoyTextoEtiqueta() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+}
+
+function abrirModalEtiquetaIncompleto() {
+  document.getElementById('etiquetaIncompletoFecha').value = fechaHoyTextoEtiqueta();
+  document.getElementById('etiquetaIncompletoHechoPor').value = (usuarioActivo && usuarioActivo.nombre) || '';
+  document.getElementById('etiquetaIncompletoCopias').value = '1';
+  const dl = document.getElementById('listaHechoPorIncompleto');
+  const selResp = document.getElementById('movResponsable');
+  const nombres = selResp ? [...selResp.options].map(o => o.value).filter(v => v) : [];
+  dl.innerHTML = nombres.map(n => `<option value="${String(n).replace(/"/g, '&quot;')}"></option>`).join('');
+  document.getElementById('modalEtiquetaIncompleto').classList.add('visible');
+}
+
+function cerrarModalEtiquetaIncompleto() {
+  document.getElementById('modalEtiquetaIncompleto').classList.remove('visible');
+}
+
+function confirmarImprimirEtiquetaIncompleto() {
+  const copias = parseInt(document.getElementById('etiquetaIncompletoCopias').value, 10);
+  if (!copias || copias <= 0) { alert('La cantidad de copias debe ser un número válido.'); return; }
+  const hechoPor = document.getElementById('etiquetaIncompletoHechoPor').value.trim();
+  cerrarModalEtiquetaIncompleto();
+  imprimirEtiquetaIncompleto(copias, hechoPor);
+}
+
+function imprimirEtiquetaIncompleto(copias, hechoPor) {
+  // La fecha se toma AQUÍ, al imprimir (no al abrir el cuadro), para que sea la del día de impresión.
+  const fechaTexto = fechaHoyTextoEtiqueta();
+  const nombre = String(hechoPor || '').toUpperCase().replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let html = '';
+  for (let n = 1; n <= copias; n++) {
+    html += `
+      <div class="etqinc-label">
+        <div class="etqinc-titulo">INCOMPLETO</div>
+        <div class="etqinc-falta">
+          <div class="etqinc-falta-fila"><span class="etqinc-falta-txt">FALTA:</span><span class="etqinc-linea"></span></div>
+          <div class="etqinc-falta-fila etqinc-sangria"><span class="etqinc-linea"></span></div>
+          <div class="etqinc-falta-fila etqinc-sangria"><span class="etqinc-linea"></span></div>
+        </div>
+        <div class="etqinc-pie"><span>FECHA:</span><span class="etqinc-pie-valor">${fechaTexto}</span></div>
+        <div class="etqinc-pie"><span>HECHO POR:</span><span class="etqinc-pie-valor etqinc-hechopor"><span class="etqinc-hechopor-txt">${nombre}</span></span></div>
+      </div>`;
+  }
+  const printArea = document.getElementById('printAreaEtiqueta');
+  printArea.innerHTML = html;
+
+  document.querySelectorAll('#estiloPaginaEtiqueta').forEach(el => el.remove());
+  const estiloPagina = document.createElement('style');
+  estiloPagina.id = 'estiloPaginaEtiqueta';
+  estiloPagina.textContent = '@page { size: 100mm 100mm; margin: 0; }';
+  document.head.appendChild(estiloPagina);
+
+  ocultarTodasLasAreasDeImpresion();
+  printArea.style.display = 'block';
+
+  // Un nombre largo se achica para que quepa en su renglón, en vez de cortarse.
+  printArea.querySelectorAll('.etqinc-hechopor').forEach(fila => {
+    ajustarFuenteFilaReserva(fila, fila.querySelector('.etqinc-hechopor-txt'), 22, 9);
+  });
+
+  imprimirYLimpiarCuandoTermine(printArea, estiloPagina, true, null);
+}
+
 // ── Imprimir Hoja de Reserva (hoja completa tamaño carta/A4, NO la etiqueta de 100x150mm) ──
 // Jimmy pidió poder entrar a una reserva ya guardada (en "Aplicar Reservas", eligiendo su N°
 // de Documento de la lista de arriba) e imprimir una hoja con el detalle completo: los mismos
@@ -7206,7 +7354,7 @@ function imprimirHojaReserva() {
     'imprimirSolicitud', 'imprimirPedidoBodega',
     'imprimirEtiquetas', 'imprimirEtiquetaCodigo50', 'imprimirEtiquetaRuta', 'imprimirEtiquetaRack',
     'imprimirExistencias', 'imprimirReporte', 'imprimirEtiquetaReceta', 'imprimirEtiquetaReserva',
-    'imprimirConteoCiclico', 'imprimirHojaReserva'
+    'imprimirConteoCiclico', 'imprimirHojaReserva', 'imprimirEtiquetaIncompleto'
   ];
   nombresFunciones.forEach(nombre => {
     const original = window[nombre];
