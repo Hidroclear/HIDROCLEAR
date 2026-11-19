@@ -891,6 +891,7 @@
     </div>
     <button class="sb-item hidden" id="btnImportarCodigos" onclick="mostrarSeccion('importarcodigos', this)"><span class="ic">📥</span> Importar Códigos</button>
     <button class="sb-item hidden" id="btnUsuariosAdmin" onclick="mostrarSeccion('usuarios', this)"><span class="ic">👥</span> Usuarios</button>
+    <button class="sb-item hidden" id="btnCambiarCodigo" onclick="mostrarSeccion('cambiarcodigo', this)"><span class="ic">🔁</span> Cambiar código</button>
     <div class="sb-section-label">Solicitudes</div>
     <button class="sb-item hidden" id="btnPedidos" onclick="mostrarSeccion('pedidos', this)"><span class="ic">🛒</span> Solicitud de Materiales</button>
     <button class="sb-item hidden" id="btnPendientes" onclick="mostrarSeccion('pendientes', this)"><span class="ic">📬</span> Pedidos Pendientes</button>
@@ -1172,6 +1173,28 @@
         <table class="usr-tabla"><thead id="usrThead"></thead><tbody id="usrTbody"></tbody></table>
       </div>
       <div class="impcod-msg" id="usrMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SECCIÓN CAMBIAR CÓDIGO (solo administrador): cuando un producto cambia de numeración, pasa TODO el
+     historial, existencias, reservas, pedidos y recetas del código viejo al nuevo. Ver renombrarCodigo en el .gs -->
+<div id="seccionCambiarCodigo" class="hidden">
+  <div class="impcod-wrap">
+    <div class="impcod-card">
+      <div class="pendientes-titulo" style="margin-bottom:8px">🔁 Cambiar código</div>
+      <div class="impcod-ayuda">Use esto cuando un producto cambió de numeración y quiere conservar su historial. El código viejo se cambia por el nuevo en existencias, catálogo, historial de movimientos, reservas, pedidos y recetas, y el historial queda unido bajo el código nuevo. Si el código nuevo ya existe, se unen: el stock se suma en la misma ubicación. Primero se muestra un resumen para que confirme; no se cambia nada hasta que usted lo confirme.</div>
+      <div class="form-field" style="margin-bottom:12px"><label>Código viejo (el que tiene el historial)</label><input type="text" id="ccViejo" maxlength="60" autocomplete="off" spellcheck="false" style="text-transform:uppercase" oninput="reiniciarCambiarCodigo(true)"></div>
+      <div class="form-field" style="margin-bottom:12px"><label>Código nuevo</label><input type="text" id="ccNuevo" maxlength="60" autocomplete="off" spellcheck="false" style="text-transform:uppercase" oninput="reiniciarCambiarCodigo(true)"></div>
+      <div class="impcod-acciones" style="margin-top:0">
+        <button class="btn-registrar" type="button" id="btnCcRevisar" onclick="revisarCambioCodigo()">🔍 Revisar cambio</button>
+      </div>
+      <div id="ccResumen" class="hidden" style="margin-top:14px"></div>
+      <div class="impcod-acciones hidden" id="ccConfirmarFila">
+        <button class="btn-registrar" type="button" id="btnCcConfirmar" onclick="confirmarCambioCodigo()">✅ Confirmar y cambiar código</button>
+        <button class="btn-limpiar" type="button" onclick="reiniciarCambiarCodigo()">Cancelar</button>
+      </div>
+      <div class="impcod-msg" id="ccMsg"></div>
     </div>
   </div>
 </div>
@@ -2190,6 +2213,7 @@ function mostrarApp() {
     document.getElementById('btnReportes').classList.remove('hidden');
     document.getElementById('btnImportarCodigos').classList.remove('hidden');
     document.getElementById('btnUsuariosAdmin').classList.remove('hidden');
+    document.getElementById('btnCambiarCodigo').classList.remove('hidden');
     document.getElementById('btnEditarReceta').classList.remove('hidden');
     document.getElementById('btnNuevaReceta').classList.remove('hidden');
     // Antes esto solo se pedía hasta que el usuario entraba a Movimientos, así que la
@@ -2263,6 +2287,7 @@ const TITULOS_SECCION = {
   reportes:    ['HidroClear / Reportes',     'Reportes'],
   importarcodigos: ['HidroClear / Operación', 'Importar Códigos'],
   usuarios:    ['HidroClear / Administración', 'Usuarios'],
+  cambiarcodigo: ['HidroClear / Administración', 'Cambiar código'],
   pedidos:     ['HidroClear / Solicitudes',  'Solicitud de Materiales'],
   pendientes:  ['HidroClear / Solicitudes',  'Pedidos Pendientes']
 };
@@ -2280,6 +2305,7 @@ function mostrarSeccion(seccion, el) {
   document.getElementById('seccionReportes').classList.add('hidden');
   document.getElementById('seccionImportarCodigos').classList.add('hidden');
   document.getElementById('seccionUsuarios').classList.add('hidden');
+  document.getElementById('seccionCambiarCodigo').classList.add('hidden');
 
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('activo'));
   if (el) el.classList.add('activo');
@@ -2309,6 +2335,9 @@ function mostrarSeccion(seccion, el) {
   } else if (seccion === 'pedidos') {
     document.getElementById('seccionPedidos').classList.remove('hidden');
     inicializarPedidos();
+  } else if (seccion === 'cambiarcodigo') {
+    document.getElementById('seccionCambiarCodigo').classList.remove('hidden');
+    reiniciarCambiarCodigo();
   } else if (seccion === 'usuarios') {
     document.getElementById('seccionUsuarios').classList.remove('hidden');
     cargarUsuariosAdmin();
@@ -4492,6 +4521,118 @@ async function confirmarImportarCodigos() {
     btn.disabled = false;
     btn.textContent = '✅ Agregar ' + importarCodigosNuevos.length + (importarCodigosNuevos.length === 1 ? ' código nuevo' : ' códigos nuevos');
   }
+}
+
+// ═══════════════════════════════════════
+// CAMBIAR CÓDIGO (solo administrador): ver renombrarCodigo en Code_actualizado.gs
+// ═══════════════════════════════════════
+let ccResumenActual = null; // resumen que el administrador está viendo para confirmar
+let ccEnCurso = false;
+
+function mensajeCambiarCodigo(texto, esError) {
+  const el = document.getElementById('ccMsg');
+  el.textContent = texto || '';
+  el.className = 'impcod-msg ' + (esError ? 'usr-msg-err' : 'usr-msg-ok');
+}
+
+// soloResumen = true: el usuario siguió escribiendo, el resumen mostrado ya no vale (se oculta,
+// pero se conservan los códigos escritos y el mensaje de éxito/error se limpia).
+function reiniciarCambiarCodigo(soloResumen) {
+  if (ccEnCurso) return;
+  ccResumenActual = null;
+  document.getElementById('ccResumen').classList.add('hidden');
+  document.getElementById('ccResumen').innerHTML = '';
+  document.getElementById('ccConfirmarFila').classList.add('hidden');
+  if (!soloResumen) {
+    document.getElementById('ccViejo').value = '';
+    document.getElementById('ccNuevo').value = '';
+  }
+  mensajeCambiarCodigo('', false);
+}
+
+function leerCodigosCambioCodigo() {
+  return {
+    viejo: document.getElementById('ccViejo').value.trim().toUpperCase(),
+    nuevo: document.getElementById('ccNuevo').value.trim().toUpperCase()
+  };
+}
+
+async function enviarCambioCodigo(viejo, nuevo, soloVista) {
+  const resp = await fetch(GS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: cuerpoConToken({ tipo_peticion: 'RENOMBRAR_CODIGO', codigo_viejo: viejo, codigo_nuevo: nuevo, solo_vista_previa: !!soloVista })
+  });
+  return leerRespuestaBackend(resp);
+}
+
+async function revisarCambioCodigo() {
+  if (ccEnCurso) return;
+  const { viejo, nuevo } = leerCodigosCambioCodigo();
+  reiniciarCambiarCodigo(true);
+  if (!viejo || !nuevo) { mensajeCambiarCodigo('Escriba el código viejo y el código nuevo.', true); return; }
+  if (viejo === nuevo) { mensajeCambiarCodigo('El código viejo y el nuevo son iguales.', true); return; }
+  const btn = document.getElementById('btnCcRevisar');
+  ccEnCurso = true; btn.disabled = true; btn.textContent = 'Revisando...';
+  try {
+    const result = await enviarCambioCodigo(viejo, nuevo, true);
+    if (result.status !== 'ok') { mensajeCambiarCodigo(result.mensaje || 'No se pudo revisar.', true); }
+    else {
+      ccResumenActual = result.resumen;
+      pintarResumenCambioCodigo(result.resumen);
+      document.getElementById('ccConfirmarFila').classList.remove('hidden');
+    }
+  } catch (err) {
+    mensajeCambiarCodigo('Error de conexión: ' + err.message, true);
+  }
+  ccEnCurso = false; btn.disabled = false; btn.textContent = '🔍 Revisar cambio';
+}
+
+function pintarResumenCambioCodigo(r) {
+  const e = escHtmlUsr;
+  const fila = (nombre, n) => `<tr><td>${nombre}</td><td style="text-align:right;font-weight:700">${n}</td></tr>`;
+  let html = `<div style="margin-bottom:8px"><b>${e(r.codigo_viejo)}</b>${r.descripcion_vieja ? ' — ' + e(r.descripcion_vieja) : ''}<br>pasará a ser<br><b>${e(r.codigo_nuevo)}</b>${r.descripcion_nueva ? ' — ' + e(r.descripcion_nueva) : ''}</div>`;
+  html += '<table class="usr-tabla" style="max-width:420px"><thead><tr><th>Dónde se cambia</th><th style="text-align:right">Registros</th></tr></thead><tbody>'
+    + fila('Existencias (stock por ubicación)', r.existencias) + fila('Catálogo de códigos', r.catalogo)
+    + fila('Historial de movimientos', r.historial) + fila('Reservas', r.reservas)
+    + fila('Pedidos (solicitud de materiales)', r.pedidos) + fila('Recetas', r.recetas) + '</tbody></table>';
+  if (r.nuevo_ya_existe) {
+    html += `<div style="margin-top:10px;color:#9a6700">⚠️ El código nuevo ya existe${r.nuevo_tiene_historial ? ' y ya tiene ' + r.nuevo_tiene_historial + ' movimiento(s) en el historial' : ''}. Se van a <b>unir</b>: el stock se suma en la misma ubicación y el catálogo conserva la descripción del código nuevo.</div>`;
+  }
+  html += '<div style="margin-top:10px;color:#555">Este cambio reescribe el código en el historial y no tiene botón de deshacer. Queda anotado en la hoja CAMBIOS_CODIGO del Google Sheets.</div>';
+  const cont = document.getElementById('ccResumen');
+  cont.innerHTML = html;
+  cont.classList.remove('hidden');
+}
+
+async function confirmarCambioCodigo() {
+  if (ccEnCurso || !ccResumenActual) return;
+  const { viejo, nuevo } = leerCodigosCambioCodigo();
+  // Si cambiaron los códigos después de revisar, hay que revisar de nuevo (nunca se confirma algo distinto a lo mostrado).
+  if (viejo !== ccResumenActual.codigo_viejo || nuevo !== ccResumenActual.codigo_nuevo) { reiniciarCambiarCodigo(true); mensajeCambiarCodigo('Los códigos cambiaron: vuelva a presionar "Revisar cambio".', true); return; }
+  const btn = document.getElementById('btnCcConfirmar');
+  ccEnCurso = true; btn.disabled = true; btn.textContent = 'Cambiando...';
+  mensajeCambiarCodigo('', false);
+  try {
+    const result = await enviarCambioCodigo(viejo, nuevo, false);
+    if (result.status === 'ok') {
+      ccEnCurso = false;
+      document.getElementById('ccConfirmarFila').classList.add('hidden');
+      document.getElementById('ccResumen').classList.add('hidden');
+      document.getElementById('ccViejo').value = ''; document.getElementById('ccNuevo').value = '';
+      ccResumenActual = null;
+      mensajeCambiarCodigo('✅ Listo: ' + viejo + ' ahora es ' + nuevo + '. El historial, las existencias y lo demás ya quedaron bajo el código nuevo.', false);
+      // Lo que la app tenía en memoria con el código viejo ya no vale: se vuelve a pedir.
+      datosReportesCargados = false; reportesCargaPromise = null; movimientosHistorial = [];
+      datosRecetasCargados = false; recetasCargaPromise = null;
+      try { cargarDatos(); } catch (e2) {}
+    } else {
+      mensajeCambiarCodigo(result.mensaje || 'No se pudo cambiar el código.', true);
+    }
+  } catch (err) {
+    mensajeCambiarCodigo('Error de conexión: ' + err.message + '. Antes de intentar de nuevo, presione "Revisar cambio" para ver si el cambio ya se aplicó.', true);
+  }
+  ccEnCurso = false; btn.disabled = false; btn.textContent = '✅ Confirmar y cambiar código';
 }
 
 // ═══════════════════════════════════════
